@@ -84,25 +84,40 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Database Context
-var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost";
-var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "3306";
-var dbDatabase = Environment.GetEnvironmentVariable("DB_DATABASE") ?? "dhbw_automation";
-var dbUsername = Environment.GetEnvironmentVariable("DB_USERNAME") ?? "dhbw_user";
-var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "dhbw_password";
-
-var connectionString = $"Server={dbHost};Port={dbPort};Database={dbDatabase};User={dbUsername};Password={dbPassword};";
+var dbProvider = Environment.GetEnvironmentVariable("DB_PROVIDER") ?? "sqlite";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(
-        connectionString,
-        ServerVersion.AutoDetect(connectionString),
-        mySqlOptions => mySqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,
-            maxRetryDelay: TimeSpan.FromSeconds(10),
-            errorNumbersToAdd: null
-        )
-    )
-);
+{
+    if (dbProvider.ToLower() == "sqlite")
+    {
+        // SQLite für lokale Entwicklung
+        var dbPath = Environment.GetEnvironmentVariable("SQLITE_DB_PATH") ?? "dhbw_automation.db";
+        options.UseSqlite($"Data Source={dbPath}");
+        Console.WriteLine($"📦 Using SQLite Database: {dbPath}");
+    }
+    else
+    {
+        // MariaDB/MySQL für Docker/Production
+        var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost";
+        var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "3306";
+        var dbDatabase = Environment.GetEnvironmentVariable("DB_DATABASE") ?? "dhbw_automation";
+        var dbUsername = Environment.GetEnvironmentVariable("DB_USERNAME") ?? "dhbw_user";
+        var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "dhbw_password";
+
+        var connectionString = $"Server={dbHost};Port={dbPort};Database={dbDatabase};User={dbUsername};Password={dbPassword};";
+
+        options.UseMySql(
+            connectionString,
+            ServerVersion.AutoDetect(connectionString),
+            mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorNumbersToAdd: null
+            )
+        );
+        Console.WriteLine($"📦 Using MariaDB Database: {dbHost}:{dbPort}/{dbDatabase}");
+    }
+});
 
 // Redis Cache
 builder.Services.AddStackExchangeRedisCache(options =>
@@ -199,22 +214,31 @@ app.MapGet("/", () => Results.Ok(new
 }));
 
 // =============================================================================
-// Database Migration (Development only)
+// Database Initialization
 // =============================================================================
 
-if (app.Environment.IsDevelopment())
+using (var scope = app.Services.CreateScope())
 {
-    using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    
+
     try
     {
-        await dbContext.Database.MigrateAsync();
-        Console.WriteLine("✅ Database migration completed successfully");
+        // Für SQLite: Erstelle Datenbank automatisch
+        if (dbProvider.ToLower() == "sqlite")
+        {
+            dbContext.Database.EnsureCreated();
+            Console.WriteLine("✅ SQLite Database created/verified successfully");
+        }
+        else
+        {
+            // Für MariaDB: Verwende Migrationen
+            await dbContext.Database.MigrateAsync();
+            Console.WriteLine("✅ Database migration completed successfully");
+        }
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"❌ Database migration failed: {ex.Message}");
+        Console.WriteLine($"❌ Database initialization failed: {ex.Message}");
     }
 }
 

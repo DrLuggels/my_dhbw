@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(docker-compose ps:*)",
+      "Bash(dotnet run)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(dotnet restore:*)",
+      "Bash(dotnet ef migrations add:*)",
+      "Bash(dotnet tool install:*)",
+      "Bash(taskkill:*)"
     ]
   }
 }
