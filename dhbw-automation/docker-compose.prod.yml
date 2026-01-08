@@ -203,7 +203,7 @@ services:
     container_name: dhbw-phpmyadmin
     restart: unless-stopped
     ports:
-      - "8081:80"
+      - "8082:80"
     environment:
       PMA_HOST: mariadb
       PMA_PORT: 3306
