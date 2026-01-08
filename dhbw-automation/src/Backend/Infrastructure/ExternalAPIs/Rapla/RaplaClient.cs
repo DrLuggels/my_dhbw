@@ -38,10 +38,15 @@ public class RaplaClient
     /// <summary>
     /// Baut die Rapla iCalendar-URL
     /// Format: https://rapla-ravensburg.dhbw.de/rapla?page=ical&user=USERNAME&file=FILENAME
+    /// Hinweis: Der Rapla-Server erwartet + für Leerzeichen, daher keine vollständige URI-Kodierung
     /// </summary>
     private string BuildRaplaUrl()
     {
-        return $"{_baseUrl}?page=ical&user={Uri.EscapeDataString(_raplaUser)}&file={Uri.EscapeDataString(_raplaFile)}";
+        // Rapla erwartet + für Leerzeichen in den Parametern
+        // Uri.EscapeDataString würde + zu %2B konvertieren, was der Server nicht akzeptiert
+        var userParam = _raplaUser.Replace(" ", "+");
+        var fileParam = _raplaFile.Replace(" ", "+");
+        return $"{_baseUrl}?page=ical&user={userParam}&file={fileParam}";
     }
 
     /// <summary>

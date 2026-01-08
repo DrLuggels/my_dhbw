@@ -28,6 +28,10 @@
           <v-card-text>
             <div class="text-h2">{{ stats.events }}</div>
             <p>Anstehende Events</p>
+            <v-btn color="primary" to="/calendar" variant="outlined" class="mt-2" block>
+              <v-icon left>mdi-calendar</v-icon>
+              Kalender öffnen
+            </v-btn>
           </v-card-text>
         </v-card>
       </v-col>
@@ -148,12 +152,12 @@ const testRapla = async () => {
 
 const loadStats = async () => {
   if (!authStore.user?.id) return
-  
+
   try {
     // Lade Kalenderevents
     const eventsResponse = await api.getUserEvents(authStore.user.id)
-    if (eventsResponse.success) {
-      stats.value.events = eventsResponse.count
+    if (eventsResponse.success && Array.isArray(eventsResponse.data)) {
+      stats.value.events = eventsResponse.data.length
     }
   } catch (error) {
     console.error('Error loading stats:', error)

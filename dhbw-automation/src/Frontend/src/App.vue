@@ -3,7 +3,7 @@
     <v-app-bar app color="primary" dark>
       <v-app-bar-title>DHBW Study Automation</v-app-bar-title>
       <v-spacer></v-spacer>
-      <v-btn icon>
+      <v-btn icon to="/profile">
         <v-icon>mdi-account</v-icon>
       </v-btn>
     </v-app-bar>

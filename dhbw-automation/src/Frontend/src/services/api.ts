@@ -124,6 +124,11 @@ class ApiService {
     return response.data
   }
 
+  async updateEventNotes(eventId: number, notes: string) {
+    const response = await this.api.patch(`/calendar/${eventId}/notes`, { notes })
+    return response.data
+  }
+
   // Health Check
   async healthCheck() {
     const response = await this.api.get('/health')

@@ -271,6 +271,53 @@ public class CalendarController : ControllerBase
             });
         }
     }
+
+    /// <summary>
+    /// Aktualisiert die Notizen eines Events
+    /// </summary>
+    [HttpPatch("{eventId}/notes")]
+    public async Task<IActionResult> UpdateEventNotes(int eventId, [FromBody] UpdateNotesRequest request)
+    {
+        try
+        {
+            var calendarEvent = await _context.CalendarEvents.FindAsync(eventId);
+
+            if (calendarEvent == null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    data = (object?)null,
+                    message = "Event nicht gefunden",
+                    errors = new[] { "Event existiert nicht" }
+                });
+            }
+
+            calendarEvent.Notes = request.Notes;
+            calendarEvent.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                success = true,
+                data = calendarEvent,
+                message = "Notizen erfolgreich aktualisiert",
+                errors = (string[]?)null
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fehler beim Aktualisieren der Notizen");
+            return StatusCode(500, new
+            {
+                success = false,
+                data = (object?)null,
+                message = "Fehler beim Aktualisieren der Notizen",
+                errors = new[] { ex.Message }
+            });
+        }
+    }
 }
 
 // Request DTOs
@@ -283,4 +330,9 @@ public class CreateEventRequest
     public DateTime EndTime { get; set; }
     public string? Location { get; set; }
     public string? Source { get; set; }
+}
+
+public class UpdateNotesRequest
+{
+    public string? Notes { get; set; }
 }

@@ -9,7 +9,8 @@
       "Bash(dotnet restore:*)",
       "Bash(dotnet ef migrations add:*)",
       "Bash(dotnet tool install:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(timeout /t 5 /nobreak)"
     ]
   }
 }
