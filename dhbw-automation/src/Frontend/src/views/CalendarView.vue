@@ -105,7 +105,7 @@
                   :items-per-page="25"
                   class="elevation-1"
                   hover
-                  @click:row="(_, { item }) => openEventDetails(item)"
+                  @click:row="(_event: any, { item }: any) => openEventDetails(item)"
                 >
                   <template v-slot:item.startTime="{ item }">
                     {{ formatDateTime(item.startTime) }}

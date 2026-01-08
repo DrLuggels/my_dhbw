@@ -49,7 +49,7 @@ const router = createRouter({
 })
 
 // Navigation Guard für Authentication
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem('authToken')
 
   if (to.meta.requiresAuth && !token) {

@@ -262,14 +262,6 @@
                 <v-list-item-subtitle>{{ authStore.user?.email }}</v-list-item-subtitle>
               </v-list-item>
 
-              <v-list-item>
-                <template v-slot:prepend>
-                  <v-icon>mdi-calendar</v-icon>
-                </template>
-                <v-list-item-title>Mitglied seit</v-list-item-title>
-                <v-list-item-subtitle>{{ formatDate(authStore.user?.createdAt) }}</v-list-item-subtitle>
-              </v-list-item>
-
               <v-divider class="my-3"></v-divider>
 
               <v-list-item>
