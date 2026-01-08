@@ -110,7 +110,7 @@ var dbDatabase = Environment.GetEnvironmentVariable("DB_DATABASE") ?? "dhbw_auto
 var dbUsername = Environment.GetEnvironmentVariable("DB_USERNAME") ?? "dhbw_user";
 var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "dhbw_password";
 
-var connectionString = $"Server={dbHost};Port={dbPort};Database={dbDatabase};User={dbUsername};Password={dbPassword};";
+var connectionString = $"Server={dbHost};Port={dbPort};Database={dbDatabase};User={dbUsername};Password={dbPassword};SslMode=None;";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
