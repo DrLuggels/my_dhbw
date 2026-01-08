@@ -4,6 +4,7 @@ using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using DHBWAutomation.Infrastructure.Database;
 using DHBWAutomation.Core.Interfaces;
 using DHBWAutomation.Infrastructure.Services;
+using DHBWAutomation.Infrastructure.Storage;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
