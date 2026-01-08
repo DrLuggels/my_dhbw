@@ -1,7 +1,7 @@
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
-namespace DHBWAutomation.API;
+namespace DHBWAutomation.API.Controllers;
 
 public class SwaggerFileOperationFilter : IOperationFilter
 {
