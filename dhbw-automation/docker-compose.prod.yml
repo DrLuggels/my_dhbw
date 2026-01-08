@@ -143,7 +143,7 @@ services:
       - "5001:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__DefaultConnection=Server=mariadb;Port=3306;Database=dhbw_automation;User=dhbw_user;Password=${MARIADB_PASSWORD:-dhbw_password};
+      - ConnectionStrings__DefaultConnection=Server=mariadb;Port=3306;Database=dhbw_automation;User=dhbw_user;Password=${MARIADB_PASSWORD:-dhbw_password};SslMode=None;
       - Redis__Host=redis
       - Redis__Port=6379
       - RabbitMQ__Host=rabbitmq
