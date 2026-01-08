@@ -35,11 +35,11 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await api.login(email, password)
 
       if (response.success) {
-        token.value = response.token
-        user.value = response.user
+        token.value = response.data.token
+        user.value = response.data.user
 
-        localStorage.setItem('authToken', response.token)
-        localStorage.setItem('user', JSON.stringify(response.user))
+        localStorage.setItem('authToken', response.data.token)
+        localStorage.setItem('user', JSON.stringify(response.data.user))
 
         return true
       } else {
