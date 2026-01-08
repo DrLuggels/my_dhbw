@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using DHBWAutomation.Backend.Infrastructure.Database;
 using DHBWAutomation.Backend.Core.Models;
+using DHBWAutomation.Backend.Core.Services;
 
 namespace DHBWAutomation.Backend.API.Controllers;
 
@@ -9,11 +10,16 @@ namespace DHBWAutomation.Backend.API.Controllers;
 public class CalendarController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly IRaplaService _raplaService;
     private readonly ILogger<CalendarController> _logger;
 
-    public CalendarController(AppDbContext context, ILogger<CalendarController> logger)
+    public CalendarController(
+        AppDbContext context,
+        IRaplaService raplaService,
+        ILogger<CalendarController> logger)
     {
         _context = context;
+        _raplaService = raplaService;
         _logger = logger;
     }
 
@@ -71,20 +77,19 @@ public class CalendarController : ControllerBase
     {
         try
         {
-            // TODO: Implementiere Rapla-Sync
             _logger.LogInformation($"Rapla-Sync für User {userId} angefordert");
 
-            await Task.Delay(100); // Simuliere async operation
+            var syncedCount = await _raplaService.SyncCalendarAsync(userId);
 
             return Ok(new
             {
                 success = true,
                 data = new
                 {
-                    syncedEvents = 0,
-                    message = "Rapla-Synchronisation noch nicht implementiert"
+                    syncedEvents = syncedCount,
+                    message = $"Successfully synced {syncedCount} events from Rapla"
                 },
-                message = "Rapla-Sync wird später implementiert",
+                message = $"Rapla-Sync erfolgreich. {syncedCount} Events synchronisiert.",
                 errors = (string[]?)null
             });
         }
@@ -109,25 +114,16 @@ public class CalendarController : ControllerBase
     {
         try
         {
-            // TODO: Implementiere Rapla-Verbindungstest
             _logger.LogInformation("Rapla-Verbindungstest angefordert");
 
-            await Task.Delay(100); // Simuliere async operation
-
-            var raplaUrl = Environment.GetEnvironmentVariable("RAPLA_BASE_URL")
-                          ?? "https://rapla-ravensburg.dhbw.de/rapla";
+            var testResult = await _raplaService.TestConnectionAsync();
 
             return Ok(new
             {
-                success = true,
-                data = new
-                {
-                    connected = false,
-                    url = raplaUrl,
-                    message = "Rapla-Integration noch nicht vollständig implementiert"
-                },
-                message = "Rapla-Test erfolgreich (Stub)",
-                errors = (string[]?)null
+                success = testResult.IsConnected,
+                data = testResult,
+                message = testResult.Message,
+                errors = testResult.IsConnected ? null : new[] { testResult.Message }
             });
         }
         catch (Exception ex)

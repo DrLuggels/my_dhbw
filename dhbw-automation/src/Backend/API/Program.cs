@@ -4,6 +4,7 @@ using DHBWAutomation.Backend.Infrastructure.Database;
 using DHBWAutomation.Backend.Core.Interfaces;
 using DHBWAutomation.Backend.Core.Services;
 using DHBWAutomation.Backend.Infrastructure.Storage;
+using DHBWAutomation.Backend.Infrastructure.ExternalAPIs.Rapla;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -136,6 +137,10 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IAIService, AIService>();
 builder.Services.AddScoped<IStorageService, MinIOStorageService>();
+builder.Services.AddScoped<IRaplaService, RaplaService>();
+
+// Rapla Client
+builder.Services.AddHttpClient<RaplaClient>();
 
 // Background Workers
 // TODO: Background Workers implementieren
