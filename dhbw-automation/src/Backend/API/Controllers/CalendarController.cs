@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using DHBWAutomation.Backend.Infrastructure.Database;
 using DHBWAutomation.Backend.Core.Models;
 using DHBWAutomation.Backend.Core.Services;
+using DHBWAutomation.Backend.Core.Interfaces;
 
 namespace DHBWAutomation.Backend.API.Controllers;
 
@@ -11,15 +12,18 @@ public class CalendarController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IRaplaService _raplaService;
+    private readonly IGoogleCalendarService? _googleCalendarService;
     private readonly ILogger<CalendarController> _logger;
 
     public CalendarController(
         AppDbContext context,
         IRaplaService raplaService,
-        ILogger<CalendarController> logger)
+        ILogger<CalendarController> logger,
+        IGoogleCalendarService? googleCalendarService = null)
     {
         _context = context;
         _raplaService = raplaService;
+        _googleCalendarService = googleCalendarService;
         _logger = logger;
     }
 
@@ -314,6 +318,254 @@ public class CalendarController : ControllerBase
                 success = false,
                 data = (object?)null,
                 message = "Fehler beim Aktualisieren der Notizen",
+                errors = new[] { ex.Message }
+            });
+        }
+    }
+
+    // ==================== Google Calendar Integration ====================
+
+    /// <summary>
+    /// Startet die Google Calendar Autorisierung
+    /// </summary>
+    [HttpGet("google/authorize/{userId}")]
+    public async Task<IActionResult> AuthorizeGoogle(int userId)
+    {
+        try
+        {
+            if (_googleCalendarService == null)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Google Calendar Service ist nicht konfiguriert",
+                    errors = new[] { "Service nicht verfügbar" }
+                });
+            }
+
+            var authUrl = await _googleCalendarService.GetAuthorizationUrlAsync(userId);
+
+            return Ok(new
+            {
+                success = true,
+                data = new { authorizationUrl = authUrl },
+                message = "Bitte öffne die URL zur Autorisierung",
+                errors = (string[]?)null
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fehler bei Google Authorization");
+            return StatusCode(500, new
+            {
+                success = false,
+                message = "Fehler bei Google Authorization",
+                errors = new[] { ex.Message }
+            });
+        }
+    }
+
+    /// <summary>
+    /// Callback für Google OAuth
+    /// </summary>
+    [HttpGet("google/callback")]
+    public async Task<IActionResult> GoogleCallback([FromQuery] string code, [FromQuery] string state)
+    {
+        try
+        {
+            if (_googleCalendarService == null)
+            {
+                return BadRequest("Google Calendar Service nicht konfiguriert");
+            }
+
+            if (!int.TryParse(state, out int userId))
+            {
+                return BadRequest("Ungültige User ID");
+            }
+
+            var success = await _googleCalendarService.HandleCallbackAsync(userId, code);
+
+            if (success)
+            {
+                return Redirect("/calendar?googleConnected=true");
+            }
+
+            return Redirect("/calendar?googleConnected=false");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fehler beim Google Callback");
+            return Redirect("/calendar?error=true");
+        }
+    }
+
+    /// <summary>
+    /// Synchronisiert Events von Google Calendar
+    /// </summary>
+    [HttpPost("google/sync-from/{userId}")]
+    public async Task<IActionResult> SyncFromGoogle(
+        int userId,
+        [FromQuery] DateTime? startDate = null,
+        [FromQuery] DateTime? endDate = null)
+    {
+        try
+        {
+            if (_googleCalendarService == null)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Google Calendar Service ist nicht konfiguriert",
+                    errors = new[] { "Service nicht verfügbar" }
+                });
+            }
+
+            var syncedCount = await _googleCalendarService.SyncFromGoogleAsync(userId, startDate, endDate);
+
+            return Ok(new
+            {
+                success = true,
+                data = new { syncedEvents = syncedCount },
+                message = $"{syncedCount} Events von Google Calendar importiert",
+                errors = (string[]?)null
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fehler beim Google Calendar Import");
+            return StatusCode(500, new
+            {
+                success = false,
+                message = "Fehler beim Google Calendar Import",
+                errors = new[] { ex.Message }
+            });
+        }
+    }
+
+    /// <summary>
+    /// Synchronisiert Events zu Google Calendar
+    /// </summary>
+    [HttpPost("google/sync-to/{userId}")]
+    public async Task<IActionResult> SyncToGoogle(
+        int userId,
+        [FromQuery] DateTime? startDate = null,
+        [FromQuery] DateTime? endDate = null)
+    {
+        try
+        {
+            if (_googleCalendarService == null)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Google Calendar Service ist nicht konfiguriert",
+                    errors = new[] { "Service nicht verfügbar" }
+                });
+            }
+
+            var exportedCount = await _googleCalendarService.SyncToGoogleAsync(userId, startDate, endDate);
+
+            return Ok(new
+            {
+                success = true,
+                data = new { exportedEvents = exportedCount },
+                message = $"{exportedCount} Events zu Google Calendar exportiert",
+                errors = (string[]?)null
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fehler beim Google Calendar Export");
+            return StatusCode(500, new
+            {
+                success = false,
+                message = "Fehler beim Google Calendar Export",
+                errors = new[] { ex.Message }
+            });
+        }
+    }
+
+    /// <summary>
+    /// Bidirektionale Synchronisation mit Google Calendar
+    /// </summary>
+    [HttpPost("google/sync-bidirectional/{userId}")]
+    public async Task<IActionResult> SyncBidirectional(int userId)
+    {
+        try
+        {
+            if (_googleCalendarService == null)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Google Calendar Service ist nicht konfiguriert",
+                    errors = new[] { "Service nicht verfügbar" }
+                });
+            }
+
+            var (imported, exported) = await _googleCalendarService.SyncBidirectionalAsync(userId);
+
+            return Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    importedEvents = imported,
+                    exportedEvents = exported,
+                    totalSynced = imported + exported
+                },
+                message = $"Sync abgeschlossen: {imported} importiert, {exported} exportiert",
+                errors = (string[]?)null
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fehler bei bidirektionaler Synchronisation");
+            return StatusCode(500, new
+            {
+                success = false,
+                message = "Fehler bei bidirektionaler Synchronisation",
+                errors = new[] { ex.Message }
+            });
+        }
+    }
+
+    /// <summary>
+    /// Prüft den Google Calendar Verbindungsstatus
+    /// </summary>
+    [HttpGet("google/status/{userId}")]
+    public async Task<IActionResult> GoogleConnectionStatus(int userId)
+    {
+        try
+        {
+            if (_googleCalendarService == null)
+            {
+                return Ok(new
+                {
+                    success = true,
+                    data = new { isConnected = false, available = false },
+                    message = "Google Calendar Service nicht konfiguriert",
+                    errors = (string[]?)null
+                });
+            }
+
+            var isConnected = await _googleCalendarService.IsConnectedAsync(userId);
+
+            return Ok(new
+            {
+                success = true,
+                data = new { isConnected, available = true },
+                message = isConnected ? "Verbunden" : "Nicht verbunden",
+                errors = (string[]?)null
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fehler beim Prüfen des Google Calendar Status");
+            return StatusCode(500, new
+            {
+                success = false,
+                message = "Fehler beim Prüfen des Status",
                 errors = new[] { ex.Message }
             });
         }
