@@ -98,6 +98,9 @@ builder.Services.AddSwaggerGen(c =>
             Array.Empty<string>()
         }
     });
+
+    // Support for IFormFile in Swagger
+    c.OperationFilter<SwaggerFileOperationFilter>();
 });
 
 // Database Context

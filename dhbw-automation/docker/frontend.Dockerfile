@@ -12,7 +12,10 @@ RUN npm install
 # Copy source files
 COPY src/Frontend/. .
 
-# Build the application
+# Copy production environment file (CRITICAL for build-time env vars)
+COPY src/Frontend/.env.production ./ 
+
+# Build the application (will use .env.production)
 RUN npm run build
 
 # Production stage
