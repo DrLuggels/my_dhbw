@@ -15,6 +15,8 @@ public class AppDbContext : DbContext
     public DbSet<CalendarEvent> CalendarEvents { get; set; } = null!;
     public DbSet<Reminder> Reminders { get; set; } = null!;
     public DbSet<CourseInfo> Courses { get; set; } = null!;
+    public DbSet<Email> Emails { get; set; } = null!;
+    public DbSet<EmailAttachment> EmailAttachments { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -82,6 +84,47 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.UserId);
             entity.HasIndex(e => e.MoodleId);
             entity.HasIndex(e => e.IsActive);
+        });
+
+        // Email Configuration
+        modelBuilder.Entity<Email>(entity =>
+        {
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.MessageId).IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.ReceivedAt });
+            entity.HasIndex(e => new { e.UserId, e.IsRead });
+            entity.HasIndex(e => new { e.UserId, e.RequiresUserAction });
+            entity.HasIndex(e => e.IsProcessed);
+            entity.HasIndex(e => e.Category);
+            entity.HasIndex(e => e.ActionStatus);
+
+            entity.HasMany(e => e.Attachments)
+                .WithOne(e => e.Email)
+                .HasForeignKey(e => e.EmailId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.RelatedCalendarEvent)
+                .WithMany()
+                .HasForeignKey(e => e.RelatedCalendarEventId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // EmailAttachment Configuration
+        modelBuilder.Entity<EmailAttachment>(entity =>
+        {
+            entity.HasIndex(e => e.EmailId);
+            entity.HasIndex(e => e.RelatedDocumentId);
+            entity.HasIndex(e => e.IsProcessed);
+
+            entity.HasOne(e => e.RelatedDocument)
+                .WithMany()
+                .HasForeignKey(e => e.RelatedDocumentId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }
