@@ -122,7 +122,8 @@ public class RaplaService : IRaplaService
             var file = _configuration["RAPLA_FILE"] ?? "WDS125+1.+Sem";
 
             var today = DateTime.Now;
-            var url = $"{baseUrl}?page=calendar&user={user}&file={Uri.EscapeDataString(file)}&day={today.Day}&month={today.Month}&year={today.Year}";
+            // Don't use Uri.EscapeDataString for file parameter - Rapla expects + instead of %2B
+            var url = $"{baseUrl}?page=calendar&user={user}&file={file}&day={today.Day}&month={today.Month}&year={today.Year}";
 
             _logger.LogInformation("Fetching Rapla calendar from: {Url}", url);
 
