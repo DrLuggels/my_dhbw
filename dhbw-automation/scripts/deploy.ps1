@@ -33,30 +33,30 @@ try {
     git status --short
     
     # Add
-    Write-ColorOutput Yellow "`n[2/4] Füge Änderungen hinzu..."
+    Write-ColorOutput Yellow "`n[2/4] Fuege Aenderungen hinzu..."
     git add -A
-    Write-ColorOutput Green "✓ Änderungen hinzugefügt"
+    Write-ColorOutput Green "[OK] Aenderungen hinzugefuegt"
     
     # Commit
     Write-ColorOutput Yellow "`n[3/4] Committe..."
     try {
         git commit -m $CommitMessage
-        Write-ColorOutput Green "✓ Commit: $CommitMessage"
+        Write-ColorOutput Green "[OK] Commit: $CommitMessage"
     } catch {
-        Write-ColorOutput Yellow "⚠ Keine Änderungen zum Committen"
+        Write-ColorOutput Yellow "[INFO] Keine Aenderungen zum Committen"
     }
     
     # Push
     Write-ColorOutput Yellow "`n[4/4] Pushe zum Server..."
     git push server main
-    Write-ColorOutput Green "✓ Code gepusht"
+    Write-ColorOutput Green "[OK] Code gepusht"
     
     # Code auf Server auschecken
     Write-ColorOutput Yellow "`nAktualisiere Code auf Server..."
     ssh root@192.168.178.198 "cd /root/git-repos/dhbw-automation.git && git --work-tree=/root/dhbw-automation-deploy --git-dir=/root/git-repos/dhbw-automation.git checkout -f main"
-    Write-ColorOutput Green "✓ Code auf Server aktualisiert"
+    Write-ColorOutput Green "[OK] Code auf Server aktualisiert"
     
-    Write-ColorOutput Green "`n✓ Deploy abgeschlossen!"
+    Write-ColorOutput Green "`n[OK] Deploy abgeschlossen!"
     Write-ColorOutput Yellow "`nContainer neu starten mit:"
     Write-ColorOutput White "  .\scripts\restart.ps1"
     

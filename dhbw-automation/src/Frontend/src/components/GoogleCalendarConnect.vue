@@ -107,7 +107,7 @@ const checkConnection = async () => {
   error.value = '';
   
   try {
-    const response = await fetch(`${API_BASE}/calendar/google/status/${props.userId}`);
+    const response = await fetch(`${API_BASE}/api/calendar/google/status/${props.userId}`);
     const data = await response.json();
     
     if (data.success) {
@@ -130,7 +130,7 @@ const connectGoogle = async () => {
   error.value = '';
   
   try {
-    const response = await fetch(`${API_BASE}/calendar/google/authorize/${props.userId}`);
+    const response = await fetch(`${API_BASE}/api/calendar/google/authorize/${props.userId}`);
     const data = await response.json();
     
     if (data.success && data.data.authorizationUrl) {
@@ -152,7 +152,7 @@ const syncNow = async () => {
   
   try {
     const response = await fetch(
-      `${API_BASE}/calendar/google/sync-bidirectional/${props.userId}`,
+      `${API_BASE}/api/calendar/google/sync-bidirectional/${props.userId}`,
       { method: 'POST' }
     );
     const data = await response.json();

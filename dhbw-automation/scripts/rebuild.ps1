@@ -22,12 +22,13 @@ Write-ColorOutput Yellow "Dies kann einige Minuten dauern..."
 ssh root@192.168.178.198 "/root/dhbw-automation-deploy/dhbw-automation/scripts/rebuild.sh"
 
 if ($LASTEXITCODE -eq 0) {
-    Write-ColorOutput Green "`n✓ Rebuild erfolgreich abgeschlossen!"
+    Write-ColorOutput Green "`n[OK] Rebuild erfolgreich abgeschlossen!"
     Write-ColorOutput Yellow "`nServices verfügbar unter:"
+    Write-ColorOutput White "  - Frontend:       http://192.168.178.198:8090"
     Write-ColorOutput White "  - MinIO Console:  http://192.168.178.198:9003"
     Write-ColorOutput White "  - RabbitMQ Mgmt:  http://192.168.178.198:15673"
     Write-ColorOutput White "  - phpMyAdmin:     http://192.168.178.198:8082"
 } else {
-    Write-ColorOutput Red "`n✗ Fehler beim Rebuild!"
+    Write-ColorOutput Red "`n[FEHLER] Fehler beim Rebuild!"
     exit 1
 }

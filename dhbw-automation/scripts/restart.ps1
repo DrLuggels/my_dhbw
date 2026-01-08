@@ -21,8 +21,8 @@ Write-ColorOutput Yellow "`nVerbinde mit Server 192.168.178.198..."
 ssh root@192.168.178.198 "/root/dhbw-automation-deploy/dhbw-automation/scripts/restart.sh"
 
 if ($LASTEXITCODE -eq 0) {
-    Write-ColorOutput Green "`n✓ Restart erfolgreich abgeschlossen!"
+    Write-ColorOutput Green "`n[OK] Restart erfolgreich abgeschlossen!"
 } else {
-    Write-ColorOutput Red "`n✗ Fehler beim Restart!"
+    Write-ColorOutput Red "`n[FEHLER] Fehler beim Restart!"
     exit 1
 }

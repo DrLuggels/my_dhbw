@@ -55,9 +55,9 @@ public class EmailSyncBackgroundService : BackgroundService
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var mailService = scope.ServiceProvider.GetRequiredService<IMailService>();
 
-        // Hole alle aktiven Benutzer mit verifizierten E-Mail-Adressen
+        // Hole nur Benutzer mit aktiviertem E-Mail-Sync
         var activeUsers = await context.Users
-            .Where(u => u.IsActive && u.EmailVerified)
+            .Where(u => u.IsActive && u.EmailSyncEnabled && u.EmailSyncAddress != null && u.EmailSyncPassword != null)
             .Select(u => u.Id)
             .ToListAsync(cancellationToken);
 

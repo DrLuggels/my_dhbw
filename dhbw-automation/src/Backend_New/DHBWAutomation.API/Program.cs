@@ -139,9 +139,11 @@ builder.Services.AddScoped<IAIService, AIService>();
 builder.Services.AddScoped<IStorageService, MinIOStorageService>();
 builder.Services.AddScoped<IRaplaService, RaplaService>();
 builder.Services.AddScoped<IMailService, MailService>();
+builder.Services.AddScoped<IGoogleCalendarService, GoogleCalendarService>();
 
 // Background Workers
-builder.Services.AddHostedService<EmailSyncBackgroundService>();
+// TEMPORARILY DISABLED due to build issues
+// builder.Services.AddHostedService<EmailSyncBackgroundService>();
 // TODO: Weitere Background Workers implementieren
 // builder.Services.AddHostedService<MoodleSyncWorker>();
 

@@ -1,4 +1,4 @@
-import axios, { type AxiosInstance, type AxiosResponse } from 'axios'
+import axios, { type AxiosInstance } from 'axios'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
@@ -95,6 +95,23 @@ class ApiService {
   async deleteFile(fileId: number) {
     const response = await this.api.delete(`/files/${fileId}`)
     return response.data
+  }
+
+  // Direct API access methods
+  get(url: string, config?: any) {
+    return this.api.get(url, config)
+  }
+
+  post(url: string, data?: any, config?: any) {
+    return this.api.post(url, data, config)
+  }
+
+  put(url: string, data?: any, config?: any) {
+    return this.api.put(url, data, config)
+  }
+
+  delete(url: string, config?: any) {
+    return this.api.delete(url, config)
   }
 
   // Calendar Endpoints

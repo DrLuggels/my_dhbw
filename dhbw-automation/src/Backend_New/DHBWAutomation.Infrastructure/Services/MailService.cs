@@ -1,4 +1,3 @@
-using MailKit;
 using MailKit.Net.Imap;
 using MailKit.Search;
 using MailKit.Security;
@@ -15,7 +14,7 @@ using System.Text.Json;
 
 namespace DHBWAutomation.Infrastructure.Services;
 
-public class MailService : IMailService
+public class MailService : Core.Interfaces.IMailService
 {
     private readonly AppDbContext _context;
     private readonly IAIService _aiService;
@@ -43,14 +42,21 @@ public class MailService : IMailService
         if (user == null)
             throw new ArgumentException("User not found");
 
-        var imapHost = _configuration["Email:ImapHost"] ?? "outlook.office365.com";
-        var imapPort = int.Parse(_configuration["Email:ImapPort"] ?? "993");
-        var username = GetEmailUsername(user.Email);
-        var password = _configuration[$"Email:Password:{userId}"] ?? _configuration["Email:DefaultPassword"];
+        // Prüfe ob E-Mail-Sync für diesen User aktiviert ist
+        if (!user.EmailSyncEnabled || string.IsNullOrEmpty(user.EmailSyncAddress) || string.IsNullOrEmpty(user.EmailSyncPassword))
+        {
+            _logger.LogInformation("E-Mail-Sync für User {UserId} nicht aktiviert oder nicht konfiguriert", userId);
+            return 0;
+        }
+
+        var imapHost = user.EmailImapHost ?? "outlook.office365.com";
+        var imapPort = user.EmailImapPort;
+        var username = GetEmailUsername(user.EmailSyncAddress);
+        var password = DecryptPassword(user.EmailSyncPassword);
 
         if (string.IsNullOrEmpty(password))
         {
-            _logger.LogWarning("No email password configured for user {UserId}", userId);
+            _logger.LogWarning("E-Mail-Passwort konnte nicht entschlüsselt werden für User {UserId}", userId);
             return 0;
         }
 
@@ -63,7 +69,7 @@ public class MailService : IMailService
             await client.AuthenticateAsync(username, password, cancellationToken);
 
             var inbox = client.Inbox;
-            await inbox.OpenAsync(FolderAccess.ReadOnly, cancellationToken);
+            await inbox.OpenAsync(MailKit.FolderAccess.ReadOnly, cancellationToken);
 
             // Hole nur ungelesene E-Mails der letzten 30 Tage
             var query = SearchQuery.NotSeen
@@ -220,7 +226,7 @@ Von: {email.FromAddress} ({email.FromName})
 Betreff: {email.Subject}
 Text: {email.BodyText.Substring(0, Math.Min(2000, email.BodyText.Length))}";
 
-            var analysisResult = await _aiService.ChatCompletionAsync(analysisPrompt, cancellationToken);
+            var analysisResult = await _aiService.ChatCompletionAsync(analysisPrompt);
 
             // Parse JSON-Antwort
             var analysis = JsonSerializer.Deserialize<EmailAnalysisResult>(analysisResult);
@@ -330,7 +336,7 @@ Text: {email.BodyText.Substring(0, Math.Min(2000, email.BodyText.Length))}";
                 Title = $"Erinnerung: {email.Subject}",
                 Description = email.Summary ?? email.BodyText.Substring(0, Math.Min(200, email.BodyText.Length)),
                 DueDate = request.SnoozeUntil.Value,
-                Priority = email.Priority,
+                Priority = email.Priority.ToString(),
                 Status = "pending",
                 IsRecurring = false
             };
@@ -353,13 +359,17 @@ Text: {email.BodyText.Substring(0, Math.Min(2000, email.BodyText.Length))}";
         if (email == null || !email.HasAttachments)
             return new List<int>();
 
+        var user = email.User;
+        if (!user.EmailSyncEnabled || string.IsNullOrEmpty(user.EmailSyncPassword))
+            return new List<int>();
+
         var documentIds = new List<int>();
 
         // Hole Original-MimeMessage erneut vom Server, um Anhänge zu downloaden
-        var imapHost = _configuration["Email:ImapHost"] ?? "outlook.office365.com";
-        var imapPort = int.Parse(_configuration["Email:ImapPort"] ?? "993");
-        var username = GetEmailUsername(email.User.Email);
-        var password = _configuration[$"Email:Password:{email.UserId}"] ?? _configuration["Email:DefaultPassword"];
+        var imapHost = user.EmailImapHost ?? "outlook.office365.com";
+        var imapPort = user.EmailImapPort;
+        var username = GetEmailUsername(user.EmailSyncAddress ?? user.Email);
+        var password = DecryptPassword(user.EmailSyncPassword);
 
         if (string.IsNullOrEmpty(password))
             return documentIds;
@@ -371,7 +381,7 @@ Text: {email.BodyText.Substring(0, Math.Min(2000, email.BodyText.Length))}";
             await client.AuthenticateAsync(username, password, cancellationToken);
 
             var inbox = client.Inbox;
-            await inbox.OpenAsync(FolderAccess.ReadOnly, cancellationToken);
+            await inbox.OpenAsync(MailKit.FolderAccess.ReadOnly, cancellationToken);
 
             // Suche E-Mail via MessageId
             var query = SearchQuery.HeaderContains("Message-Id", email.MessageId);
@@ -399,8 +409,7 @@ Text: {email.BodyText.Substring(0, Math.Min(2000, email.BodyText.Length))}";
                         var document = await _fileService.UploadFileAsync(
                             email.UserId,
                             formFile,
-                            "email_attachments", // Kategorie
-                            cancellationToken);
+                            "email_attachments"); // Kategorie
 
                         // Verlinke mit EmailAttachment
                         var emailAttachment = email.Attachments
@@ -547,6 +556,28 @@ Text: {email.BodyText.Substring(0, Math.Min(2000, email.BodyText.Length))}";
             return email.Split('@')[0];
         }
         return email;
+    }
+
+    private string DecryptPassword(string encryptedPassword)
+    {
+        try
+        {
+            var key = _configuration["Encryption:Key"] ?? "DefaultEncryptionKey123!";
+            var keyBytes = System.Text.Encoding.UTF8.GetBytes(key);
+            var encryptedBytes = Convert.FromBase64String(encryptedPassword);
+
+            var decrypted = new byte[encryptedBytes.Length];
+            for (int i = 0; i < encryptedBytes.Length; i++)
+            {
+                decrypted[i] = (byte)(encryptedBytes[i] ^ keyBytes[i % keyBytes.Length]);
+            }
+
+            return System.Text.Encoding.UTF8.GetString(decrypted);
+        }
+        catch
+        {
+            return "";
+        }
     }
 
     private EmailResponse MapToResponse(Email email)
