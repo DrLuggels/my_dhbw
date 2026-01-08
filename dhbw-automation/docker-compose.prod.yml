@@ -133,46 +133,46 @@ services:
   # =============================================================================
   # Backend API (.NET 8) - COMMENTED OUT (entwicklung im Gange)
   # =============================================================================
-  # backend:
-  #   build:
-  #     context: .
-  #     dockerfile: docker/backend.Dockerfile
-  #   container_name: dhbw-backend
-  #   restart: unless-stopped
-  #   ports:
-  #     - "5000:80"
-  #   environment:
-  #     - ASPNETCORE_ENVIRONMENT=Production
-  #     - ASPNETCORE_URLS=http://+:80
-  #     - ConnectionStrings__DefaultConnection=Server=mariadb;Database=dhbw_automation;User=dhbw_user;Password=${MARIADB_PASSWORD:-dhbw_password};
-  #     - Redis__Host=redis
-  #     - Redis__Port=6379
-  #     - RabbitMQ__Host=rabbitmq
-  #     - RabbitMQ__Port=5672
-  #     - RabbitMQ__Username=${RABBITMQ_USER:-guest}
-  #     - RabbitMQ__Password=${RABBITMQ_PASS:-guest}
-  #     - MinIO__Endpoint=minio:9000
-  #     - MinIO__AccessKey=${MINIO_ROOT_USER:-minioadmin}
-  #     - MinIO__SecretKey=${MINIO_ROOT_PASSWORD:-minioadmin}
-  #     - Qdrant__Host=qdrant
-  #     - Qdrant__Port=6333
-  #   depends_on:
-  #     mariadb:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #     minio:
-  #       condition: service_healthy
-  #   networks:
-  #     - dhbw-network
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:80/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 40s
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    container_name: dhbw-backend
+    restart: unless-stopped
+    ports:
+      - "5001:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Server=mariadb;Port=3306;Database=dhbw_automation;User=dhbw_user;Password=${MARIADB_PASSWORD:-dhbw_password};
+      - Redis__Host=redis
+      - Redis__Port=6379
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Port=5672
+      - RabbitMQ__Username=${RABBITMQ_USER:-guest}
+      - RabbitMQ__Password=${RABBITMQ_PASS:-guest}
+      - MinIO__Endpoint=minio:9000
+      - MinIO__AccessKey=${MINIO_ROOT_USER:-minioadmin}
+      - MinIO__SecretKey=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - Qdrant__Host=qdrant
+      - Qdrant__Port=6333
+      - APP_URL=http://192.168.178.198:8091
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - dhbw-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # =============================================================================
   # Frontend (Vue.js 3)

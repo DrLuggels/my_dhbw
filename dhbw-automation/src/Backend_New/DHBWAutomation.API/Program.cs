@@ -45,6 +45,8 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy.WithOrigins(
+                "http://localhost:5173",
+                "http://192.168.178.198:8091",
                 Environment.GetEnvironmentVariable("APP_URL") ?? "http://localhost:5173"
             )
             .AllowAnyMethod()
