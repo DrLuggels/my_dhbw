@@ -363,16 +363,6 @@ const showMessage = (message: string, color: string = 'success') => {
   snackbar.value = { show: true, message, color }
 }
 
-const formatDate = (dateString: string | undefined) => {
-  if (!dateString) return 'Unbekannt'
-  const date = new Date(dateString)
-  return date.toLocaleDateString('de-DE', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric'
-  })
-}
-
 const loadProfileData = () => {
   if (authStore.user) {
     profileData.value = {
