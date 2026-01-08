@@ -175,25 +175,23 @@ services:
   #     start_period: 40s
 
   # =============================================================================
-  # Frontend (Vue.js 3) - COMMENTED OUT (Entwicklung im Gange)
+  # Frontend (Vue.js 3)
   # =============================================================================
-  # frontend:
-  #   build:
-  #     context: .
-  #     dockerfile: docker/frontend.Dockerfile
-  #   container_name: dhbw-frontend
-  #   restart: unless-stopped
-  #   ports:
-  #     - "80:80"
-  #   depends_on:
-  #     - backend
-  #   networks:
-  #     - dhbw-network
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:80"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    container_name: dhbw-frontend
+    restart: unless-stopped
+    ports:
+      - "8090:80"
+    networks:
+      - dhbw-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # =============================================================================
   # Database Management - phpMyAdmin

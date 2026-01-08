@@ -137,6 +137,19 @@
         </v-card>
       </v-col>
 
+      <!-- Google Calendar Integration -->
+      <v-col cols="12">
+        <v-card>
+          <v-card-title>
+            <v-icon left>mdi-google</v-icon>
+            Google Calendar Integration
+          </v-card-title>
+          <v-card-text>
+            <GoogleCalendarConnect :user-id="authStore.user?.id || 1" />
+          </v-card-text>
+        </v-card>
+      </v-col>
+
       <!-- API Keys -->
       <v-col cols="12">
         <v-card>
@@ -282,6 +295,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
+import GoogleCalendarConnect from '@/components/GoogleCalendarConnect.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()

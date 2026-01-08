@@ -2,7 +2,46 @@
 # DHBW Automation - Scripts Overview
 # =============================================================================
 
-## 📜 Verfügbare Skripte
+## �️ Lokale PowerShell-Skripte (auf deinem PC ausführen)
+
+### ✅ restart.ps1
+Container neu starten (schnell, ohne Rebuild)
+```powershell
+.\scripts\restart.ps1
+```
+
+### 🔨 rebuild.ps1
+Container neu bauen mit `--no-cache` (dauert länger)
+```powershell
+.\scripts\rebuild.ps1
+```
+
+### 🚀 deploy.ps1
+Code committen, pushen und auf Server deployen
+```powershell
+.\scripts\deploy.ps1 "Meine Änderungen"
+```
+
+### 📊 status.ps1
+Container-Status anzeigen
+```powershell
+.\scripts\status.ps1
+```
+
+### 📋 logs.ps1
+Live-Logs anzeigen
+```powershell
+# Alle Container
+.\scripts\logs.ps1
+
+# Einzelner Container
+.\scripts\logs.ps1 mariadb
+.\scripts\logs.ps1 redis
+```
+
+---
+
+## 📜 Server-Skripte (werden automatisch aufgerufen)
 
 ### 1. Rebuild & Deploy (von deinem PC)
 **Datei**: `rebuild-and-deploy.ps1`
