@@ -148,8 +148,8 @@ services:
       - DB_DATABASE=dhbw_automation
       - DB_USERNAME=dhbw_user
       - DB_PASSWORD=${MARIADB_PASSWORD:-dhbw_password}
-      - Redis__Host=redis
-      - Redis__Port=6379
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - RabbitMQ__Host=rabbitmq
       - RabbitMQ__Port=5672
       - RabbitMQ__Username=${RABBITMQ_USER:-guest}
