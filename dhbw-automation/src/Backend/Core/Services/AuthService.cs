@@ -147,7 +147,7 @@ public class AuthService : IAuthService
     {
         var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") 
             ?? _configuration["JWT_SECRET"] 
-            ?? "your_super_secret_jwt_key_at_least_32_characters_long";
+            ?? "your-super-secret-jwt-key-change-this-in-production-min-32-chars";
         
         var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "DHBWAutomation";
         var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "DHBWAutomationUsers";
