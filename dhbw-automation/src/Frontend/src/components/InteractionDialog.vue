@@ -62,7 +62,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import axios from 'axios'
+import api from '@/services/api'
 
 interface Interaction {
   id: number
@@ -108,7 +108,7 @@ const submitAnswer = async () => {
 
   loading.value = true
   try {
-    await axios.post(`/api/interaction/${props.interaction.id}/respond`, {
+    await api.post(`/interaction/${props.interaction.id}/respond`, {
       action: 'answer',
       answer: answer
     })
@@ -127,7 +127,7 @@ const snoozeInteraction = async () => {
 
   loading.value = true
   try {
-    await axios.post(`/api/interaction/${props.interaction.id}/respond`, {
+    await api.post(`/interaction/${props.interaction.id}/respond`, {
       action: 'snooze',
       snoozeDays: 1
     })
@@ -147,7 +147,7 @@ const dismissInteraction = async () => {
   if (confirm('Wirklich verwerfen? Diese Aktion kann nicht rückgängig gemacht werden.')) {
     loading.value = true
     try {
-      await axios.post(`/api/interaction/${props.interaction.id}/respond`, {
+      await api.post(`/interaction/${props.interaction.id}/respond`, {
         action: 'dismiss'
       })
 

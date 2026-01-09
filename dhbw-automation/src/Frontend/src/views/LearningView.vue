@@ -319,7 +319,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import axios from 'axios'
+import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 
 interface LearningDeficit {
@@ -418,7 +418,7 @@ const loadStats = async () => {
   if (!authStore.user?.id) return
 
   try {
-    const response = await axios.get(`/api/learning/stats/${authStore.user.id}`)
+    const response = await api.get(`/learning/stats/${authStore.user.id}`)
     if (response.data.success) {
       stats.value = response.data.data
     }
@@ -432,7 +432,7 @@ const loadDeficits = async () => {
 
   loadingDeficits.value = true
   try {
-    const response = await axios.get(`/api/learning/deficits/${authStore.user.id}`)
+    const response = await api.get(`/learning/deficits/${authStore.user.id}`)
     if (response.data.success) {
       deficits.value = response.data.data
     }
@@ -449,7 +449,7 @@ const loadExercises = async () => {
 
   loadingExercises.value = true
   try {
-    const response = await axios.get(`/api/learning/exercises/due/${authStore.user.id}`)
+    const response = await api.get(`/learning/exercises/due/${authStore.user.id}`)
     if (response.data.success) {
       dueExercises.value = response.data.data.map((ex: Exercise) => ({
         ...ex,
@@ -485,8 +485,8 @@ const scheduleTutoring = async (deficitId: number) => {
   schedulingId.value = deficitId
 
   try {
-    const response = await axios.post(
-      `/api/learning/schedule-tutoring/${deficitId}?userId=${authStore.user?.id}`
+    const response = await api.post(
+      `/learning/schedule-tutoring/${deficitId}?userId=${authStore.user?.id}`
     )
 
     if (response.data.success) {
@@ -514,8 +514,8 @@ const resolveDeficit = async (deficitId: number) => {
   resolvingId.value = deficitId
 
   try {
-    const response = await axios.patch(
-      `/api/learning/deficits/${deficitId}/resolve?userId=${authStore.user?.id}`
+    const response = await api.patch(
+      `/learning/deficits/${deficitId}/resolve?userId=${authStore.user?.id}`
     )
 
     if (response.data.success) {
@@ -537,7 +537,7 @@ const submitAnswer = async (exercise: Exercise) => {
   if (!authStore.user?.id || !exercise.userInput) return
 
   try {
-    const response = await axios.post(`/api/learning/exercises/${exercise.id}/answer`, {
+    const response = await api.post(`/learning/exercises/${exercise.id}/answer`, {
       userId: authStore.user.id,
       answer: exercise.userInput,
       isCorrect: false // Will be checked by backend
