@@ -44,23 +44,44 @@ public class FileService : IFileService
 
     public async Task<Document?> UploadFileAsync(int userId, IFormFile file, string? category = null)
     {
+        _logger.LogInformation("========== FileService.UploadFileAsync STARTED =========");
+        _logger.LogInformation("UserId: {UserId}, Category: {Category}", userId, category ?? "null");
+        
         try
         {
+            _logger.LogInformation("FileService Step 1: Validating file parameter");
             if (file == null || file.Length == 0)
+            {
+                _logger.LogError("File validation FAILED: file is null or length is 0");
+                _logger.LogError("  File is null: {IsNull}, Length: {Length}", file == null, file?.Length ?? 0);
                 return null;
+            }
+            
+            _logger.LogInformation("FileService Step 2: File validated successfully");
+            _logger.LogInformation("  FileName: {FileName}", file.FileName);
+            _logger.LogInformation("  ContentType: {ContentType}", file.ContentType);
+            _logger.LogInformation("  Length: {Length} bytes", file.Length);
 
             // Generate unique filename
+            _logger.LogInformation("FileService Step 3: Generating unique filename");
             var fileExtension = Path.GetExtension(file.FileName);
             var uniqueFileName = $"{userId}/{Guid.NewGuid()}{fileExtension}";
+            _logger.LogInformation("  Unique filename: {UniqueFileName}", uniqueFileName);
+            _logger.LogInformation("  File extension: {Extension}", fileExtension);
 
             // Upload to storage
+            _logger.LogInformation("FileService Step 4: Uploading to storage service");
+            _logger.LogInformation("  Bucket: {Bucket}", DefaultBucket);
             string filePath;
             using (var stream = file.OpenReadStream())
             {
+                _logger.LogInformation("  Stream opened, length: {StreamLength}", stream.Length);
                 filePath = await _storageService.UploadFileAsync(stream, uniqueFileName, DefaultBucket);
+                _logger.LogInformation("  Upload completed, FilePath: {FilePath}", filePath);
             }
 
             // Create document record
+            _logger.LogInformation("FileService Step 5: Creating document record in database");
             var document = new Document
             {
                 UserId = userId,
@@ -73,18 +94,49 @@ public class FileService : IFileService
                 IsProcessed = false,
                 CreatedAt = DateTime.UtcNow
             };
+            
+            _logger.LogInformation("  Document object created");
+            _logger.LogInformation("  UserId: {UserId}, FileName: {FileName}, FileSize: {FileSize}", 
+                document.UserId, document.FileName, document.FileSize);
 
+            _logger.LogInformation("FileService Step 6: Adding document to DbContext");
             _context.Documents.Add(document);
+            
+            _logger.LogInformation("FileService Step 7: Saving changes to database");
             await _context.SaveChangesAsync();
+            _logger.LogInformation("  Document saved successfully with ID: {DocumentId}", document.Id);
 
             // Process document in background (simplified - should use background job)
-            _ = Task.Run(async () => await ProcessDocumentAsync(document.Id));
+            _logger.LogInformation("FileService Step 8: Starting background processing");
+            _ = Task.Run(async () => 
+            {
+                try
+                {
+                    await ProcessDocumentAsync(document.Id);
+                    _logger.LogInformation("Background processing completed for document {DocumentId}", document.Id);
+                }
+                catch (Exception bgEx)
+                {
+                    _logger.LogError(bgEx, "Background processing failed for document {DocumentId}", document.Id);
+                }
+            });
 
+            _logger.LogInformation("========== FileService.UploadFileAsync COMPLETED SUCCESSFULLY =========");
             return document;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error uploading file");
+            _logger.LogError(ex, "========== FileService.UploadFileAsync FAILED WITH EXCEPTION =========");
+            _logger.LogError("Exception Type: {Type}", ex.GetType().Name);
+            _logger.LogError("Exception Message: {Message}", ex.Message);
+            _logger.LogError("Stack Trace: {StackTrace}", ex.StackTrace);
+            
+            if (ex.InnerException != null)
+            {
+                _logger.LogError("Inner Exception: {InnerType} - {InnerMessage}", 
+                    ex.InnerException.GetType().Name, ex.InnerException.Message);
+            }
+            
             throw;
         }
     }

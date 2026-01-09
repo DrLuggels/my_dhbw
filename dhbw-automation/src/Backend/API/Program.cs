@@ -10,6 +10,7 @@ using DHBWAutomation.Backend.Core.BackgroundServices;
 using DHBWAutomation.Backend.Infrastructure.Storage;
 using DHBWAutomation.Backend.Infrastructure.ExternalAPIs.Rapla;
 using DHBWAutomation.Backend.Shared.Helpers;
+using DHBWAutomation.Backend.API.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -220,6 +221,9 @@ builder.Services.AddScoped<IGoogleCalendarService, GoogleCalendarService>();
 builder.Services.AddSingleton<AnthropicClient>();
 builder.Services.AddSingleton<AiMetrics>();
 builder.Services.AddSingleton<EncryptionHelper>();
+
+// Filters
+builder.Services.AddScoped<RequestLoggingFilter>();
 
 // Rapla Client
 builder.Services.AddHttpClient<RaplaClient>();
