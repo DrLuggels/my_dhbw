@@ -93,6 +93,26 @@ public class User
     /// </summary>
     public DateTime? LastEmailSync { get; set; }
 
+    // === AI API Keys (benutzerspezifisch, optional) ===
+    
+    /// <summary>
+    /// OpenAI API Key (verschlüsselt)
+    /// </summary>
+    [MaxLength(500)]
+    public string? OpenAiApiKey { get; set; }
+
+    /// <summary>
+    /// Anthropic API Key (verschlüsselt)
+    /// </summary>
+    [MaxLength(500)]
+    public string? AnthropicApiKey { get; set; }
+
+    /// <summary>
+    /// Google Gemini API Key (verschlüsselt)
+    /// </summary>
+    [MaxLength(500)]
+    public string? GeminiApiKey { get; set; }
+
     // Navigation Properties
     public virtual ICollection<Document> Documents { get; set; } = new List<Document>();
     public virtual ICollection<CalendarEvent> CalendarEvents { get; set; } = new List<CalendarEvent>();

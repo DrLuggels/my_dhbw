@@ -155,6 +155,7 @@ builder.Services.AddScoped<IGoogleCalendarService, GoogleCalendarService>();
 // Helper Services
 builder.Services.AddSingleton<AnthropicClient>();
 builder.Services.AddSingleton<AiMetrics>();
+builder.Services.AddSingleton<EncryptionHelper>();
 
 // Rapla Client
 builder.Services.AddHttpClient<RaplaClient>();

@@ -147,18 +147,34 @@ const changePassword = async (currentPassword: string, newPassword: string) => {
   }
 }
 
-const loadApiKeys = () => {
-  const storedKeys = localStorage.getItem('apiKeys')
-  if (storedKeys) {
-    try {
-      const parsed = JSON.parse(storedKeys)
+const loadApiKeys = async () => {
+  try {
+    // Lade API-Keys vom Backend
+    const response = await api.get('/user/api-keys')
+    if (response.data.success && response.data.data) {
+      const data = response.data.data
+      // Zeige nur ob Keys gesetzt sind (aus Sicherheitsgründen)
       apiKeys.value = {
-        openai: parsed.openai || '',
-        anthropic: parsed.anthropic || '',
-        gemini: parsed.gemini || ''
+        openai: data.openAiKeyPreview || '',
+        anthropic: data.anthropicKeyPreview || '',
+        gemini: data.geminiKeyPreview || ''
       }
-    } catch (error) {
-      console.error('Error loading API keys:', error)
+    }
+  } catch (error) {
+    console.error('Error loading API keys from backend:', error)
+    // Fallback auf localStorage
+    const storedKeys = localStorage.getItem('apiKeys')
+    if (storedKeys) {
+      try {
+        const parsed = JSON.parse(storedKeys)
+        apiKeys.value = {
+          openai: parsed.openai || '',
+          anthropic: parsed.anthropic || '',
+          gemini: parsed.gemini || ''
+        }
+      } catch (error) {
+        console.error('Error loading API keys:', error)
+      }
     }
   }
 }
@@ -166,9 +182,21 @@ const loadApiKeys = () => {
 const saveApiKeys = async (keys: typeof apiKeys.value) => {
   savingApiKeys.value = true
   try {
-    localStorage.setItem('apiKeys', JSON.stringify(keys))
-    apiKeys.value = keys
-    showMessage('API Keys erfolgreich gespeichert')
+    // Sende API-Keys an Backend statt localStorage
+    const response = await api.put('/user/api-keys', {
+      openAiApiKey: keys.openai || null,
+      anthropicApiKey: keys.anthropic || null,
+      geminiApiKey: keys.gemini || null
+    })
+    
+    if (response.data.success) {
+      // Speichere nur lokal als Backup (optional)
+      localStorage.setItem('apiKeys', JSON.stringify(keys))
+      apiKeys.value = keys
+      showMessage('API Keys erfolgreich gespeichert')
+    } else {
+      showMessage(response.data.message || 'Fehler beim Speichern', 'error')
+    }
   } catch (error: any) {
     console.error('Error saving API keys:', error)
     showMessage('Fehler beim Speichern der API Keys', 'error')

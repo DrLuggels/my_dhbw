@@ -1,5 +1,7 @@
 using DHBWAutomation.Backend.Core.Interfaces;
 using DHBWAutomation.Backend.Shared.Helpers;
+using DHBWAutomation.Backend.Infrastructure.Database;
+using Microsoft.EntityFrameworkCore;
 using Polly;
 using Polly.CircuitBreaker;
 using Polly.Retry;
@@ -17,8 +19,10 @@ public class AIService : IAIService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<AIService> _logger;
     private readonly AiMetrics _aiMetrics;
+    private readonly AppDbContext _context;
+    private readonly EncryptionHelper _encryptionHelper;
 
-    // API Keys for different providers
+    // Global API Keys (fallback wenn User keine eigenen Keys hat)
     private readonly string? _openAiApiKey;
     private readonly string? _anthropicApiKey;
     private readonly string? _geminiApiKey;
@@ -74,31 +78,72 @@ public class AIService : IAIService
     private const string GeminiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models";
     private const string GeminiModel = "gemini-3-flash-preview"; // Best for vision/extraction
 
-    public AIService(IHttpClientFactory httpClientFactory, ILogger<AIService> logger, AiMetrics aiMetrics)
+    public AIService(IHttpClientFactory httpClientFactory, ILogger<AIService> logger, AiMetrics aiMetrics, AppDbContext context, EncryptionHelper encryptionHelper)
     {
         _httpClientFactory = httpClientFactory;
         _logger = logger;
         _aiMetrics = aiMetrics;
+        _context = context;
+        _encryptionHelper = encryptionHelper;
 
-        // Load API keys from environment variables
+        // Load global API keys from environment variables (fallback)
         _openAiApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
         _anthropicApiKey = Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY");
         _geminiApiKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY");
     }
 
-    public async Task<string> AnalyzeDocumentAsync(string documentText, string fileType)
+    /// <summary>
+    /// Holt den API-Key für einen bestimmten Provider - priorisiert User-Keys vor globalen Keys
+    /// </summary>
+    private async Task<string?> GetApiKeyAsync(string provider, int? userId)
+    {
+        if (userId.HasValue)
+        {
+            var user = await _context.Users.FindAsync(userId.Value);
+            if (user != null)
+            {
+                switch (provider.ToLower())
+                {
+                    case "openai":
+                        if (!string.IsNullOrEmpty(user.OpenAiApiKey))
+                            return _encryptionHelper.Decrypt(user.OpenAiApiKey);
+                        break;
+                    case "anthropic":
+                        if (!string.IsNullOrEmpty(user.AnthropicApiKey))
+                            return _encryptionHelper.Decrypt(user.AnthropicApiKey);
+                        break;
+                    case "gemini":
+                        if (!string.IsNullOrEmpty(user.GeminiApiKey))
+                            return _encryptionHelper.Decrypt(user.GeminiApiKey);
+                        break;
+                }
+            }
+        }
+
+        // Fallback auf globale Keys
+        return provider.ToLower() switch
+        {
+            "openai" => _openAiApiKey,
+            "anthropic" => _anthropicApiKey,
+            "gemini" => _geminiApiKey,
+            _ => null
+        };
+    }
+
+    public async Task<string> AnalyzeDocumentAsync(string documentText, string fileType, int? userId = null)
     {
         try
         {
             // Use Gemini 3 Flash for document analysis (best for multimodal/extraction)
-            if (string.IsNullOrEmpty(_geminiApiKey))
+            var geminiKey = await GetApiKeyAsync("gemini", userId);
+            if (string.IsNullOrEmpty(geminiKey))
             {
-                _logger.LogWarning("Gemini API Key not configured");
+                _logger.LogWarning("Gemini API Key not configured for user {UserId}", userId);
                 return "AI-Analyse nicht verfügbar (Gemini API Key fehlt)";
             }
 
             var client = _httpClientFactory.CreateClient();
-            var requestUrl = $"{GeminiEndpoint}/{GeminiModel}:generateContent?key={_geminiApiKey}";
+            var requestUrl = $"{GeminiEndpoint}/{GeminiModel}:generateContent?key={geminiKey}";
 
             var requestBody = new
             {
@@ -155,16 +200,17 @@ Dokument ({fileType}):
         }
     }
 
-    public async Task<string[]> GenerateTagsAsync(string text)
+    public async Task<string[]> GenerateTagsAsync(string text, int? userId = null)
     {
         return await _aiMetrics.TrackAsync("GenerateTags", "OpenAI", OpenAiModel, async () =>
         {
             try
             {
                 // Use GPT-5 mini for tag generation (cost-effective for simple tasks)
-                if (string.IsNullOrEmpty(_openAiApiKey))
+                var openAiKey = await GetApiKeyAsync("openai", userId);
+                if (string.IsNullOrEmpty(openAiKey))
                 {
-                    _logger.LogWarning("OpenAI API Key not configured");
+                    _logger.LogWarning("OpenAI API Key not configured for user {UserId}", userId);
                     return new[] { "studium", "dhbw", "dokument" };
                 }
 
@@ -234,7 +280,7 @@ Dokument ({fileType}):
         });
     }
 
-    public async Task<string> SummarizeTextAsync(string text, int maxLength = 500)
+    public async Task<string> SummarizeTextAsync(string text, int maxLength = 500, int? userId = null)
     {
         return await _aiMetrics.TrackAsync("SummarizeText", "OpenAI", OpenAiModel, async () =>
         {
@@ -248,9 +294,10 @@ Dokument ({fileType}):
                     return text;
 
                 // Use GPT-5 mini for summarization (cost-effective)
-                if (string.IsNullOrEmpty(_openAiApiKey))
+                var openAiKey = await GetApiKeyAsync("openai", userId);
+                if (string.IsNullOrEmpty(openAiKey))
                 {
-                    _logger.LogWarning("OpenAI API Key not configured");
+                    _logger.LogWarning("OpenAI API Key not configured for user {UserId}", userId);
                     return text.Substring(0, maxLength) + "...";
                 }
 
@@ -314,19 +361,20 @@ Dokument ({fileType}):
         });
     }
 
-    public async Task<string> ExtractKeyConceptsAsync(string text)
+    public async Task<string> ExtractKeyConceptsAsync(string text, int? userId = null)
     {
         try
         {
             // Use GPT-5 mini for key concept extraction
-            if (string.IsNullOrEmpty(_openAiApiKey))
+            var openAiKey = await GetApiKeyAsync("openai", userId);
+            if (string.IsNullOrEmpty(openAiKey))
             {
-                _logger.LogWarning("OpenAI API Key not configured");
+                _logger.LogWarning("OpenAI API Key not configured for user {UserId}", userId);
                 return "Schlüsselkonzepte: Automatisierung, Studium, KI";
             }
 
             var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _openAiApiKey);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", openAiKey);
 
             var requestBody = new
             {
@@ -373,19 +421,20 @@ Dokument ({fileType}):
         }
     }
 
-    public async Task<string> ChatCompletionAsync(string prompt, string? context = null)
+    public async Task<string> ChatCompletionAsync(string prompt, string? context = null, int? userId = null)
     {
         try
         {
             // Use Claude Sonnet 4.5 for complex reasoning and chat (the "brain")
-            if (string.IsNullOrEmpty(_anthropicApiKey))
+            var anthropicKey = await GetApiKeyAsync("anthropic", userId);
+            if (string.IsNullOrEmpty(anthropicKey))
             {
-                _logger.LogWarning("Anthropic API Key not configured");
+                _logger.LogWarning("Anthropic API Key not configured for user {UserId}", userId);
                 return "AI-Chat nicht verfügbar (Anthropic API Key fehlt)";
             }
 
             var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Add("x-api-key", _anthropicApiKey);
+            client.DefaultRequestHeaders.Add("x-api-key", anthropicKey);
             client.DefaultRequestHeaders.Add("anthropic-version", AnthropicVersion);
 
             var systemMessage = "Du bist ein hilfreicher AI-Assistent für DHBW-Studenten. " +
