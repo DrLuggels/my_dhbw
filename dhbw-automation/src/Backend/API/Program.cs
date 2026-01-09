@@ -145,13 +145,18 @@ builder.Services.AddStackExchangeRedisCache(options =>
 });
 
 // Authentication & Authorization
-var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? "your-super-secret-jwt-key-change-this-in-production-min-32-chars";
-var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "DHBWAutomation";
-var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "DHBWAutomationUsers";
-
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        // JWT Secret zur Laufzeit lesen, nicht zur Build-Zeit
+        var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") 
+            ?? builder.Configuration["JWT_SECRET"]
+            ?? "your-super-secret-jwt-key-change-this-in-production-min-32-chars";
+        var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "DHBWAutomation";
+        var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "DHBWAutomationUsers";
+        
+        Console.WriteLine($"[JWT CONFIG] Using JWT_SECRET (length: {jwtSecret.Length}), Issuer: {jwtIssuer}");
+        
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
