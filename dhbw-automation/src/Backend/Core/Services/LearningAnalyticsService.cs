@@ -522,35 +522,43 @@ Gib deine Antwort als JSON zurück:
             {
                 // Generate exercise using Claude
                 var prompt = BuildPeriodicReviewPrompt(item);
-                var response = await _anthropicClient.SendPromptAsync(AnthropicModel, prompt);
-
-                if (string.IsNullOrEmpty(response))
-                {
-                    _logger.LogError($"Empty response from Claude for knowledge item {item.Id}");
-                    continue;
-                }
+                var responseDoc = await _anthropicClient.ChatJsonAsync(
+                    systemPrompt: "Du bist ein KI-Tutor für DHBW-Studenten.",
+                    userMessage: prompt,
+                    model: AnthropicModel,
+                    maxTokens: 2048);
 
                 // Parse exercise from JSON response
-                var exercise = ParseExerciseJson(response);
+                var exerciseData = ParseExerciseJson(responseDoc);
 
-                if (exercise != null)
+                // Create exercise entity
+                var exercise = new GeneratedExercise
                 {
-                    // Link exercise to knowledge base item
-                    exercise.Topic = item.Topic;
-                    exercise.KnowledgeBaseItemId = item.Id;
-                    exercise.IsPeriodicReview = true;
+                    UserId = item.UserId,
+                    Subject = item.Subject,
+                    Topic = item.Topic,
+                    ExerciseType = exerciseData.Type,
+                    Question = exerciseData.Question,
+                    CorrectAnswer = JsonSerializer.Serialize(exerciseData.CorrectAnswer),
+                    Explanation = exerciseData.Explanation,
+                    HelpText = exerciseData.HelpText,
+                    Difficulty = "medium",
+                    KnowledgeBaseItemId = item.Id,
+                    IsPeriodicReview = true,
+                    NextReviewDate = DateTime.UtcNow.AddDays(1),
+                    ReviewCount = 0,
+                    EaseFactor = 2.5,
+                    CreatedAt = DateTime.UtcNow
+                };
 
-                    exercises.Add(exercise);
-                    _logger.LogInformation($"Generated periodic review exercise for {item.Subject}/{item.Topic}");
-                }
+                exercises.Add(exercise);
+                _logger.LogInformation($"Generated periodic review exercise for {item.Subject}/{item.Topic}");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error generating periodic review exercise for knowledge item {item.Id}");
             }
         }
-
-        _aiMetrics.RecordRequest("Anthropic", "periodic_review_generation", itemsToTest.Count);
 
         return exercises;
     }
