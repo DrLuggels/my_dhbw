@@ -24,8 +24,20 @@ public class FilesController : ControllerBase
     {
         try
         {
+            // Log ModelState errors
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToArray();
+                _logger.LogWarning("Model binding failed: {Errors}", string.Join(", ", errors));
+            }
+            
             if (file == null || file.Length == 0)
             {
+                _logger.LogWarning("File is null or empty. File: {FileIsNull}, Length: {Length}", 
+                    file == null, file?.Length ?? 0);
                 return BadRequest(new ApiResponse<DocumentResponse>
                 {
                     Success = false,
