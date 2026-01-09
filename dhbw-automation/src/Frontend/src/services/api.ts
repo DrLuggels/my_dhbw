@@ -74,11 +74,22 @@ class ApiService {
 
   // Files Endpoints
   async uploadFile(file: File, category?: string) {
+    console.log('=== API.uploadFile DEBUG ===')
+    console.log('Received file:', file)
+    console.log('File instanceof File:', file instanceof File)
+    console.log('File name:', file?.name)
+    console.log('File size:', file?.size)
+    console.log('File type:', file?.type)
+
     const formData = new FormData()
     formData.append('file', file)
     if (category) {
       formData.append('category', category)
     }
+
+    console.log('FormData created')
+    console.log('FormData has file:', formData.has('file'))
+    console.log('FormData.get(file):', formData.get('file'))
 
     // Don't set Content-Type - let browser add it with boundary
     const response = await this.api.post('/files/upload', formData)

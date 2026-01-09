@@ -94,12 +94,24 @@ const handleUpload = async () => {
     errorMessage.value = 'Bitte wähle eine Datei aus'
     return
   }
-  
+
   uploading.value = true
   errorMessage.value = ''
   successMessage.value = ''
-  
+
   try {
+    // Debug logging
+    console.log('=== FILE UPLOAD DEBUG ===')
+    console.log('file.value:', file.value)
+    console.log('file.value[0]:', file.value[0])
+    console.log('file.value[0] type:', typeof file.value[0])
+    console.log('file.value[0] instanceof File:', file.value[0] instanceof File)
+    if (file.value[0]) {
+      console.log('File name:', file.value[0].name)
+      console.log('File size:', file.value[0].size)
+      console.log('File type:', file.value[0].type)
+    }
+
     // AI will detect category automatically
     const response = await api.uploadFile(file.value[0])
     
