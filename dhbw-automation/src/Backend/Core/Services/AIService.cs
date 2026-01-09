@@ -1,4 +1,10 @@
 using DHBWAutomation.Backend.Core.Interfaces;
+using DHBWAutomation.Backend.Shared.Helpers;
+using Polly;
+using Polly.CircuitBreaker;
+using Polly.Retry;
+using Polly.Wrap;
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -10,11 +16,50 @@ public class AIService : IAIService
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<AIService> _logger;
+    private readonly AiMetrics _aiMetrics;
 
     // API Keys for different providers
     private readonly string? _openAiApiKey;
     private readonly string? _anthropicApiKey;
     private readonly string? _geminiApiKey;
+
+    // Rate Limiters
+    private static readonly RateLimiter _openAiLimiter = new(3, TimeSpan.FromMinutes(1));
+    private static readonly RateLimiter _geminiLimiter = new(60, TimeSpan.FromMinutes(1));
+
+    // Retry Policy for OpenAI
+    private static readonly AsyncRetryPolicy<HttpResponseMessage> _openAiRetryPolicy = Policy
+        .HandleResult<HttpResponseMessage>(r =>
+            r.StatusCode == HttpStatusCode.TooManyRequests ||
+            r.StatusCode == HttpStatusCode.ServiceUnavailable ||
+            r.StatusCode == HttpStatusCode.RequestTimeout
+        )
+        .Or<HttpRequestException>()
+        .Or<TaskCanceledException>()
+        .WaitAndRetryAsync(
+            retryCount: 3,
+            sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+            onRetry: (outcome, timeSpan, retryCount, context) =>
+            {
+                Console.WriteLine($"⚠️  OpenAI Retry {retryCount}/3 after {timeSpan.TotalSeconds}s");
+            }
+        );
+
+    // Circuit Breaker for OpenAI
+    private static readonly AsyncCircuitBreakerPolicy _openAiCircuitBreaker = Policy
+        .Handle<HttpRequestException>()
+        .Or<TaskCanceledException>()
+        .CircuitBreakerAsync(
+            exceptionsAllowedBeforeBreaking: 5,
+            durationOfBreak: TimeSpan.FromMinutes(1),
+            onBreak: (ex, duration) => Console.WriteLine($"🔴 OpenAI Circuit OPEN for {duration.TotalMinutes}min"),
+            onReset: () => Console.WriteLine("🟢 OpenAI Circuit CLOSED"),
+            onHalfOpen: () => Console.WriteLine("🟡 OpenAI Circuit HALF-OPEN")
+        );
+
+    // Combined OpenAI Policy
+    private static readonly AsyncPolicyWrap<HttpResponseMessage> _openAiResiliencePolicy =
+        Policy.WrapAsync(_openAiCircuitBreaker.AsAsyncPolicy<HttpResponseMessage>(), _openAiRetryPolicy);
 
     // API Endpoints - Latest models (January 2026)
     private const string OpenAiEndpoint = "https://api.openai.com/v1/chat/completions";
@@ -27,10 +72,11 @@ public class AIService : IAIService
     private const string GeminiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models";
     private const string GeminiModel = "gemini-3-flash-preview"; // Best for vision/extraction
 
-    public AIService(IHttpClientFactory httpClientFactory, ILogger<AIService> logger)
+    public AIService(IHttpClientFactory httpClientFactory, ILogger<AIService> logger, AiMetrics aiMetrics)
     {
         _httpClientFactory = httpClientFactory;
         _logger = logger;
+        _aiMetrics = aiMetrics;
 
         // Load API keys from environment variables
         _openAiApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
@@ -109,133 +155,161 @@ Dokument ({fileType}):
 
     public async Task<string[]> GenerateTagsAsync(string text)
     {
-        try
+        return await _aiMetrics.TrackAsync("GenerateTags", "OpenAI", OpenAiModel, async () =>
         {
-            // Use GPT-5 mini for tag generation (cost-effective for simple tasks)
-            if (string.IsNullOrEmpty(_openAiApiKey))
+            try
             {
-                _logger.LogWarning("OpenAI API Key not configured");
+                // Use GPT-5 mini for tag generation (cost-effective for simple tasks)
+                if (string.IsNullOrEmpty(_openAiApiKey))
+                {
+                    _logger.LogWarning("OpenAI API Key not configured");
+                    return new[] { "studium", "dhbw", "dokument" };
+                }
+
+                return await _openAiLimiter.ExecuteAsync(async () =>
+                {
+                    var response = await _openAiResiliencePolicy.ExecuteAsync(async () =>
+                    {
+                        var client = _httpClientFactory.CreateClient("OpenAI");
+
+                        var requestBody = new
+                        {
+                            model = OpenAiModel,
+                            messages = new[]
+                            {
+                                new
+                                {
+                                    role = "system",
+                                    content = "Du bist ein Experte für Dokumentenklassifizierung. Generiere 5-10 relevante Tags für das gegebene Dokument. Antworte NUR mit einer kommagetrennten Liste von Tags auf Deutsch."
+                                },
+                                new
+                                {
+                                    role = "user",
+                                    content = $"Generiere Tags für diesen Text:\n\n{text.Substring(0, Math.Min(text.Length, 2000))}"
+                                }
+                            },
+                            temperature = 0.5,
+                            max_tokens = 100
+                        };
+
+                        var json = JsonSerializer.Serialize(requestBody);
+                        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                        return await client.PostAsync("chat/completions", content);
+                    });
+
+                    response.EnsureSuccessStatusCode();
+
+                    var responseJson = await response.Content.ReadAsStringAsync();
+                    var result = JsonDocument.Parse(responseJson);
+
+                    var tagsText = result.RootElement
+                        .GetProperty("choices")[0]
+                        .GetProperty("message")
+                        .GetProperty("content")
+                        .GetString() ?? "";
+
+                    var tags = tagsText
+                        .Split(new[] { ',', ';', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(t => t.Trim().ToLower())
+                        .Where(t => !string.IsNullOrWhiteSpace(t))
+                        .ToArray();
+
+                    _logger.LogInformation($"Generated {tags.Length} tags with GPT-5 mini");
+                    return tags.Length > 0 ? tags : new[] { "studium", "dhbw", "dokument" };
+                });
+            }
+            catch (BrokenCircuitException)
+            {
+                _logger.LogError("Circuit breaker OPEN - OpenAI unavailable");
                 return new[] { "studium", "dhbw", "dokument" };
             }
-
-            var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _openAiApiKey);
-
-            var requestBody = new
+            catch (Exception ex)
             {
-                model = OpenAiModel,
-                messages = new[]
-                {
-                    new
-                    {
-                        role = "system",
-                        content = "Du bist ein Experte für Dokumentenklassifizierung. Generiere 5-10 relevante Tags für das gegebene Dokument. Antworte NUR mit einer kommagetrennten Liste von Tags auf Deutsch."
-                    },
-                    new
-                    {
-                        role = "user",
-                        content = $"Generiere Tags für diesen Text:\n\n{text.Substring(0, Math.Min(text.Length, 2000))}"
-                    }
-                },
-                temperature = 0.5,
-                max_tokens = 100
-            };
-
-            var json = JsonSerializer.Serialize(requestBody);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var response = await client.PostAsync(OpenAiEndpoint, content);
-            response.EnsureSuccessStatusCode();
-
-            var responseJson = await response.Content.ReadAsStringAsync();
-            var result = JsonDocument.Parse(responseJson);
-
-            var tagsText = result.RootElement
-                .GetProperty("choices")[0]
-                .GetProperty("message")
-                .GetProperty("content")
-                .GetString() ?? "";
-
-            var tags = tagsText
-                .Split(new[] { ',', ';', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(t => t.Trim().ToLower())
-                .Where(t => !string.IsNullOrWhiteSpace(t))
-                .ToArray();
-
-            _logger.LogInformation($"Generated {tags.Length} tags with GPT-5 mini");
-            return tags.Length > 0 ? tags : new[] { "studium", "dhbw", "dokument" };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error generating tags with OpenAI");
-            return new[] { "studium", "dhbw", "dokument" };
-        }
+                _logger.LogError(ex, "Error generating tags with OpenAI");
+                return new[] { "studium", "dhbw", "dokument" };
+            }
+        });
     }
 
     public async Task<string> SummarizeTextAsync(string text, int maxLength = 500)
     {
-        try
+        return await _aiMetrics.TrackAsync("SummarizeText", "OpenAI", OpenAiModel, async () =>
         {
-            if (string.IsNullOrEmpty(text))
-                return string.Empty;
-
-            // If text is already short enough, return as is
-            if (text.Length <= maxLength)
-                return text;
-
-            // Use GPT-5 mini for summarization (cost-effective)
-            if (string.IsNullOrEmpty(_openAiApiKey))
+            try
             {
-                _logger.LogWarning("OpenAI API Key not configured");
-                return text.Substring(0, maxLength) + "...";
-            }
+                if (string.IsNullOrEmpty(text))
+                    return string.Empty;
 
-            var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _openAiApiKey);
+                // If text is already short enough, return as is
+                if (text.Length <= maxLength)
+                    return text;
 
-            var requestBody = new
-            {
-                model = OpenAiModel,
-                messages = new[]
+                // Use GPT-5 mini for summarization (cost-effective)
+                if (string.IsNullOrEmpty(_openAiApiKey))
                 {
-                    new
+                    _logger.LogWarning("OpenAI API Key not configured");
+                    return text.Substring(0, maxLength) + "...";
+                }
+
+                return await _openAiLimiter.ExecuteAsync(async () =>
+                {
+                    var response = await _openAiResiliencePolicy.ExecuteAsync(async () =>
                     {
-                        role = "system",
-                        content = $"Du bist ein Experte für Textzusammenfassungen. Erstelle eine prägnante Zusammenfassung (maximal {maxLength} Zeichen) auf Deutsch."
-                    },
-                    new
-                    {
-                        role = "user",
-                        content = $"Fasse diesen Text zusammen:\n\n{text.Substring(0, Math.Min(text.Length, 3000))}"
-                    }
-                },
-                temperature = 0.3,
-                max_tokens = maxLength / 2
-            };
+                        var client = _httpClientFactory.CreateClient("OpenAI");
 
-            var json = JsonSerializer.Serialize(requestBody);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
+                        var requestBody = new
+                        {
+                            model = OpenAiModel,
+                            messages = new[]
+                            {
+                                new
+                                {
+                                    role = "system",
+                                    content = $"Du bist ein Experte für Textzusammenfassungen. Erstelle eine prägnante Zusammenfassung (maximal {maxLength} Zeichen) auf Deutsch."
+                                },
+                                new
+                                {
+                                    role = "user",
+                                    content = $"Fasse diesen Text zusammen:\n\n{text.Substring(0, Math.Min(text.Length, 3000))}"
+                                }
+                            },
+                            temperature = 0.3,
+                            max_tokens = maxLength / 2
+                        };
 
-            var response = await client.PostAsync(OpenAiEndpoint, content);
-            response.EnsureSuccessStatusCode();
+                        var json = JsonSerializer.Serialize(requestBody);
+                        var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var responseJson = await response.Content.ReadAsStringAsync();
-            var result = JsonDocument.Parse(responseJson);
+                        return await client.PostAsync("chat/completions", content);
+                    });
 
-            var summary = result.RootElement
-                .GetProperty("choices")[0]
-                .GetProperty("message")
-                .GetProperty("content")
-                .GetString() ?? text.Substring(0, Math.Min(text.Length, maxLength)) + "...";
+                    response.EnsureSuccessStatusCode();
 
-            _logger.LogInformation("Text summarized successfully with GPT-5 mini");
-            return summary;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error summarizing text with OpenAI");
-            return text.Substring(0, Math.Min(text.Length, maxLength)) + "...";
-        }
+                    var responseJson = await response.Content.ReadAsStringAsync();
+                    var result = JsonDocument.Parse(responseJson);
+
+                    var summary = result.RootElement
+                        .GetProperty("choices")[0]
+                        .GetProperty("message")
+                        .GetProperty("content")
+                        .GetString() ?? text.Substring(0, Math.Min(text.Length, maxLength)) + "...";
+
+                    _logger.LogInformation("Text summarized successfully with GPT-5 mini");
+                    return summary;
+                });
+            }
+            catch (BrokenCircuitException)
+            {
+                _logger.LogError("Circuit breaker OPEN - OpenAI unavailable");
+                return text.Substring(0, Math.Min(text.Length, maxLength)) + "...";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error summarizing text with OpenAI");
+                return text.Substring(0, Math.Min(text.Length, maxLength)) + "...";
+            }
+        });
     }
 
     public async Task<string> ExtractKeyConceptsAsync(string text)

@@ -1,4 +1,9 @@
 using DHBWAutomation.Backend.Core.Interfaces;
+using DHBWAutomation.Backend.Shared.Helpers;
+using Polly;
+using Polly.CircuitBreaker;
+using Polly.Retry;
+using Polly.Wrap;
 using System.Text;
 using System.Text.Json;
 using UglyToad.PdfPig;
@@ -13,19 +18,52 @@ public class DocumentParsingService : IDocumentParsingService
     private readonly IAIService _aiService;
     private readonly ILogger<DocumentParsingService> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly AiMetrics _aiMetrics;
     private readonly string? _geminiApiKey;
 
     private const string GeminiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models";
     private const string GeminiModel = "gemini-3-flash-preview";
 
+    // Polly Resilience Policies for Gemini (60 requests per minute)
+    private static readonly RateLimiter _geminiLimiter = new(60, TimeSpan.FromMinutes(1));
+    
+    private static readonly AsyncRetryPolicy<HttpResponseMessage> _geminiRetryPolicy = Policy
+        .HandleResult<HttpResponseMessage>(r => !r.IsSuccessStatusCode && (int)r.StatusCode == 429)
+        .Or<HttpRequestException>()
+        .WaitAndRetryAsync(
+            retryCount: 3,
+            sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+            onRetry: (outcome, timespan, retryCount, context) =>
+            {
+                Console.WriteLine($"[Gemini Retry] Attempt {retryCount} after {timespan.TotalSeconds}s");
+            });
+
+    private static readonly AsyncCircuitBreakerPolicy<HttpResponseMessage> _geminiCircuitBreaker = Policy
+        .HandleResult<HttpResponseMessage>(r => !r.IsSuccessStatusCode)
+        .Or<HttpRequestException>()
+        .CircuitBreakerAsync(
+            handledEventsAllowedBeforeBreaking: 5,
+            durationOfBreak: TimeSpan.FromMinutes(1),
+            onBreak: (outcome, duration) =>
+            {
+                Console.WriteLine($"[Gemini Circuit Breaker] OPEN for {duration.TotalSeconds}s");
+            },
+            onReset: () => Console.WriteLine("[Gemini Circuit Breaker] RESET"),
+            onHalfOpen: () => Console.WriteLine("[Gemini Circuit Breaker] HALF-OPEN"));
+
+    private static readonly AsyncPolicyWrap<HttpResponseMessage> _geminiResiliencePolicy =
+        _geminiRetryPolicy.WrapAsync(_geminiCircuitBreaker);
+
     public DocumentParsingService(
         IAIService aiService,
         ILogger<DocumentParsingService> logger,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory,
+        AiMetrics aiMetrics)
     {
         _aiService = aiService;
         _logger = logger;
         _httpClientFactory = httpClientFactory;
+        _aiMetrics = aiMetrics;
         _geminiApiKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY");
     }
 
@@ -142,93 +180,107 @@ public class DocumentParsingService : IDocumentParsingService
 
     public async Task<string> ExtractTextFromImageAsync(Stream imageStream)
     {
-        try
+        return await _aiMetrics.TrackAsync("OCR", "Gemini", GeminiModel, async () =>
         {
-            _logger.LogInformation("Starting image OCR with Gemini 3 Flash");
-
-            if (string.IsNullOrEmpty(_geminiApiKey))
+            try
             {
-                _logger.LogWarning("Gemini API Key not configured");
-                throw new InvalidOperationException("Gemini API Key nicht konfiguriert");
-            }
+                _logger.LogInformation("Starting image OCR with Gemini 3 Flash");
 
-            // Reset stream position
-            if (imageStream.CanSeek)
-            {
-                imageStream.Position = 0;
-            }
-
-            // Convert image to base64
-            byte[] imageBytes;
-            using (var memoryStream = new MemoryStream())
-            {
-                await imageStream.CopyToAsync(memoryStream);
-                imageBytes = memoryStream.ToArray();
-            }
-            var base64Image = Convert.ToBase64String(imageBytes);
-
-            // Determine MIME type (simplified)
-            var mimeType = "image/jpeg"; // Default
-            if (base64Image.StartsWith("iVBOR"))
-                mimeType = "image/png";
-            else if (base64Image.StartsWith("R0lGOD"))
-                mimeType = "image/gif";
-
-            // Call Gemini Vision API for OCR
-            var client = _httpClientFactory.CreateClient();
-            var requestUrl = $"{GeminiEndpoint}/{GeminiModel}:generateContent?key={_geminiApiKey}";
-
-            var requestBody = new
-            {
-                contents = new[]
+                if (string.IsNullOrEmpty(_geminiApiKey))
                 {
-                    new
+                    _logger.LogWarning("Gemini API Key not configured");
+                    throw new InvalidOperationException("Gemini API Key nicht konfiguriert");
+                }
+
+                // Reset stream position
+                if (imageStream.CanSeek)
+                {
+                    imageStream.Position = 0;
+                }
+
+                // Convert image to base64
+                byte[] imageBytes;
+                using (var memoryStream = new MemoryStream())
+                {
+                    await imageStream.CopyToAsync(memoryStream);
+                    imageBytes = memoryStream.ToArray();
+                }
+                var base64Image = Convert.ToBase64String(imageBytes);
+
+                // Determine MIME type (simplified)
+                var mimeType = "image/jpeg"; // Default
+                if (base64Image.StartsWith("iVBOR"))
+                    mimeType = "image/png";
+                else if (base64Image.StartsWith("R0lGOD"))
+                    mimeType = "image/gif";
+
+                // Call Gemini Vision API for OCR with Polly resilience
+                var requestUrl = $"{GeminiEndpoint}/{GeminiModel}:generateContent?key={_geminiApiKey}";
+
+                var requestBody = new
+                {
+                    contents = new[]
                     {
-                        parts = new object[]
+                        new
                         {
-                            new { text = "Extrahiere ALLEN Text aus diesem Bild. Erkenne handgeschriebenen und gedruckten Text. Gib NUR den extrahierten Text zurück, keine Beschreibung. Wenn es sich um mathematische Formeln handelt, schreibe sie in LaTeX-Syntax." },
-                            new
+                            parts = new object[]
                             {
-                                inline_data = new
+                                new { text = "Extrahiere ALLEN Text aus diesem Bild. Erkenne handgeschriebenen und gedruckten Text. Gib NUR den extrahierten Text zurück, keine Beschreibung. Wenn es sich um mathematische Formeln handelt, schreibe sie in LaTeX-Syntax." },
+                                new
                                 {
-                                    mime_type = mimeType,
-                                    data = base64Image
+                                    inline_data = new
+                                    {
+                                        mime_type = mimeType,
+                                        data = base64Image
+                                    }
                                 }
                             }
                         }
+                    },
+                    generationConfig = new
+                    {
+                        temperature = 0.2,
+                        maxOutputTokens = 4096
                     }
-                },
-                generationConfig = new
+                };
+
+                var json = JsonSerializer.Serialize(requestBody);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                // Execute with Rate Limiting + Retry + Circuit Breaker
+                var response = await _geminiLimiter.ExecuteAsync(async () =>
                 {
-                    temperature = 0.2,
-                    maxOutputTokens = 4096
-                }
-            };
+                    var client = _httpClientFactory.CreateClient("Gemini");
+                    return await _geminiResiliencePolicy.ExecuteAsync(async () =>
+                        await client.PostAsync(requestUrl, content));
+                });
 
-            var json = JsonSerializer.Serialize(requestBody);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
+                response.EnsureSuccessStatusCode();
 
-            var response = await client.PostAsync(requestUrl, content);
-            response.EnsureSuccessStatusCode();
+                var responseJson = await response.Content.ReadAsStringAsync();
+                var result = JsonDocument.Parse(responseJson);
 
-            var responseJson = await response.Content.ReadAsStringAsync();
-            var result = JsonDocument.Parse(responseJson);
+                var extractedText = result.RootElement
+                    .GetProperty("candidates")[0]
+                    .GetProperty("content")
+                    .GetProperty("parts")[0]
+                    .GetProperty("text")
+                    .GetString() ?? "Kein Text erkannt";
 
-            var extractedText = result.RootElement
-                .GetProperty("candidates")[0]
-                .GetProperty("content")
-                .GetProperty("parts")[0]
-                .GetProperty("text")
-                .GetString() ?? "Kein Text erkannt";
-
-            _logger.LogInformation($"OCR extracted {extractedText.Length} characters from image");
-            return extractedText;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error extracting text from image with Gemini OCR");
-            throw new InvalidOperationException("Fehler beim OCR mit Gemini", ex);
-        }
+                _logger.LogInformation($"OCR extracted {extractedText.Length} characters from image");
+                return extractedText;
+            }
+            catch (BrokenCircuitException ex)
+            {
+                _logger.LogError(ex, "Gemini Circuit Breaker is OPEN - service unavailable");
+                throw new InvalidOperationException("Gemini OCR service temporarily unavailable", ex);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error extracting text from image with Gemini OCR");
+                throw new InvalidOperationException("Fehler beim OCR mit Gemini", ex);
+            }
+        });
     }
 
     public async Task<(string ExtractedText, string[]? DetectedErrors)> ExtractAndAnalyzeAsync(

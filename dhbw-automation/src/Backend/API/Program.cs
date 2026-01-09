@@ -5,6 +5,7 @@ using DHBWAutomation.Backend.Core.Interfaces;
 using DHBWAutomation.Backend.Core.Services;
 using DHBWAutomation.Backend.Infrastructure.Storage;
 using DHBWAutomation.Backend.Infrastructure.ExternalAPIs.Rapla;
+using DHBWAutomation.Backend.Shared.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -140,6 +141,19 @@ builder.Services.AddScoped<IStorageService, MinIOStorageService>();
 builder.Services.AddScoped<IRaplaService, RaplaService>();
 builder.Services.AddScoped<IMailService, MailService>();
 
+// AI-Related Services
+builder.Services.AddScoped<IIntentAnalysisService, IntentAnalysisService>();
+builder.Services.AddScoped<ILearningAnalyticsService, LearningAnalyticsService>();
+builder.Services.AddScoped<IDocumentParsingService, DocumentParsingService>();
+
+// Calendar Services
+builder.Services.AddScoped<ISchedulingService, SchedulingService>();
+builder.Services.AddScoped<IGoogleCalendarService, GoogleCalendarService>();
+
+// Helper Services
+builder.Services.AddSingleton<AnthropicClient>();
+builder.Services.AddSingleton<AiMetrics>();
+
 // Rapla Client
 builder.Services.AddHttpClient<RaplaClient>();
 
@@ -247,6 +261,42 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine($"❌ Database initialization failed: {ex.Message}");
     }
 }
+
+// =============================================================================
+// API Key Validation
+// =============================================================================
+
+Console.WriteLine("\n🔑 Validating API Keys...");
+var requiredKeys = new[] { "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY" };
+var missingKeys = requiredKeys.Where(k => string.IsNullOrEmpty(Environment.GetEnvironmentVariable(k))).ToList();
+
+if (missingKeys.Any())
+{
+    Console.WriteLine($"⚠️  Missing API Keys: {string.Join(", ", missingKeys)}");
+    Console.WriteLine("⚠️  Some AI features will be unavailable!");
+}
+else
+{
+    Console.WriteLine("✅ All AI API Keys configured");
+}
+
+// Validate optional keys
+var optionalKeys = new Dictionary<string, string>
+{
+    { "GOOGLE_CLIENT_ID", "Google Calendar" },
+    { "GOOGLE_CLIENT_SECRET", "Google Calendar" },
+    { "SMTP_HOST", "Email Integration" }
+};
+
+foreach (var (key, feature) in optionalKeys)
+{
+    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(key)))
+    {
+        Console.WriteLine($"ℹ️  Optional: {key} not configured ({feature} unavailable)");
+    }
+}
+
+Console.WriteLine();
 
 // =============================================================================
 // Run Application

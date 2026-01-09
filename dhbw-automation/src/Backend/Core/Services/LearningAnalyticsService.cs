@@ -1,6 +1,7 @@
 using DHBWAutomation.Backend.Core.Interfaces;
 using DHBWAutomation.Backend.Core.Models;
 using DHBWAutomation.Backend.Infrastructure.Database;
+using DHBWAutomation.Backend.Shared.Helpers;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
 using System.Text.Json;
@@ -12,22 +13,21 @@ public class LearningAnalyticsService : ILearningAnalyticsService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<LearningAnalyticsService> _logger;
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly string? _anthropicApiKey;
+    private readonly AnthropicClient _anthropicClient;
+    private readonly AiMetrics _aiMetrics;
 
-    private const string AnthropicEndpoint = "https://api.anthropic.com/v1/messages";
     private const string AnthropicModel = "claude-sonnet-4.5";
-    private const string AnthropicVersion = "2023-06-01";
 
     public LearningAnalyticsService(
         AppDbContext context,
         ILogger<LearningAnalyticsService> logger,
-        IHttpClientFactory httpClientFactory)
+        AnthropicClient anthropicClient,
+        AiMetrics aiMetrics)
     {
         _context = context;
         _logger = logger;
-        _httpClientFactory = httpClientFactory;
-        _anthropicApiKey = Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY");
+        _anthropicClient = anthropicClient;
+        _aiMetrics = aiMetrics;
     }
 
     public async Task AnalyzeDocumentErrorsAsync(int documentId)
@@ -142,31 +142,28 @@ public class LearningAnalyticsService : ILearningAnalyticsService
 
     public async Task<GeneratedExercise> GenerateExerciseForDeficitAsync(int deficitId)
     {
-        try
+        return await _aiMetrics.TrackAsync("GenerateExercise", "Anthropic", AnthropicModel, async () =>
         {
-            var deficit = await _context.LearningDeficits.FindAsync(deficitId);
-            if (deficit == null)
+            try
             {
-                throw new ArgumentException($"Deficit {deficitId} not found");
-            }
+                var deficit = await _context.LearningDeficits.FindAsync(deficitId);
+                if (deficit == null)
+                {
+                    throw new ArgumentException($"Deficit {deficitId} not found");
+                }
 
-            _logger.LogInformation($"Generating exercise for deficit: {deficit.Subject} - {deficit.Topic}");
+                _logger.LogInformation($"Generating exercise for deficit: {deficit.Subject} - {deficit.Topic}");
 
-            if (string.IsNullOrEmpty(_anthropicApiKey))
-            {
-                throw new InvalidOperationException("Anthropic API Key not configured");
-            }
+                // Determine difficulty based on severity (inverse relationship - high severity = easier exercises)
+                var difficulty = deficit.Severity switch
+                {
+                    "high" => "easy",       // High severity = student struggling = easier exercises
+                    "medium" => "medium",
+                    _ => "medium"
+                };
 
-            // Determine difficulty based on severity (inverse relationship - high severity = easier exercises)
-            var difficulty = deficit.Severity switch
-            {
-                "high" => "easy",       // High severity = student struggling = easier exercises
-                "medium" => "medium",
-                _ => "medium"
-            };
-
-            // Use Claude Sonnet 4.5 to generate exercise
-            var systemPrompt = $@"Du bist ein Experte für die Erstellung von Übungsaufgaben.
+                // Use Claude Sonnet 4.5 to generate exercise
+                var systemPrompt = $@"Du bist ein Experte für die Erstellung von Übungsaufgaben.
 
 Erstelle eine {difficulty} Übungsaufgabe für einen Studenten mit folgendem Lerndefizit:
 
@@ -187,98 +184,83 @@ Gib deine Antwort als JSON zurück:
     ""help_text"": ""Hilfestellung/Tipps wenn der Student nicht weiterkommt""
 }}";
 
-            var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Add("x-api-key", _anthropicApiKey);
-            client.DefaultRequestHeaders.Add("anthropic-version", AnthropicVersion);
+                var responseDoc = await _anthropicClient.ChatJsonAsync(
+                    systemPrompt,
+                    "Generiere jetzt eine Übungsaufgabe.",
+                    AnthropicModel,
+                    maxTokens: 2048
+                );
 
-            var requestBody = new
-            {
-                model = AnthropicModel,
-                max_tokens = 2048,
-                temperature = 0.5,
-                system = systemPrompt,
-                messages = new[]
+                // Parse exercise JSON with defensive parsing
+                var exerciseData = ParseExerciseJson(responseDoc);
+
+                // Create exercise entity
+                var exercise = new GeneratedExercise
                 {
-                    new
-                    {
-                        role = "user",
-                        content = "Generiere jetzt eine Übungsaufgabe."
-                    }
-                }
-            };
+                    UserId = deficit.UserId,
+                    DeficitId = deficitId,
+                    Subject = deficit.Subject,
+                    Topic = deficit.Topic,
+                    ExerciseType = exerciseData.Type,
+                    Question = exerciseData.Question,
+                    CorrectAnswer = JsonSerializer.Serialize(exerciseData.CorrectAnswer),
+                    Explanation = exerciseData.Explanation,
+                    HelpText = exerciseData.HelpText,
+                    Difficulty = difficulty,
+                    NextReviewDate = DateTime.UtcNow.AddDays(1), // First review tomorrow
+                    ReviewCount = 0,
+                    EaseFactor = 2.5, // SM-2 Algorithm starting value
+                    CreatedAt = DateTime.UtcNow
+                };
 
-            var json = JsonSerializer.Serialize(requestBody);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
+                _context.GeneratedExercises.Add(exercise);
+                await _context.SaveChangesAsync();
 
-            var response = await client.PostAsync(AnthropicEndpoint, content);
-            response.EnsureSuccessStatusCode();
-
-            var responseJson = await response.Content.ReadAsStringAsync();
-            var result = JsonDocument.Parse(responseJson);
-
-            var exerciseText = result.RootElement
-                .GetProperty("content")[0]
-                .GetProperty("text")
-                .GetString() ?? "{}";
-
-            // Parse exercise JSON
-            var exerciseData = ParseExerciseJson(exerciseText);
-
-            // Create exercise entity
-            var exercise = new GeneratedExercise
+                _logger.LogInformation($"Generated exercise {exercise.Id} for deficit {deficitId}");
+                return exercise;
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("unavailable"))
             {
-                UserId = deficit.UserId,
-                DeficitId = deficitId,
-                Subject = deficit.Subject,
-                Topic = deficit.Topic,
-                ExerciseType = exerciseData.Type,
-                Question = exerciseData.Question,
-                CorrectAnswer = JsonSerializer.Serialize(exerciseData.CorrectAnswer),
-                Explanation = exerciseData.Explanation,
-                HelpText = exerciseData.HelpText,
-                Difficulty = difficulty,
-                NextReviewDate = DateTime.UtcNow.AddDays(1), // First review tomorrow
-                ReviewCount = 0,
-                EaseFactor = 2.5, // SM-2 Algorithm starting value
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _context.GeneratedExercises.Add(exercise);
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation($"Generated exercise {exercise.Id} for deficit {deficitId}");
-            return exercise;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, $"Error generating exercise for deficit {deficitId}");
-            throw;
-        }
+                _logger.LogError(ex, "Anthropic service unavailable");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error generating exercise for deficit {deficitId}");
+                throw;
+            }
+        });
     }
 
-    private (string Type, string Question, string CorrectAnswer, string Explanation, string HelpText) ParseExerciseJson(string json)
+    private (string Type, string Question, string CorrectAnswer, string Explanation, string HelpText) ParseExerciseJson(JsonDocument doc)
     {
         try
         {
-            // Clean up JSON
-            json = json.Trim();
-            if (json.StartsWith("```json"))
-                json = json.Substring(7);
-            if (json.StartsWith("```"))
-                json = json.Substring(3);
-            if (json.EndsWith("```"))
-                json = json.Substring(0, json.Length - 3);
-            json = json.Trim();
+            var root = doc.RootElement
+                .GetProperty("content")[0]
+                .GetProperty("text");
 
-            var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
+            var textContent = root.GetString() ?? "{}";
+            
+            // Remove markdown formatting if present
+            textContent = textContent.Trim();
+            if (textContent.StartsWith("```json"))
+                textContent = textContent.Substring(7);
+            if (textContent.StartsWith("```"))
+                textContent = textContent.Substring(3);
+            if (textContent.EndsWith("```"))
+                textContent = textContent.Substring(0, textContent.Length - 3);
+            textContent = textContent.Trim();
+
+            var exerciseDoc = JsonDocument.Parse(textContent);
+            var exerciseRoot = exerciseDoc.RootElement;
 
             return (
-                Type: root.GetProperty("type").GetString() ?? "text_answer",
-                Question: root.GetProperty("question").GetString() ?? "",
-                CorrectAnswer: root.GetProperty("correct_answer").GetString() ?? "",
-                Explanation: root.GetProperty("explanation").GetString() ?? "",
-                HelpText: root.TryGetProperty("help_text", out var help) ? help.GetString() ?? "" : ""
+                Type: TryGetString(exerciseRoot, "type") ?? "text_answer",
+                Question: TryGetString(exerciseRoot, "question") ?? "",
+                CorrectAnswer: TryGetString(exerciseRoot, "correct_answer") ?? "",
+                Explanation: TryGetString(exerciseRoot, "explanation") ?? "",
+                HelpText: TryGetString(exerciseRoot, "help_text") ?? ""
             );
         }
         catch (Exception ex)
@@ -286,6 +268,14 @@ Gib deine Antwort als JSON zurück:
             _logger.LogError(ex, "Error parsing exercise JSON");
             return ("text_answer", "Fehler beim Generieren der Aufgabe", "", "", "");
         }
+    }
+
+    // Helper methods for defensive JSON parsing
+    private static string? TryGetString(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String
+            ? prop.GetString()
+            : null;
     }
 
     public async Task<List<LearningSession>> PlanLearningScheduleAsync(int userId)

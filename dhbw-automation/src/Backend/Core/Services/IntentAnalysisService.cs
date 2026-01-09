@@ -1,5 +1,6 @@
 using DHBWAutomation.Backend.Core.Interfaces;
 using DHBWAutomation.Backend.Core.Models;
+using DHBWAutomation.Backend.Shared.Helpers;
 using System.Text;
 using System.Text.Json;
 using System.Net.Http.Headers;
@@ -8,40 +9,31 @@ namespace DHBWAutomation.Backend.Core.Services;
 
 public class IntentAnalysisService : IIntentAnalysisService
 {
-    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly AnthropicClient _anthropicClient;
+    private readonly AiMetrics _aiMetrics;
     private readonly ILogger<IntentAnalysisService> _logger;
-    private readonly string? _anthropicApiKey;
 
-    private const string AnthropicEndpoint = "https://api.anthropic.com/v1/messages";
     private const string AnthropicModel = "claude-sonnet-4.5";
-    private const string AnthropicVersion = "2023-06-01";
 
     public IntentAnalysisService(
-        IHttpClientFactory httpClientFactory,
+        AnthropicClient anthropicClient,
+        AiMetrics aiMetrics,
         ILogger<IntentAnalysisService> logger)
     {
-        _httpClientFactory = httpClientFactory;
+        _anthropicClient = anthropicClient;
+        _aiMetrics = aiMetrics;
         _logger = logger;
-        _anthropicApiKey = Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY");
     }
 
     public async Task<DocumentIntent> AnalyzeDocumentIntentAsync(string text, string documentType)
     {
-        try
+        return await _aiMetrics.TrackAsync("AnalyzeIntent", "Anthropic", AnthropicModel, async () =>
         {
-            if (string.IsNullOrEmpty(_anthropicApiKey))
+            try
             {
-                _logger.LogWarning("Anthropic API Key not configured");
-                return new DocumentIntent
-                {
-                    PrimaryIntent = "unknown",
-                    ActionRequired = "none"
-                };
-            }
+                _logger.LogInformation("Analyzing document intent with Claude Sonnet 4.5");
 
-            _logger.LogInformation("Analyzing document intent with Claude Sonnet 4.5");
-
-            var systemPrompt = @"Du bist ein Experte für Intent-Erkennung in studentischen Dokumenten.
+                var systemPrompt = @"Du bist ein Experte für Intent-Erkennung in studentischen Dokumenten.
 
 Analysiere den gegebenen Text und extrahiere strukturierte Informationen:
 
@@ -86,209 +78,178 @@ Wichtig:
 - Sei präzise bei Datums- und Zeitangaben
 - Wenn unklar: ActionRequired = ""ask_user""";
 
-            var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Add("x-api-key", _anthropicApiKey);
-            client.DefaultRequestHeaders.Add("anthropic-version", AnthropicVersion);
+                var userMessage = $"Analysiere dieses {documentType}-Dokument:\n\n{text.Substring(0, Math.Min(text.Length, 8000))}";
 
-            var requestBody = new
+                var responseDoc = await _anthropicClient.ChatJsonAsync(
+                    systemPrompt,
+                    userMessage,
+                    AnthropicModel,
+                    maxTokens: 4096
+                );
+
+                // Parse the JSON response with defensive parsing
+                var intent = ParseIntentFromJsonDocument(responseDoc);
+
+                _logger.LogInformation($"Intent analysis complete: PrimaryIntent={intent.PrimaryIntent}");
+                return intent;
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("unavailable"))
             {
-                model = AnthropicModel,
-                max_tokens = 4096,
-                temperature = 0.3,
-                system = systemPrompt,
-                messages = new[]
+                _logger.LogWarning(ex, "Anthropic service unavailable - returning fallback intent");
+                return new DocumentIntent
                 {
-                    new
-                    {
-                        role = "user",
-                        content = $"Analysiere dieses {documentType}-Dokument:\n\n{text.Substring(0, Math.Min(text.Length, 8000))}"
-                    }
-                }
-            };
-
-            var json = JsonSerializer.Serialize(requestBody);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var response = await client.PostAsync(AnthropicEndpoint, content);
-            response.EnsureSuccessStatusCode();
-
-            var responseJson = await response.Content.ReadAsStringAsync();
-            var result = JsonDocument.Parse(responseJson);
-
-            var analysisText = result.RootElement
-                .GetProperty("content")[0]
-                .GetProperty("text")
-                .GetString() ?? "{}";
-
-            // Parse the JSON response
-            var intent = ParseIntentFromJson(analysisText);
-
-            _logger.LogInformation($"Intent analysis complete: PrimaryIntent={intent.PrimaryIntent}");
-            return intent;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error analyzing document intent");
-            return new DocumentIntent
+                    PrimaryIntent = "unknown",
+                    ActionRequired = "none"
+                };
+            }
+            catch (Exception ex)
             {
-                PrimaryIntent = "error",
-                ActionRequired = "none"
-            };
-        }
+                _logger.LogError(ex, "Error analyzing document intent");
+                return new DocumentIntent
+                {
+                    PrimaryIntent = "unknown",
+                    ActionRequired = "none"
+                };
+            }
+        });
     }
 
-    private DocumentIntent ParseIntentFromJson(string json)
+    private DocumentIntent ParseIntentFromJsonDocument(JsonDocument doc)
     {
         try
         {
-            // Clean up JSON (Claude sometimes includes markdown code blocks)
-            json = json.Trim();
-            if (json.StartsWith("```json"))
-            {
-                json = json.Substring(7);
-            }
-            if (json.StartsWith("```"))
-            {
-                json = json.Substring(3);
-            }
-            if (json.EndsWith("```"))
-            {
-                json = json.Substring(0, json.Length - 3);
-            }
-            json = json.Trim();
-
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            };
-
-            var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
             var intent = new DocumentIntent
             {
-                PrimaryIntent = root.GetProperty("primaryIntent").GetString() ?? "unknown",
-                ActionRequired = root.GetProperty("actionRequired").GetString() ?? "none",
-                Urgency = root.GetProperty("urgency").GetString() ?? "low"
+                PrimaryIntent = TryGetString(root, "primaryIntent") ?? "unknown",
+                ActionRequired = TryGetString(root, "actionRequired") ?? "none",
+                Urgency = TryGetString(root, "urgency") ?? "low"
             };
 
             // Parse secondary intents
-            if (root.TryGetProperty("secondaryIntents", out var secondaryIntents))
+            if (root.TryGetProperty("secondaryIntents", out var secondaryIntents) && 
+                secondaryIntents.ValueKind == JsonValueKind.Array)
             {
                 intent.SecondaryIntents = secondaryIntents.EnumerateArray()
-                    .Select(e => e.GetString() ?? "")
+                    .Select(e => e.GetString())
                     .Where(s => !string.IsNullOrEmpty(s))
+                    .Select(s => s!)
                     .ToList();
             }
 
-            // Parse meeting
-            if (root.TryGetProperty("meeting", out var meeting) && meeting.ValueKind != JsonValueKind.Null)
+            // Parse meeting (defensive)
+            if (root.TryGetProperty("meeting", out var meeting) && meeting.ValueKind == JsonValueKind.Object)
             {
                 intent.Meeting = new ExtractedMeeting
                 {
-                    PersonName = meeting.GetProperty("personName").GetString() ?? "",
-                    Purpose = meeting.TryGetProperty("purpose", out var purpose) ? purpose.GetString() ?? "" : "",
-                    EstimatedDurationMinutes = meeting.TryGetProperty("estimatedDurationMinutes", out var duration) ? duration.GetInt32() : 60
+                    PersonName = TryGetString(meeting, "personName") ?? "",
+                    Purpose = TryGetString(meeting, "purpose") ?? "",
+                    EstimatedDurationMinutes = TryGetInt32(meeting, "estimatedDurationMinutes") ?? 60
                 };
 
-                if (meeting.TryGetProperty("suggestedDate", out var suggestedDate) && suggestedDate.ValueKind == JsonValueKind.String)
+                var dateStr = TryGetString(meeting, "suggestedDate");
+                if (!string.IsNullOrEmpty(dateStr) && DateTime.TryParse(dateStr, out var date))
                 {
-                    DateTime.TryParse(suggestedDate.GetString(), out var date);
                     intent.Meeting.SuggestedDate = date;
                 }
 
-                if (meeting.TryGetProperty("suggestedTime", out var suggestedTime))
-                {
-                    intent.Meeting.SuggestedTime = suggestedTime.GetString();
-                }
+                intent.Meeting.SuggestedTime = TryGetString(meeting, "suggestedTime");
             }
 
-            // Parse todos
+            // Parse todos (defensive)
             if (root.TryGetProperty("todos", out var todos) && todos.ValueKind == JsonValueKind.Array)
             {
                 foreach (var todo in todos.EnumerateArray())
                 {
+                    if (todo.ValueKind != JsonValueKind.Object) continue;
+
                     var extractedTodo = new ExtractedTodo
                     {
-                        Title = todo.GetProperty("title").GetString() ?? "",
-                        Description = todo.TryGetProperty("description", out var desc) ? desc.GetString() : null,
-                        Priority = todo.TryGetProperty("priority", out var prio) ? prio.GetString() ?? "medium" : "medium",
-                        Category = todo.TryGetProperty("category", out var cat) ? cat.GetString() ?? "general" : "general"
+                        Title = TryGetString(todo, "title") ?? "",
+                        Description = TryGetString(todo, "description"),
+                        Priority = TryGetString(todo, "priority") ?? "medium",
+                        Category = TryGetString(todo, "category") ?? "general"
                     };
 
-                    if (todo.TryGetProperty("suggestedDeadline", out var deadline) && deadline.ValueKind == JsonValueKind.String)
+                    var deadlineStr = TryGetString(todo, "suggestedDeadline");
+                    if (!string.IsNullOrEmpty(deadlineStr) && DateTime.TryParse(deadlineStr, out var deadline))
                     {
-                        DateTime.TryParse(deadline.GetString(), out var deadlineDate);
-                        extractedTodo.SuggestedDeadline = deadlineDate;
+                        extractedTodo.SuggestedDeadline = deadline;
                     }
 
                     intent.Todos.Add(extractedTodo);
                 }
             }
 
-            // Parse project
-            if (root.TryGetProperty("project", out var project) && project.ValueKind != JsonValueKind.Null)
+            // Parse project (defensive)
+            if (root.TryGetProperty("project", out var project) && project.ValueKind == JsonValueKind.Object)
             {
                 intent.Project = new ExtractedProject
                 {
-                    Name = project.GetProperty("name").GetString() ?? "",
-                    Description = project.TryGetProperty("description", out var desc) ? desc.GetString() ?? "" : "",
-                    EstimatedPriority = project.TryGetProperty("estimatedPriority", out var prio) ? prio.GetString() ?? "medium" : "medium"
+                    Name = TryGetString(project, "name") ?? "",
+                    Description = TryGetString(project, "description") ?? "",
+                    EstimatedPriority = TryGetString(project, "estimatedPriority") ?? "medium"
                 };
 
                 if (project.TryGetProperty("requirements", out var reqs) && reqs.ValueKind == JsonValueKind.Array)
                 {
                     intent.Project.Requirements = reqs.EnumerateArray()
-                        .Select(e => e.GetString() ?? "")
+                        .Select(e => e.GetString())
                         .Where(s => !string.IsNullOrEmpty(s))
+                        .Select(s => s!)
                         .ToList();
                 }
 
                 if (project.TryGetProperty("ideas", out var ideas) && ideas.ValueKind == JsonValueKind.Array)
                 {
                     intent.Project.Ideas = ideas.EnumerateArray()
-                        .Select(e => e.GetString() ?? "")
+                        .Select(e => e.GetString())
                         .Where(s => !string.IsNullOrEmpty(s))
+                        .Select(s => s!)
                         .ToList();
                 }
             }
 
-            // Parse errors
+            // Parse errors (defensive)
             if (root.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Array)
             {
                 foreach (var error in errors.EnumerateArray())
                 {
+                    if (error.ValueKind != JsonValueKind.Object) continue;
+
                     var detectedError = new DetectedError
                     {
-                        ErrorType = error.GetProperty("errorType").GetString() ?? "concept",
-                        Subject = error.TryGetProperty("subject", out var subj) ? subj.GetString() ?? "" : "",
-                        Topic = error.TryGetProperty("topic", out var topic) ? topic.GetString() ?? "" : "",
-                        Original = error.TryGetProperty("original", out var orig) ? orig.GetString() ?? "" : "",
-                        Corrected = error.TryGetProperty("corrected", out var corr) ? corr.GetString() ?? "" : "",
-                        Explanation = error.TryGetProperty("explanation", out var expl) ? expl.GetString() ?? "" : "",
-                        Severity = error.TryGetProperty("severity", out var sev) ? sev.GetString() ?? "low" : "low"
+                        ErrorType = TryGetString(error, "errorType") ?? "concept",
+                        Subject = TryGetString(error, "subject") ?? "",
+                        Topic = TryGetString(error, "topic") ?? "",
+                        Original = TryGetString(error, "original") ?? "",
+                        Corrected = TryGetString(error, "corrected") ?? "",
+                        Explanation = TryGetString(error, "explanation") ?? "",
+                        Severity = TryGetString(error, "severity") ?? "low"
                     };
 
                     intent.Errors.Add(detectedError);
                 }
             }
 
-            // Parse learning info
-            if (root.TryGetProperty("learningInfo", out var learningInfo) && learningInfo.ValueKind != JsonValueKind.Null)
+            // Parse learning info (defensive)
+            if (root.TryGetProperty("learningInfo", out var learningInfo) && learningInfo.ValueKind == JsonValueKind.Object)
             {
                 intent.LearningInfo = new LearningContent
                 {
-                    Subject = learningInfo.GetProperty("subject").GetString() ?? "",
-                    Topic = learningInfo.TryGetProperty("topic", out var topic) ? topic.GetString() ?? "" : "",
-                    ComprehensionLevel = learningInfo.TryGetProperty("comprehensionLevel", out var comp) ? comp.GetString() ?? "good" : "good",
-                    NeedsMoreStudy = learningInfo.TryGetProperty("needsMoreStudy", out var needs) && needs.GetBoolean()
+                    Subject = TryGetString(learningInfo, "subject") ?? "",
+                    Topic = TryGetString(learningInfo, "topic") ?? "",
+                    ComprehensionLevel = TryGetString(learningInfo, "comprehensionLevel") ?? "partial",
+                    NeedsMoreStudy = TryGetBool(learningInfo, "needsMoreStudy") ?? false
                 };
 
                 if (learningInfo.TryGetProperty("keyConcepts", out var concepts) && concepts.ValueKind == JsonValueKind.Array)
                 {
                     intent.LearningInfo.KeyConcepts = concepts.EnumerateArray()
-                        .Select(e => e.GetString() ?? "")
+                        .Select(e => e.GetString())
                         .Where(s => !string.IsNullOrEmpty(s))
+                        .Select(s => s!)
                         .ToList();
                 }
             }
@@ -297,13 +258,38 @@ Wichtig:
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error parsing intent JSON");
+            _logger.LogError(ex, "Error parsing JSON from Claude response");
             return new DocumentIntent
             {
-                PrimaryIntent = "parse_error",
+                PrimaryIntent = "unknown",
                 ActionRequired = "none"
             };
         }
+    }
+
+    // Defensive JSON helper methods
+    private static string? TryGetString(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String
+            ? prop.GetString()
+            : null;
+    }
+
+    private static int? TryGetInt32(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.Number
+            ? prop.GetInt32()
+            : null;
+    }
+
+    private static bool? TryGetBool(JsonElement element, string propertyName)
+    {
+        if (element.TryGetProperty(propertyName, out var prop))
+        {
+            if (prop.ValueKind == JsonValueKind.True) return true;
+            if (prop.ValueKind == JsonValueKind.False) return false;
+        }
+        return null;
     }
 
     public async Task<List<UserInteraction>> GenerateInteractionsAsync(
