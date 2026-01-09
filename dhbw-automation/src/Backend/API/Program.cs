@@ -151,13 +151,14 @@ var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET")
     ?? "your-super-secret-jwt-key-change-this-in-production-min-32-chars";
 var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "DHBWAutomation";
 var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "DHBWAutomationUsers";
-var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
 
 Console.WriteLine($"[JWT CONFIG] Loaded JWT_SECRET (length: {jwtSecret.Length}), Issuer: {jwtIssuer}, Audience: {jwtAudience}");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
+        
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -166,11 +167,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = jwtIssuer,
             ValidAudience = jwtAudience,
-            // Resolver statt direkter Key-Zuweisung, damit der Key bei jeder Validierung verfügbar ist
-            IssuerSigningKeyResolver = (token, securityToken, kid, validationParameters) =>
-            {
-                return new[] { securityKey };
-            },
+            IssuerSigningKey = securityKey,
             ClockSkew = TimeSpan.FromMinutes(5)
         };
         
