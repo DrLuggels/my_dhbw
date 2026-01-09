@@ -60,6 +60,14 @@ builder.Services.AddCors(options =>
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
+// Configure Form Options for file uploads
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 100_000_000; // 100 MB
+    options.ValueLengthLimit = 100_000_000;
+    options.MemoryBufferThreshold = Int32.MaxValue;
+});
+
 // Swagger / OpenAPI
 builder.Services.AddSwaggerGen(c =>
 {
