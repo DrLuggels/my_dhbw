@@ -73,6 +73,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import api from '@/services/api';
 
 interface Props {
   userId: number;
@@ -90,8 +91,6 @@ const userEmail = ref('');
 const lastSync = ref<Date | null>(null);
 const syncStats = ref<{ imported: number; exported: number } | null>(null);
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
 onMounted(async () => {
   // Prüfe ob Callback von Google
   if (route.query.googleConnected === 'true') {
@@ -107,8 +106,8 @@ const checkConnection = async () => {
   error.value = '';
   
   try {
-    const response = await fetch(`${API_BASE}/api/calendar/google/status/${props.userId}`);
-    const data = await response.json();
+    const response = await api.get(`/calendar/google/status/${props.userId}`);
+    const data = response.data;
     
     if (data.success) {
       isConnected.value = data.data.isConnected;
@@ -130,8 +129,8 @@ const connectGoogle = async () => {
   error.value = '';
   
   try {
-    const response = await fetch(`${API_BASE}/api/calendar/google/authorize/${props.userId}`);
-    const data = await response.json();
+    const response = await api.get(`/calendar/google/authorize/${props.userId}`);
+    const data = response.data;
     
     if (data.success && data.data.authorizationUrl) {
       // Öffne Google OAuth in gleichem Fenster
@@ -151,11 +150,10 @@ const syncNow = async () => {
   error.value = '';
   
   try {
-    const response = await fetch(
-      `${API_BASE}/api/calendar/google/sync-bidirectional/${props.userId}`,
-      { method: 'POST' }
+    const response = await api.post(
+      `/calendar/google/sync-bidirectional/${props.userId}`
     );
-    const data = await response.json();
+    const data = response.data;
     
     if (data.success) {
       syncStats.value = {

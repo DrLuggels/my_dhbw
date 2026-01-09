@@ -28,6 +28,10 @@ public class AppDbContext : DbContext
     public DbSet<Email> Emails { get; set; } = null!;
     public DbSet<EmailAttachment> EmailAttachments { get; set; } = null!;
 
+    // NEW: AI Staging System DbSets (für validierte Datenqualität)
+    public DbSet<StagedEntity> StagedEntities { get; set; } = null!;
+    public DbSet<AIQuestion> AIQuestions { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -258,6 +262,44 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.RelatedDocumentId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // StagedEntity Configuration - AI Staging System
+        modelBuilder.Entity<StagedEntity>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.Status, e.Priority });
+            entity.HasIndex(e => new { e.UserId, e.EntityType, e.Status });
+            entity.HasIndex(e => e.ConfidenceScore);
+            entity.HasIndex(e => new { e.Status, e.CreatedAt });
+            entity.HasIndex(e => new { e.IsPromoted, e.PromotedAt });
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.SourceDocument)
+                .WithMany()
+                .HasForeignKey(e => e.SourceDocumentId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasMany(e => e.Questions)
+                .WithOne(q => q.StagedEntity)
+                .HasForeignKey(q => q.StagedEntityId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // AIQuestion Configuration
+        modelBuilder.Entity<AIQuestion>(entity =>
+        {
+            entity.HasIndex(e => new { e.StagedEntityId, e.IsAnswered });
+            entity.HasIndex(e => new { e.StagedEntityId, e.Priority });
+            entity.HasIndex(e => e.AnswerType);
+
+            entity.HasOne(e => e.StagedEntity)
+                .WithMany(s => s.Questions)
+                .HasForeignKey(e => e.StagedEntityId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

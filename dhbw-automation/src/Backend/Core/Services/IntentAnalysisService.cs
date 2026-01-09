@@ -46,12 +46,12 @@ Analysiere den gegebenen Text und extrahiere strukturierte Informationen:
    - 'note': Allgemeine Notiz
 
 2. **Meetings**: Extrahiere ALLE Erwähnungen von Treffen mit Personen
-   - PersonName, Purpose, SuggestedDate, SuggestedTime, EstimatedDurationMinutes
+   - PersonName, Purpose, SuggestedDate, SuggestedTime, EstimatedDurationMinutes, ConfidenceScore (0-100)
 
 3. **TODOs**: Extrahiere ALLE Aufgaben
-   - Title, Description, Priority (low/medium/high/urgent), SuggestedDeadline, Category
+   - Title, Description, Priority (low/medium/high/urgent), SuggestedDeadline, Category, ConfidenceScore (0-100)
 
-4. **Projekte**: Projektideen mit Name, Description, Requirements, Ideas, EstimatedPriority
+4. **Projekte**: Projektideen mit Name, Description, Requirements, Ideas, EstimatedPriority, ConfidenceScore (0-100)
 
 5. **Fehler**: Erkenne fachliche Fehler (z.B. Mathe, Programmierung)
    - ErrorType (spelling/concept/calculation/logic)
@@ -59,23 +59,85 @@ Analysiere den gegebenen Text und extrahiere strukturierte Informationen:
 
 6. **Lerninhalt**: Subject, Topic, KeyConcepts, ComprehensionLevel (good/partial/poor), NeedsMoreStudy
 
-Gib deine Antwort als JSON zurück im folgenden Format:
+=== NEU: CONFIDENCE SCORES & FRAGEN-SYSTEM ===
+
+Für jede extrahierte Entität (Meeting, TODO, Projekt):
+- Gib einen ConfidenceScore (0-100) an:
+  * 90-100: Sehr sicher, alle Daten klar
+  * 70-89: Unsicher, einige Daten fehlen
+  * 0-69: Sehr unklar, kritische Daten fehlen
+
+Wenn Daten unklar/fehlen (ConfidenceScore < 90):
+- Erstelle Klärungsfragen im ""questions""-Array
+- Pro fehlendes/unklares Feld eine Frage
+
+Frage-Format:
+{
+  ""fieldName"": ""meeting.suggestedDate"",  // oder ""todo.0.dueDate"" bei Listen
+  ""questionText"": ""Wann genau möchtest du dieses Meeting planen?"",
+  ""suggestedAnswers"": [""Montag 14:00"", ""Mittwoch 16:00"", ""Freitag 10:00"", ""Nächste Woche""],
+  ""priority"": ""high"",  // critical, high, medium, low
+  ""answerType"": ""datetime"",  // text, date, time, datetime, choice, number
+  ""entityIndex"": 0  // nur bei Listen (todos), sonst null
+}
+
+Priority-Regeln:
+- ""critical"": Entität ist OHNE diese Info unbrauchbar (z.B. Person bei Meeting fehlt)
+- ""high"": Stark empfohlen (z.B. Datum bei Meeting fehlt)
+- ""medium"": Hilfreich (z.B. Dauer bei Meeting fehlt)
+- ""low"": Optional (z.B. Beschreibung bei TODO fehlt)
+
+Beispiele für Fragen:
+- Meeting ohne Datum: ""Wann möchtest du [Person] treffen?"" (priority: high)
+- TODO ohne Deadline: ""Bis wann möchtest du das erledigen?"" (priority: medium)
+- Projekt ohne Priorität: ""Wie wichtig ist dir dieses Projekt?"" (priority: medium)
+- Meeting ohne Person: ""Mit wem möchtest du dich treffen?"" (priority: critical)
+
+JSON-Format:
 {
   ""primaryIntent"": ""..."",
   ""secondaryIntents"": [...],
-  ""meeting"": {...} oder null,
+  ""confidenceScore"": 85,  // Overall Score
+  ""meeting"": {
+    ""personName"": ""Paulina"",
+    ""purpose"": ""Matheprojekt besprechen"",
+    ""suggestedDate"": null,
+    ""suggestedTime"": null,
+    ""estimatedDurationMinutes"": 60,
+    ""confidenceScore"": 65  // Niedrig weil Datum/Zeit fehlt
+  },
   ""todos"": [...],
   ""project"": {...} oder null,
   ""errors"": [...],
   ""learningInfo"": {...} oder null,
-  ""actionRequired"": ""ask_user"" | ""auto_create"" | ""none"",
-  ""urgency"": ""low"" | ""medium"" | ""high"" | ""urgent""
+  ""questions"": [
+    {
+      ""fieldName"": ""meeting.suggestedDate"",
+      ""questionText"": ""Wann möchtest du Paulina treffen?"",
+      ""suggestedAnswers"": [""Montag Nachmittag"", ""Mittwoch Nachmittag"", ""Freitag Vormittag"", ""Nächste Woche""],
+      ""priority"": ""high"",
+      ""answerType"": ""datetime"",
+      ""entityIndex"": null
+    },
+    {
+      ""fieldName"": ""meeting.suggestedTime"",
+      ""questionText"": ""Um welche Uhrzeit ungefähr?"",
+      ""suggestedAnswers"": [""10:00"", ""14:00"", ""16:00"", ""18:00""],
+      ""priority"": ""medium"",
+      ""answerType"": ""time"",
+      ""entityIndex"": null
+    }
+  ],
+  ""actionRequired"": ""ask_user"",
+  ""urgency"": ""medium""
 }
 
 Wichtig:
 - Erkenne auch implizite Intents (z.B. ""demnächst mit paulina treffen"" = schedule_meeting)
 - Bei Mathe/Programmierung: Prüfe auf Fehler in Berechnungen/Code
 - Sei präzise bei Datums- und Zeitangaben
+- IMMER ConfidenceScore berechnen
+- Wenn ConfidenceScore < 90: Erstelle passende Fragen
 - Wenn unklar: ActionRequired = ""ask_user""";
 
                 var userMessage = $"Analysiere dieses {documentType}-Dokument:\n\n{text.Substring(0, Math.Min(text.Length, 8000))}";
@@ -124,7 +186,8 @@ Wichtig:
             {
                 PrimaryIntent = TryGetString(root, "primaryIntent") ?? "unknown",
                 ActionRequired = TryGetString(root, "actionRequired") ?? "none",
-                Urgency = TryGetString(root, "urgency") ?? "low"
+                Urgency = TryGetString(root, "urgency") ?? "low",
+                ConfidenceScore = TryGetInt32(root, "confidenceScore") ?? 100
             };
 
             // Parse secondary intents
@@ -145,7 +208,8 @@ Wichtig:
                 {
                     PersonName = TryGetString(meeting, "personName") ?? "",
                     Purpose = TryGetString(meeting, "purpose") ?? "",
-                    EstimatedDurationMinutes = TryGetInt32(meeting, "estimatedDurationMinutes") ?? 60
+                    EstimatedDurationMinutes = TryGetInt32(meeting, "estimatedDurationMinutes") ?? 60,
+                    ConfidenceScore = TryGetInt32(meeting, "confidenceScore") ?? 100
                 };
 
                 var dateStr = TryGetString(meeting, "suggestedDate");
@@ -169,7 +233,8 @@ Wichtig:
                         Title = TryGetString(todo, "title") ?? "",
                         Description = TryGetString(todo, "description"),
                         Priority = TryGetString(todo, "priority") ?? "medium",
-                        Category = TryGetString(todo, "category") ?? "general"
+                        Category = TryGetString(todo, "category") ?? "general",
+                        ConfidenceScore = TryGetInt32(todo, "confidenceScore") ?? 100
                     };
 
                     var deadlineStr = TryGetString(todo, "suggestedDeadline");
@@ -189,7 +254,8 @@ Wichtig:
                 {
                     Name = TryGetString(project, "name") ?? "",
                     Description = TryGetString(project, "description") ?? "",
-                    EstimatedPriority = TryGetString(project, "estimatedPriority") ?? "medium"
+                    EstimatedPriority = TryGetString(project, "estimatedPriority") ?? "medium",
+                    ConfidenceScore = TryGetInt32(project, "confidenceScore") ?? 100
                 };
 
                 if (project.TryGetProperty("requirements", out var reqs) && reqs.ValueKind == JsonValueKind.Array)
@@ -208,6 +274,36 @@ Wichtig:
                         .Where(s => !string.IsNullOrEmpty(s))
                         .Select(s => s!)
                         .ToList();
+                }
+            }
+
+            // Parse questions (NEW for AI Staging System)
+            if (root.TryGetProperty("questions", out var questions) && questions.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var question in questions.EnumerateArray())
+                {
+                    if (question.ValueKind != JsonValueKind.Object) continue;
+
+                    var extractedQuestion = new ExtractedQuestion
+                    {
+                        FieldName = TryGetString(question, "fieldName") ?? "",
+                        QuestionText = TryGetString(question, "questionText") ?? "",
+                        Priority = TryGetString(question, "priority") ?? "medium",
+                        AnswerType = TryGetString(question, "answerType") ?? "text",
+                        EntityIndex = TryGetInt32(question, "entityIndex")
+                    };
+
+                    // Parse suggested answers
+                    if (question.TryGetProperty("suggestedAnswers", out var answers) && answers.ValueKind == JsonValueKind.Array)
+                    {
+                        extractedQuestion.SuggestedAnswers = answers.EnumerateArray()
+                            .Select(e => e.GetString())
+                            .Where(s => !string.IsNullOrEmpty(s))
+                            .Select(s => s!)
+                            .ToList();
+                    }
+
+                    intent.Questions.Add(extractedQuestion);
                 }
             }
 

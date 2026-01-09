@@ -17,6 +17,17 @@ public class DocumentIntent
 
     public string ActionRequired { get; set; } = "none"; // "ask_user", "auto_create", "none"
     public string Urgency { get; set; } = "low"; // "low", "medium", "high", "urgent"
+
+    // NEW: AI Confidence & Questions System
+    /// <summary>
+    /// Overall confidence score (0-100) für die gesamte Extraktion
+    /// </summary>
+    public int ConfidenceScore { get; set; } = 100;
+
+    /// <summary>
+    /// Klärungsfragen der AI zu unklaren/fehlenden Feldern
+    /// </summary>
+    public List<ExtractedQuestion> Questions { get; set; } = new();
 }
 
 /// <summary>
@@ -29,6 +40,11 @@ public class ExtractedMeeting
     public DateTime? SuggestedDate { get; set; }
     public string? SuggestedTime { get; set; }
     public int EstimatedDurationMinutes { get; set; } = 60;
+
+    /// <summary>
+    /// AI Confidence Score (0-100) für diese Meeting-Extraktion
+    /// </summary>
+    public int ConfidenceScore { get; set; } = 100;
 }
 
 /// <summary>
@@ -41,6 +57,11 @@ public class ExtractedTodo
     public string Priority { get; set; } = "medium"; // "low", "medium", "high", "urgent"
     public DateTime? SuggestedDeadline { get; set; }
     public string Category { get; set; } = "general"; // "meeting", "learning", "project", "general"
+
+    /// <summary>
+    /// AI Confidence Score (0-100) für diese TODO-Extraktion
+    /// </summary>
+    public int ConfidenceScore { get; set; } = 100;
 }
 
 /// <summary>
@@ -53,6 +74,11 @@ public class ExtractedProject
     public List<string> Requirements { get; set; } = new();
     public List<string> Ideas { get; set; } = new();
     public string EstimatedPriority { get; set; } = "medium"; // "low", "medium", "high"
+
+    /// <summary>
+    /// AI Confidence Score (0-100) für diese Projekt-Extraktion
+    /// </summary>
+    public int ConfidenceScore { get; set; } = 100;
 }
 
 /// <summary>
@@ -79,4 +105,40 @@ public class LearningContent
     public List<string> KeyConcepts { get; set; } = new();
     public string ComprehensionLevel { get; set; } = "good"; // "good", "partial", "poor"
     public bool NeedsMoreStudy { get; set; } = false;
+}
+
+/// <summary>
+/// Eine Klärungsfrage der AI zu unklaren/fehlenden Daten
+/// </summary>
+public class ExtractedQuestion
+{
+    /// <summary>
+    /// Entitätstyp + Feld-Name (z.B. "meeting.suggestedDate", "todo.dueDate")
+    /// </summary>
+    public string FieldName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Die Frage, die der User sieht
+    /// </summary>
+    public string QuestionText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Vorgeschlagene Antwort-Optionen
+    /// </summary>
+    public List<string> SuggestedAnswers { get; set; } = new();
+
+    /// <summary>
+    /// Priorität: "critical", "high", "medium", "low"
+    /// </summary>
+    public string Priority { get; set; } = "medium";
+
+    /// <summary>
+    /// Erwarteter Antworttyp: "text", "date", "time", "datetime", "choice", "number"
+    /// </summary>
+    public string AnswerType { get; set; } = "text";
+
+    /// <summary>
+    /// Index der Entität (bei Listen wie Todos), null bei einzelnen Entitäten
+    /// </summary>
+    public int? EntityIndex { get; set; }
 }
