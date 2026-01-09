@@ -7,6 +7,7 @@ import 'core/services/calendar_service.dart';
 import 'core/services/todo_service.dart';
 import 'core/services/mail_service.dart';
 import 'core/services/file_service.dart';
+import 'core/services/travel_service.dart';
 import 'providers/auth_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
@@ -29,6 +30,7 @@ class MyApp extends StatelessWidget {
     final todoService = TodoService(apiClient);
     final mailService = MailService(apiClient);
     final fileService = FileService(apiClient);
+    final travelService = TravelService(apiClient);
 
     return MultiProvider(
       providers: [
@@ -39,6 +41,7 @@ class MyApp extends StatelessWidget {
         Provider<TodoService>.value(value: todoService),
         Provider<MailService>.value(value: mailService),
         Provider<FileService>.value(value: fileService),
+        Provider<TravelService>.value(value: travelService),
         ChangeNotifierProvider(
           create: (_) => AuthProvider(authService),
         ),

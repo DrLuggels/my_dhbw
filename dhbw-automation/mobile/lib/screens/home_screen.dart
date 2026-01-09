@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'screens/calendar/calendar_screen.dart';
-import 'screens/todo/todo_screen.dart';
-import 'screens/mail/mail_screen.dart';
-import 'screens/profile/profile_screen.dart';
+import 'calendar/calendar_screen.dart';
+import 'todo/todo_screen.dart';
+import 'mail/mail_screen.dart';
+import 'profile/profile_screen.dart';
+import 'travel/travel_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
     CalendarScreen(),
     TodoScreen(),
     MailScreen(),
+    TravelScreen(),
     ProfileScreen(),
   ];
 
@@ -43,6 +45,10 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.mail_outline),
             label: 'Emails',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.train),
+            label: 'Reisen',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
