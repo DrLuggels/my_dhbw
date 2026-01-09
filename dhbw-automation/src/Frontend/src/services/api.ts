@@ -67,10 +67,12 @@ class ApiService {
   }
 
   // Files Endpoints
-  async uploadFile(file: File, category: string) {
+  async uploadFile(file: File, category?: string) {
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('category', category)
+    if (category) {
+      formData.append('category', category)
+    }
 
     const response = await this.api.post('/files/upload', formData, {
       headers: {

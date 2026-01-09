@@ -101,7 +101,7 @@ const handleUpload = async () => {
   
   try {
     // AI will detect category automatically
-    const response = await api.uploadFile(file.value[0], '')
+    const response = await api.uploadFile(file.value[0])
     
     if (response.success) {
       successMessage.value = 'Datei erfolgreich hochgeladen!'
