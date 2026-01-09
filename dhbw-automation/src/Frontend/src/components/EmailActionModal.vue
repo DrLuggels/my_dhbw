@@ -267,7 +267,7 @@ async function handleAction(action: 'accept' | 'decline' | 'archive') {
 
   loading.value = true
   try {
-    await mailStore.executeAction(props.email.id, {
+    await mailStore.performAction(props.email.id, {
       emailId: props.email.id,
       action,
       createCalendarEvent: action === 'accept' && props.email.isAppointment
@@ -290,7 +290,7 @@ async function snooze(hours: number) {
   showSnoozeDialog.value = false
 
   try {
-    await mailStore.executeAction(props.email.id, {
+    await mailStore.performAction(props.email.id, {
       emailId: props.email.id,
       action: 'snooze',
       snoozeUntil

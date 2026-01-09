@@ -138,13 +138,14 @@ builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IAIService, AIService>();
 builder.Services.AddScoped<IStorageService, MinIOStorageService>();
 builder.Services.AddScoped<IRaplaService, RaplaService>();
+builder.Services.AddScoped<IMailService, MailService>();
 
 // Rapla Client
 builder.Services.AddHttpClient<RaplaClient>();
 
 // Background Workers
-// TODO: Background Workers implementieren
-// builder.Services.AddHostedService<MailPollerWorker>();
+builder.Services.AddHostedService<EmailSyncBackgroundService>();
+// TODO: Weitere Background Workers implementieren
 // builder.Services.AddHostedService<MoodleSyncWorker>();
 
 // HTTP Clients

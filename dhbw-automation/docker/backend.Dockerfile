@@ -7,27 +7,23 @@ EXPOSE 443
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy csproj files and restore dependencies
-COPY ["src/Backend_New/DHBWAutomation.API/DHBWAutomation.API.csproj", "DHBWAutomation.API/"]
-COPY ["src/Backend_New/DHBWAutomation.Core/DHBWAutomation.Core.csproj", "DHBWAutomation.Core/"]
-COPY ["src/Backend_New/DHBWAutomation.Infrastructure/DHBWAutomation.Infrastructure.csproj", "DHBWAutomation.Infrastructure/"]
+# Copy csproj file and restore dependencies
+COPY ["src/Backend/Backend.csproj", "Backend/"]
 
-RUN dotnet restore "DHBWAutomation.API/DHBWAutomation.API.csproj"
+RUN dotnet restore "Backend/Backend.csproj"
 
 # Copy all source files
-COPY src/Backend_New/DHBWAutomation.API/. DHBWAutomation.API/
-COPY src/Backend_New/DHBWAutomation.Core/. DHBWAutomation.Core/
-COPY src/Backend_New/DHBWAutomation.Infrastructure/. DHBWAutomation.Infrastructure/
+COPY src/Backend/. Backend/
 
 # Build the application
-WORKDIR "/src/DHBWAutomation.API"
-RUN dotnet build "DHBWAutomation.API.csproj" -c Release -o /app/build
+WORKDIR "/src/Backend"
+RUN dotnet build "Backend.csproj" -c Release -o /app/build
 
 FROM build AS publish
-RUN dotnet publish "DHBWAutomation.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "Backend.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
-ENTRYPOINT ["dotnet", "DHBWAutomation.API.dll"]
+ENTRYPOINT ["dotnet", "DHBWAutomation.Backend.dll"]

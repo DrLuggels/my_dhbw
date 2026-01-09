@@ -8,136 +8,22 @@
     </div>
 
     <v-row>
-      <!-- Benutzerdaten Card -->
       <v-col cols="12" md="6">
-        <v-card>
-          <v-card-title>
-            <v-icon left>mdi-account-circle</v-icon>
-            Persönliche Daten
-          </v-card-title>
-          <v-card-text>
-            <v-form ref="profileForm" v-model="profileValid">
-              <v-text-field
-                v-model="profileData.firstName"
-                label="Vorname"
-                :rules="nameRules"
-                prepend-icon="mdi-account"
-                :readonly="!editingProfile"
-                variant="outlined"
-                class="mb-3"
-              ></v-text-field>
-
-              <v-text-field
-                v-model="profileData.lastName"
-                label="Nachname"
-                :rules="nameRules"
-                prepend-icon="mdi-account"
-                :readonly="!editingProfile"
-                variant="outlined"
-                class="mb-3"
-              ></v-text-field>
-
-              <v-text-field
-                v-model="profileData.email"
-                label="E-Mail"
-                :rules="emailRules"
-                prepend-icon="mdi-email"
-                :readonly="!editingProfile"
-                variant="outlined"
-                type="email"
-                class="mb-3"
-              ></v-text-field>
-
-              <div class="d-flex gap-2">
-                <v-btn
-                  v-if="!editingProfile"
-                  color="primary"
-                  @click="startEditingProfile"
-                  block
-                >
-                  <v-icon left>mdi-pencil</v-icon>
-                  Bearbeiten
-                </v-btn>
-
-                <v-btn
-                  v-if="editingProfile"
-                  color="success"
-                  @click="saveProfile"
-                  :loading="savingProfile"
-                  :disabled="!profileValid"
-                >
-                  <v-icon left>mdi-content-save</v-icon>
-                  Speichern
-                </v-btn>
-
-                <v-btn
-                  v-if="editingProfile"
-                  color="error"
-                  @click="cancelEditingProfile"
-                >
-                  Abbrechen
-                </v-btn>
-              </div>
-            </v-form>
-          </v-card-text>
-        </v-card>
+        <ProfileDataCard 
+          :profile-data="profileData" 
+          :saving="savingProfile"
+          @save="saveProfile"
+        />
       </v-col>
 
-      <!-- Passwort ändern Card -->
       <v-col cols="12" md="6">
-        <v-card>
-          <v-card-title>
-            <v-icon left>mdi-lock</v-icon>
-            Passwort ändern
-          </v-card-title>
-          <v-card-text>
-            <v-form ref="passwordForm" v-model="passwordValid">
-              <v-text-field
-                v-model="passwordData.currentPassword"
-                label="Aktuelles Passwort"
-                :rules="requiredRules"
-                prepend-icon="mdi-lock"
-                type="password"
-                variant="outlined"
-                class="mb-3"
-              ></v-text-field>
-
-              <v-text-field
-                v-model="passwordData.newPassword"
-                label="Neues Passwort"
-                :rules="passwordRules"
-                prepend-icon="mdi-lock-plus"
-                type="password"
-                variant="outlined"
-                class="mb-3"
-              ></v-text-field>
-
-              <v-text-field
-                v-model="passwordData.confirmPassword"
-                label="Passwort bestätigen"
-                :rules="[...requiredRules, passwordMatchRule]"
-                prepend-icon="mdi-lock-check"
-                type="password"
-                variant="outlined"
-                class="mb-3"
-              ></v-text-field>
-
-              <v-btn
-                color="primary"
-                @click="changePassword"
-                :loading="changingPassword"
-                :disabled="!passwordValid"
-                block
-              >
-                <v-icon left>mdi-key-change</v-icon>
-                Passwort ändern
-              </v-btn>
-            </v-form>
-          </v-card-text>
-        </v-card>
+        <PasswordChangeCard
+          ref="passwordCardRef"
+          :loading="changingPassword"
+          @change="changePassword"
+        />
       </v-col>
 
-      <!-- Google Calendar Integration -->
       <v-col cols="12">
         <v-card>
           <v-card-title>
@@ -150,129 +36,19 @@
         </v-card>
       </v-col>
 
-      <!-- API Keys -->
       <v-col cols="12">
-        <v-card>
-          <v-card-title>
-            <v-icon left>mdi-key-variant</v-icon>
-            API Keys
-            <v-spacer></v-spacer>
-            <v-chip size="small" color="warning" variant="outlined">
-              <v-icon start size="x-small">mdi-shield-lock</v-icon>
-              Vertraulich
-            </v-chip>
-          </v-card-title>
-          <v-card-text>
-            <v-form ref="apiKeysForm" v-model="apiKeysValid">
-              <v-alert type="info" variant="tonal" class="mb-4">
-                <v-icon left>mdi-information</v-icon>
-                Diese Keys werden sicher gespeichert und nur für deine KI-Funktionen verwendet.
-              </v-alert>
-
-              <v-text-field
-                v-model="apiKeys.openai"
-                label="OpenAI API Key (ChatGPT)"
-                prepend-icon="mdi-robot"
-                :type="showApiKeys.openai ? 'text' : 'password'"
-                :append-inner-icon="showApiKeys.openai ? 'mdi-eye-off' : 'mdi-eye'"
-                @click:append-inner="showApiKeys.openai = !showApiKeys.openai"
-                :readonly="!editingApiKeys"
-                variant="outlined"
-                class="mb-3"
-                hint="Beginnt mit sk-..."
-                persistent-hint
-              ></v-text-field>
-
-              <v-text-field
-                v-model="apiKeys.anthropic"
-                label="Anthropic API Key (Claude)"
-                prepend-icon="mdi-robot-outline"
-                :type="showApiKeys.anthropic ? 'text' : 'password'"
-                :append-inner-icon="showApiKeys.anthropic ? 'mdi-eye-off' : 'mdi-eye'"
-                @click:append-inner="showApiKeys.anthropic = !showApiKeys.anthropic"
-                :readonly="!editingApiKeys"
-                variant="outlined"
-                class="mb-3"
-                hint="Beginnt mit sk-ant-..."
-                persistent-hint
-              ></v-text-field>
-
-              <v-text-field
-                v-model="apiKeys.gemini"
-                label="Google Gemini API Key"
-                prepend-icon="mdi-google"
-                :type="showApiKeys.gemini ? 'text' : 'password'"
-                :append-inner-icon="showApiKeys.gemini ? 'mdi-eye-off' : 'mdi-eye'"
-                @click:append-inner="showApiKeys.gemini = !showApiKeys.gemini"
-                :readonly="!editingApiKeys"
-                variant="outlined"
-                class="mb-3"
-                hint="Google Cloud API Key"
-                persistent-hint
-              ></v-text-field>
-
-              <div class="d-flex gap-2">
-                <v-btn
-                  v-if="!editingApiKeys"
-                  color="primary"
-                  @click="startEditingApiKeys"
-                  block
-                >
-                  <v-icon left>mdi-pencil</v-icon>
-                  Bearbeiten
-                </v-btn>
-
-                <v-btn
-                  v-if="editingApiKeys"
-                  color="success"
-                  @click="saveApiKeys"
-                  :loading="savingApiKeys"
-                >
-                  <v-icon left>mdi-content-save</v-icon>
-                  Speichern
-                </v-btn>
-
-                <v-btn
-                  v-if="editingApiKeys"
-                  color="error"
-                  @click="cancelEditingApiKeys"
-                >
-                  Abbrechen
-                </v-btn>
-              </div>
-            </v-form>
-          </v-card-text>
-        </v-card>
+        <ApiKeysCard
+          :api-keys="apiKeys"
+          :saving="savingApiKeys"
+          @save="saveApiKeys"
+        />
       </v-col>
 
-      <!-- Account-Informationen -->
       <v-col cols="12">
-        <v-card>
-          <v-card-title>
-            <v-icon left>mdi-information</v-icon>
-            Account-Informationen
-          </v-card-title>
-          <v-card-text>
-            <v-list>
-              <v-list-item>
-                <template v-slot:prepend>
-                  <v-icon>mdi-email</v-icon>
-                </template>
-                <v-list-item-title>E-Mail</v-list-item-title>
-                <v-list-item-subtitle>{{ authStore.user?.email }}</v-list-item-subtitle>
-              </v-list-item>
-
-              <v-divider class="my-3"></v-divider>
-
-              <v-list-item>
-                <v-btn color="error" variant="outlined" @click="handleLogout" block>
-                  <v-icon left>mdi-logout</v-icon>
-                  Abmelden
-                </v-btn>
-              </v-list-item>
-            </v-list>
-          </v-card-text>
-        </v-card>
+        <AccountInfoCard
+          :email="authStore.user?.email"
+          @logout="handleLogout"
+        />
       </v-col>
     </v-row>
 
@@ -288,21 +64,17 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 import GoogleCalendarConnect from '@/components/GoogleCalendarConnect.vue'
+import ProfileDataCard from '@/components/profile/ProfileDataCard.vue'
+import PasswordChangeCard from '@/components/profile/PasswordChangeCard.vue'
+import ApiKeysCard from '@/components/profile/ApiKeysCard.vue'
+import AccountInfoCard from '@/components/profile/AccountInfoCard.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
-const profileForm = ref()
-const passwordForm = ref()
-const apiKeysForm = ref()
-const profileValid = ref(false)
-const passwordValid = ref(false)
-const apiKeysValid = ref(false)
-
-const editingProfile = ref(false)
+const passwordCardRef = ref()
 const savingProfile = ref(false)
 const changingPassword = ref(false)
-const editingApiKeys = ref(false)
 const savingApiKeys = ref(false)
 
 const profileData = ref({
@@ -311,22 +83,10 @@ const profileData = ref({
   email: ''
 })
 
-const passwordData = ref({
-  currentPassword: '',
-  newPassword: '',
-  confirmPassword: ''
-})
-
 const apiKeys = ref({
   openai: '',
   anthropic: '',
   gemini: ''
-})
-
-const showApiKeys = ref({
-  openai: false,
-  anthropic: false,
-  gemini: false
 })
 
 const snackbar = ref({
@@ -334,30 +94,6 @@ const snackbar = ref({
   message: '',
   color: 'success'
 })
-
-// Validation Rules
-const nameRules = [
-  (v: string) => !!v || 'Name ist erforderlich',
-  (v: string) => (v && v.length >= 2) || 'Name muss mindestens 2 Zeichen lang sein'
-]
-
-const emailRules = [
-  (v: string) => !!v || 'E-Mail ist erforderlich',
-  (v: string) => /.+@.+\..+/.test(v) || 'E-Mail muss gültig sein'
-]
-
-const requiredRules = [
-  (v: string) => !!v || 'Dieses Feld ist erforderlich'
-]
-
-const passwordRules = [
-  (v: string) => !!v || 'Passwort ist erforderlich',
-  (v: string) => (v && v.length >= 6) || 'Passwort muss mindestens 6 Zeichen lang sein'
-]
-
-const passwordMatchRule = (v: string) => {
-  return v === passwordData.value.newPassword || 'Passwörter stimmen nicht überein'
-}
 
 const showMessage = (message: string, color: string = 'success') => {
   snackbar.value = { show: true, message, color }
@@ -373,35 +109,17 @@ const loadProfileData = () => {
   }
 }
 
-const startEditingProfile = () => {
-  editingProfile.value = true
-}
-
-const cancelEditingProfile = () => {
-  editingProfile.value = false
-  loadProfileData()
-}
-
-const saveProfile = async () => {
-  if (!profileForm.value || !profileValid.value) return
-
+const saveProfile = async (data: typeof profileData.value) => {
   savingProfile.value = true
   try {
-    // Hier würde der API-Call zum Aktualisieren des Profils stehen
-    // const response = await api.updateProfile(profileData.value)
-
-    // Für jetzt aktualisieren wir nur den Auth Store lokal
     if (authStore.user) {
-      authStore.user.firstName = profileData.value.firstName
-      authStore.user.lastName = profileData.value.lastName
-      authStore.user.email = profileData.value.email
-
-      // Update localStorage
+      authStore.user.firstName = data.firstName
+      authStore.user.lastName = data.lastName
+      authStore.user.email = data.email
       localStorage.setItem('user', JSON.stringify(authStore.user))
     }
-
+    profileData.value = data
     showMessage('Profil erfolgreich aktualisiert')
-    editingProfile.value = false
   } catch (error: any) {
     console.error('Error saving profile:', error)
     showMessage('Fehler beim Speichern des Profils', 'error')
@@ -410,24 +128,14 @@ const saveProfile = async () => {
   }
 }
 
-const changePassword = async () => {
-  if (!passwordForm.value || !passwordValid.value) return
-
+const changePassword = async (currentPassword: string, newPassword: string) => {
   changingPassword.value = true
   try {
-    const response = await api.changePassword(
-      passwordData.value.currentPassword,
-      passwordData.value.newPassword
-    )
+    const response = await api.changePassword(currentPassword, newPassword)
 
     if (response.success) {
       showMessage('Passwort erfolgreich geändert')
-      passwordData.value = {
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      }
-      passwordForm.value.reset()
+      passwordCardRef.value?.reset()
     } else {
       showMessage(response.message || 'Fehler beim Ändern des Passworts', 'error')
     }
@@ -440,7 +148,6 @@ const changePassword = async () => {
 }
 
 const loadApiKeys = () => {
-  // Load API keys from localStorage
   const storedKeys = localStorage.getItem('apiKeys')
   if (storedKeys) {
     try {
@@ -456,26 +163,12 @@ const loadApiKeys = () => {
   }
 }
 
-const startEditingApiKeys = () => {
-  editingApiKeys.value = true
-}
-
-const cancelEditingApiKeys = () => {
-  editingApiKeys.value = false
-  loadApiKeys()
-}
-
-const saveApiKeys = async () => {
-  if (!apiKeysForm.value) return
-
+const saveApiKeys = async (keys: typeof apiKeys.value) => {
   savingApiKeys.value = true
   try {
-    // Store API keys securely in localStorage
-    // In a production app, these should be encrypted and stored in the backend
-    localStorage.setItem('apiKeys', JSON.stringify(apiKeys.value))
-
+    localStorage.setItem('apiKeys', JSON.stringify(keys))
+    apiKeys.value = keys
     showMessage('API Keys erfolgreich gespeichert')
-    editingApiKeys.value = false
   } catch (error: any) {
     console.error('Error saving API keys:', error)
     showMessage('Fehler beim Speichern der API Keys', 'error')
@@ -494,9 +187,3 @@ onMounted(() => {
   loadApiKeys()
 })
 </script>
-
-<style scoped>
-.gap-2 {
-  gap: 8px;
-}
-</style>

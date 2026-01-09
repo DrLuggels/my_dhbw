@@ -1,6 +1,0 @@
-@DHBWAutomation.API_HostAddress = http://localhost:5086
-
-GET {{DHBWAutomation.API_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

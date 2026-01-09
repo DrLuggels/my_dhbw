@@ -200,11 +200,11 @@ function truncateText(text: string, length: number): string {
 
 onMounted(async () => {
   await mailStore.fetchSummary()
-  mailStore.startAutoRefresh()
+  // mailStore.startAutoRefresh()
 })
 
 onUnmounted(() => {
-  mailStore.stopAutoRefresh()
+  // mailStore.stopAutoRefresh()
 })
 </script>
 

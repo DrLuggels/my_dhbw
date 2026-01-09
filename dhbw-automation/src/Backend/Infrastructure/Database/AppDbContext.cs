@@ -23,6 +23,10 @@ public class AppDbContext : DbContext
     public DbSet<LearningDeficit> LearningDeficits { get; set; } = null!;
     public DbSet<GeneratedExercise> GeneratedExercises { get; set; } = null!;
 
+    // NEW: Email-System DbSets
+    public DbSet<Email> Emails { get; set; } = null!;
+    public DbSet<EmailAttachment> EmailAttachments { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -193,6 +197,50 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.Deficit)
                 .WithMany()
                 .HasForeignKey(e => e.DeficitId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Email Configuration
+        modelBuilder.Entity<Email>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.MessageId }).IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.IsRead, e.ReceivedAt });
+            entity.HasIndex(e => new { e.UserId, e.IsProcessed });
+            entity.HasIndex(e => new { e.UserId, e.RequiresUserAction, e.ActionStatus });
+            entity.HasIndex(e => e.Folder);
+            entity.HasIndex(e => e.Category);
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.Emails)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.RelatedCalendarEvent)
+                .WithMany()
+                .HasForeignKey(e => e.RelatedCalendarEventId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasMany(e => e.Attachments)
+                .WithOne(a => a.Email)
+                .HasForeignKey(a => a.EmailId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // EmailAttachment Configuration
+        modelBuilder.Entity<EmailAttachment>(entity =>
+        {
+            entity.HasIndex(e => e.EmailId);
+            entity.HasIndex(e => e.RelatedDocumentId);
+            entity.HasIndex(e => new { e.EmailId, e.IsProcessed });
+
+            entity.HasOne(e => e.Email)
+                .WithMany(email => email.Attachments)
+                .HasForeignKey(e => e.EmailId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.RelatedDocument)
+                .WithMany()
+                .HasForeignKey(e => e.RelatedDocumentId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
     }
