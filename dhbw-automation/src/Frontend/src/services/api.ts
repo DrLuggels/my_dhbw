@@ -74,7 +74,11 @@ class ApiService {
       formData.append('category', category)
     }
 
-    const response = await this.api.post('/files/upload', formData)
+    const response = await this.api.post('/files/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
     return response.data
   }
 
