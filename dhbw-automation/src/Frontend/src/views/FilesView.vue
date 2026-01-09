@@ -17,19 +17,9 @@
         <v-alert type="info" variant="tonal" class="mb-2">
           <div class="text-body-2">
             <v-icon size="small" class="mr-1">mdi-robot</v-icon>
-            Die Kategorie wird automatisch von der KI erkannt. Du kannst optional eine manuelle Kategorie angeben.
+            Die KI analysiert dein Dokument automatisch und erkennt Kategorie, Fach, Themen, TODOs, Termine und mehr.
           </div>
         </v-alert>
-        
-        <v-select
-          v-model="category"
-          :items="categories"
-          label="Kategorie (Optional - KI erkennt automatisch)"
-          variant="outlined"
-          clearable
-          class="mb-2"
-          @update:modelValue="loadFiles"
-        ></v-select>
         
         <v-alert v-if="errorMessage" type="error" class="mb-2" closable @click:close="errorMessage = ''">
           {{ errorMessage }}
@@ -80,28 +70,17 @@ import { ref, onMounted } from 'vue'
 import api from '@/services/api'
 
 const file = ref<File[]>([])
-const category = ref('')
 const uploading = ref(false)
 const loading = ref(false)
 const documents = ref<any[]>([])
 const errorMessage = ref('')
 const successMessage = ref('')
 
-const categories = [
-  'Vorlesung',
-  'Übung',
-  'Projekt',
-  'Prüfung',
-  'Sonstiges'
-]
-
 const loadFiles = async () => {
-  if (!category.value) return
-  
   loading.value = true
   try {
-    const response = await api.getFilesByCategory(category.value)
-    documents.value = response.documents || []
+    const response = await api.get('/files')
+    documents.value = response.data.data || []
   } catch (error: any) {
     console.error('Load files error:', error)
     errorMessage.value = 'Fehler beim Laden der Dateien'
@@ -132,8 +111,8 @@ const handleUpload = async () => {
       errorMessage.value = response.message || 'Upload fehlgeschlagen'
     }
   } catch (error: any) {
-    console.error('Upload error:', error)
-    errorMessage.value = error.response?.data?.message || 'Upload fehlgeschlagen'
+    conAI will detect category automatically
+    const response = await api.uploadFile(file.value[0],hlagen'
   } finally {
     uploading.value = false
   }
@@ -177,6 +156,6 @@ const formatFileSize = (bytes: number): string => {
 }
 
 onMounted(() => {
-  if (category.value) loadFiles()
+  loadFiles()
 })
 </script>
