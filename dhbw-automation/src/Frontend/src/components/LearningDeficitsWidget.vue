@@ -98,7 +98,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import axios from 'axios'
+import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 
 interface LearningDeficit {
@@ -194,7 +194,7 @@ const loadDeficits = async () => {
 
   loading.value = true
   try {
-    const response = await axios.get(`/api/learning/deficits/${authStore.user.id}`)
+    const response = await api.get(`/api/learning/deficits/${authStore.user.id}`)
 
     if (response.data.success) {
       deficits.value = response.data.data
@@ -211,7 +211,7 @@ const scheduleTutoring = async (deficit: LearningDeficit) => {
   schedulingId.value = deficit.id
 
   try {
-    const response = await axios.post(
+    const response = await api.post(
       `/api/learning/schedule-tutoring/${deficit.id}?userId=${authStore.user?.id}`
     )
 

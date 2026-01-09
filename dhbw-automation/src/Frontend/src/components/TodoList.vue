@@ -78,7 +78,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import axios from 'axios'
+import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 
 interface Todo {
@@ -130,7 +130,7 @@ const loadTodos = async () => {
 
   loading.value = true
   try {
-    const response = await axios.get(`/api/todo/user/${authStore.user.id}`, {
+    const response = await api.get(`/api/todo/user/${authStore.user.id}`, {
       params: {
         status: null // Get all todos
       }
@@ -153,7 +153,7 @@ const toggleTodo = async (todo: Todo) => {
   const newStatus = todo.status === 'completed' ? 'pending' : 'completed'
 
   try {
-    await axios.patch(`/api/todo/${todo.id}/status`, {
+    await api.patch(`/api/todo/${todo.id}/status`, {
       userId: authStore.user.id,
       status: newStatus
     })

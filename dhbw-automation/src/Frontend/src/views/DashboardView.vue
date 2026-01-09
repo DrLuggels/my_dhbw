@@ -119,7 +119,6 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
-import axios from 'axios'
 import InteractionDialog from '@/components/InteractionDialog.vue'
 import TodoList from '@/components/TodoList.vue'
 import LearningDeficitsWidget from '@/components/LearningDeficitsWidget.vue'
@@ -167,7 +166,7 @@ const loadInteractions = async () => {
   if (!authStore.user?.id) return
 
   try {
-    const response = await axios.get(`/api/interaction/pending/${authStore.user.id}`)
+    const response = await api.get(`/api/interaction/pending/${authStore.user.id}`)
     if (response.data.success) {
       pendingInteractions.value = response.data.data
     }
