@@ -133,7 +133,9 @@ out/
 *.cer
 
 # AI Model weights (falls lokal)
-models/
+# Ignore AI model directories but not C# Models folders
+/models/
+ai-models/
 *.bin
 *.onnx
 *.pt
