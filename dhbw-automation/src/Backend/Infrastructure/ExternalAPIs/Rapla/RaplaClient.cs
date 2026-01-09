@@ -103,6 +103,7 @@ public class RaplaClient
                     ExternalId = calEvent.Uid,
                     IsAllDay = calEvent.IsAllDay,
                     CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
                     LastSyncedAt = DateTime.UtcNow
                 };
 

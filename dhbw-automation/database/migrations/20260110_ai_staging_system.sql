@@ -21,9 +21,9 @@ CREATE TABLE IF NOT EXISTS StagedEntities (
 
     -- Foreign Keys
     CONSTRAINT FK_StagedEntities_Users FOREIGN KEY (UserId)
-        REFERENCES Users(Id) ON DELETE CASCADE,
+        REFERENCES users(Id) ON DELETE CASCADE,
     CONSTRAINT FK_StagedEntities_Documents FOREIGN KEY (SourceDocumentId)
-        REFERENCES Documents(Id) ON DELETE SET NULL,
+        REFERENCES documents(Id) ON DELETE SET NULL,
 
     -- Indexes für Performance
     INDEX IX_StagedEntities_User_Status_Priority (UserId, Status, Priority),
