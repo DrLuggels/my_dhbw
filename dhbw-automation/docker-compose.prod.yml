@@ -193,6 +193,8 @@ services:
       dockerfile: docker/frontend.Dockerfile
     container_name: dhbw-frontend
     restart: unless-stopped
+    ports:
+      - "8091:80"
     networks:
       - dhbw-network
     healthcheck:
