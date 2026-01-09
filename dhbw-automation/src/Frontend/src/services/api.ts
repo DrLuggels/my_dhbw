@@ -110,6 +110,10 @@ class ApiService {
     return this.api.put(url, data, config)
   }
 
+  patch(url: string, data?: any, config?: any) {
+    return this.api.patch(url, data, config)
+  }
+
   delete(url: string, config?: any) {
     return this.api.delete(url, config)
   }
