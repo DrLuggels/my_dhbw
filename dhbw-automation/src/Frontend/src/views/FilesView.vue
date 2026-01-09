@@ -14,11 +14,19 @@
           class="mb-2"
         ></v-file-input>
         
+        <v-alert type="info" variant="tonal" class="mb-2">
+          <div class="text-body-2">
+            <v-icon size="small" class="mr-1">mdi-robot</v-icon>
+            Die Kategorie wird automatisch von der KI erkannt. Du kannst optional eine manuelle Kategorie angeben.
+          </div>
+        </v-alert>
+        
         <v-select
           v-model="category"
           :items="categories"
-          label="Kategorie"
+          label="Kategorie (Optional - KI erkennt automatisch)"
           variant="outlined"
+          clearable
           class="mb-2"
           @update:modelValue="loadFiles"
         ></v-select>
@@ -108,17 +116,13 @@ const handleUpload = async () => {
     return
   }
   
-  if (!category.value) {
-    errorMessage.value = 'Bitte wähle eine Kategorie aus'
-    return
-  }
-  
   uploading.value = true
   errorMessage.value = ''
   successMessage.value = ''
   
   try {
-    const response = await api.uploadFile(file.value[0], category.value)
+    // Category is optional - AI will detect it automatically if not provided
+    const response = await api.uploadFile(file.value[0], category.value || null)
     
     if (response.success) {
       successMessage.value = 'Datei erfolgreich hochgeladen!'
