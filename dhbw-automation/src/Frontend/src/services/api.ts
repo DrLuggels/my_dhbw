@@ -74,9 +74,10 @@ class ApiService {
       formData.append('category', category)
     }
 
+    // Let the browser set Content-Type automatically with boundary
     const response = await this.api.post('/files/upload', formData, {
       headers: {
-        'Content-Type': 'multipart/form-data'
+        'Content-Type': undefined
       }
     })
     return response.data
