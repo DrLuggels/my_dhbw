@@ -21,6 +21,12 @@ class ApiService {
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
         }
+
+        // Remove Content-Type for FormData to let browser set it with boundary
+        if (config.data instanceof FormData) {
+          delete config.headers['Content-Type']
+        }
+
         return config
       },
       (error) => {
@@ -74,12 +80,8 @@ class ApiService {
       formData.append('category', category)
     }
 
-    // Let the browser set Content-Type automatically with boundary
-    const response = await this.api.post('/files/upload', formData, {
-      headers: {
-        'Content-Type': undefined
-      }
-    })
+    // Don't set Content-Type - let browser add it with boundary
+    const response = await this.api.post('/files/upload', formData)
     return response.data
   }
 
