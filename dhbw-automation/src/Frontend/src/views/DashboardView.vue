@@ -85,6 +85,13 @@
       </v-col>
     </v-row>
 
+    <!-- AI Validation Widget -->
+    <v-row class="mt-4">
+      <v-col cols="12">
+        <PendingEntitiesWidget />
+      </v-col>
+    </v-row>
+
     <!-- Quick Actions -->
     <v-row class="mt-4">
       <v-col cols="12">
@@ -122,6 +129,7 @@ import api from '@/services/api'
 import InteractionDialog from '@/components/InteractionDialog.vue'
 import TodoList from '@/components/TodoList.vue'
 import LearningDeficitsWidget from '@/components/LearningDeficitsWidget.vue'
+import PendingEntitiesWidget from '@/components/PendingEntitiesWidget.vue'
 
 interface Interaction {
   id: number

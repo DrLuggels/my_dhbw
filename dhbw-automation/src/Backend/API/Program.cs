@@ -145,7 +145,7 @@ builder.Services.AddStackExchangeRedisCache(options =>
 });
 
 // Authentication & Authorization
-// JWT Secret einmalig beim Start laden
+// JWT Secret einmalig beim Start laden und als Singleton registrieren
 var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") 
     ?? builder.Configuration["JWT_SECRET"]
     ?? "your-super-secret-jwt-key-change-this-in-production-min-32-chars";
@@ -153,7 +153,7 @@ var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "DHBWAutomat
 var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "DHBWAutomationUsers";
 var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
 
-Console.WriteLine($"[JWT CONFIG] Using JWT_SECRET (length: {jwtSecret.Length}), Issuer: {jwtIssuer}, Audience: {jwtAudience}");
+Console.WriteLine($"[JWT CONFIG] Loaded JWT_SECRET (length: {jwtSecret.Length}), Issuer: {jwtIssuer}, Audience: {jwtAudience}");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -166,7 +166,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = jwtIssuer,
             ValidAudience = jwtAudience,
-            IssuerSigningKey = securityKey,
+            // Resolver statt direkter Key-Zuweisung, damit der Key bei jeder Validierung verfügbar ist
+            IssuerSigningKeyResolver = (token, securityToken, kid, validationParameters) =>
+            {
+                return new[] { securityKey };
+            },
             ClockSkew = TimeSpan.FromMinutes(5)
         };
         
