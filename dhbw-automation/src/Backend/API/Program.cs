@@ -3,6 +3,7 @@ using Microsoft.OpenApi.Models;
 using DHBWAutomation.Backend.Infrastructure.Database;
 using DHBWAutomation.Backend.Core.Interfaces;
 using DHBWAutomation.Backend.Core.Services;
+using DHBWAutomation.Backend.Core.BackgroundServices;
 using DHBWAutomation.Backend.Infrastructure.Storage;
 using DHBWAutomation.Backend.Infrastructure.ExternalAPIs.Rapla;
 using DHBWAutomation.Backend.Shared.Helpers;
@@ -159,6 +160,8 @@ builder.Services.AddHttpClient<RaplaClient>();
 
 // Background Workers
 builder.Services.AddHostedService<EmailSyncBackgroundService>();
+builder.Services.AddSingleton<DocumentProcessingBackgroundService>();
+builder.Services.AddHostedService(provider => provider.GetRequiredService<DocumentProcessingBackgroundService>());
 // TODO: Weitere Background Workers implementieren
 // builder.Services.AddHostedService<MoodleSyncWorker>();
 

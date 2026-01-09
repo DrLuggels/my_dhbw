@@ -24,7 +24,9 @@ public class AIService : IAIService
     private readonly string? _geminiApiKey;
 
     // Rate Limiters
-    private static readonly RateLimiter _openAiLimiter = new(3, TimeSpan.FromMinutes(1));
+    // OpenAI GPT-4/5 mini: Tier 2 hat 10,000 RPM / 2M TPM - wir nutzen 50 RPM konservativ
+    private static readonly RateLimiter _openAiLimiter = new(50, TimeSpan.FromMinutes(1));
+    // Gemini 3 Flash: 60 RPM (Free Tier ausreichend für Bulk Operations)
     private static readonly RateLimiter _geminiLimiter = new(60, TimeSpan.FromMinutes(1));
 
     // Retry Policy for OpenAI

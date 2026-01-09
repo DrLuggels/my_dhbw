@@ -10,7 +10,28 @@
         </v-btn>
       </div>
     </div>
-    
+
+    <!-- Interactions Section (KI needs user input) -->
+    <v-row v-if="pendingInteractions.length > 0" class="mb-4">
+      <v-col cols="12">
+        <div class="mb-3">
+          <h2 class="text-h5">
+            <v-icon left color="primary">mdi-chat-question</v-icon>
+            KI benötigt deine Eingabe
+          </h2>
+        </div>
+
+        <InteractionDialog
+          v-for="interaction in pendingInteractions"
+          :key="interaction.id"
+          :interaction="interaction"
+          @answered="loadInteractions"
+          @dismissed="loadInteractions"
+        />
+      </v-col>
+    </v-row>
+
+    <!-- Statistics Cards -->
     <v-row>
       <v-col cols="12" md="4">
         <v-card>
@@ -21,7 +42,7 @@
           </v-card-text>
         </v-card>
       </v-col>
-      
+
       <v-col cols="12" md="4">
         <v-card>
           <v-card-title>Termine</v-card-title>
@@ -35,14 +56,14 @@
           </v-card-text>
         </v-card>
       </v-col>
-      
+
       <v-col cols="12" md="4">
         <v-card>
           <v-card-title>Rapla Sync</v-card-title>
           <v-card-text>
-            <v-btn 
-              color="primary" 
-              @click="syncRapla" 
+            <v-btn
+              color="primary"
+              @click="syncRapla"
               :loading="syncing"
               block
             >
@@ -53,7 +74,18 @@
         </v-card>
       </v-col>
     </v-row>
-    
+
+    <!-- TODOs & Learning Deficits -->
+    <v-row class="mt-4">
+      <v-col cols="12" md="6">
+        <TodoList />
+      </v-col>
+      <v-col cols="12" md="6">
+        <LearningDeficitsWidget />
+      </v-col>
+    </v-row>
+
+    <!-- Quick Actions -->
     <v-row class="mt-4">
       <v-col cols="12">
         <v-card>
@@ -63,6 +95,10 @@
               <v-icon left>mdi-file-upload</v-icon>
               Datei hochladen
             </v-btn>
+            <v-btn color="info" class="mr-2" to="/learning">
+              <v-icon left>mdi-school</v-icon>
+              Lernbereich öffnen
+            </v-btn>
             <v-btn color="secondary" @click="testRapla" :loading="testing">
               <v-icon left>mdi-calendar</v-icon>
               Rapla-Verbindung testen
@@ -71,7 +107,7 @@
         </v-card>
       </v-col>
     </v-row>
-    
+
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="3000">
       {{ snackbar.message }}
     </v-snackbar>
@@ -83,6 +119,21 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
+import axios from 'axios'
+import InteractionDialog from '@/components/InteractionDialog.vue'
+import TodoList from '@/components/TodoList.vue'
+import LearningDeficitsWidget from '@/components/LearningDeficitsWidget.vue'
+
+interface Interaction {
+  id: number
+  userId: number
+  interactionType: string
+  question: string
+  suggestedOptions?: string
+  context: string
+  status: string
+  createdAt: string
+}
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -91,6 +142,8 @@ const stats = ref({
   documents: 0,
   events: 0
 })
+
+const pendingInteractions = ref<Interaction[]>([])
 
 const syncing = ref(false)
 const testing = ref(false)
@@ -110,12 +163,25 @@ const handleLogout = () => {
   router.push('/login')
 }
 
+const loadInteractions = async () => {
+  if (!authStore.user?.id) return
+
+  try {
+    const response = await axios.get(`/api/interaction/pending/${authStore.user.id}`)
+    if (response.data.success) {
+      pendingInteractions.value = response.data.data
+    }
+  } catch (error) {
+    console.error('Error loading interactions:', error)
+  }
+}
+
 const syncRapla = async () => {
   if (!authStore.user?.id) {
     showMessage('Benutzer nicht angemeldet', 'error')
     return
   }
-  
+
   syncing.value = true
   try {
     const response = await api.syncRaplaCalendar(authStore.user.id)
@@ -164,7 +230,22 @@ const loadStats = async () => {
   }
 }
 
+// Poll for new interactions every 30 seconds
+let pollInterval: NodeJS.Timeout | null = null
+
 onMounted(() => {
   loadStats()
+  loadInteractions()
+
+  // Set up polling for interactions
+  pollInterval = setInterval(loadInteractions, 30000)
+})
+
+// Clean up on unmount
+import { onUnmounted } from 'vue'
+onUnmounted(() => {
+  if (pollInterval) {
+    clearInterval(pollInterval)
+  }
 })
 </script>

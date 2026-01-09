@@ -10,5 +10,5 @@ public interface IFileService
     Task<IEnumerable<Document>> GetUserDocumentsAsync(int userId, int page = 1, int pageSize = 20);
     Task<bool> DeleteDocumentAsync(int documentId, int userId);
     Task<Stream?> DownloadFileAsync(int documentId, int userId);
-    Task<bool> ProcessDocumentAsync(int documentId);
+    Task<bool> ProcessDocumentAsync(int documentId, ProcessingOptions? options = null);
 }

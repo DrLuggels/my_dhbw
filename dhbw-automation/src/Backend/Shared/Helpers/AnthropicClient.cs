@@ -17,8 +17,9 @@ public class AnthropicClient
     private readonly ILogger<AnthropicClient> _logger;
     private readonly string? _apiKey;
     
-    // Rate Limiter: 5 Requests pro Minute (Anthropic Free Tier)
-    private static readonly RateLimiter _rateLimiter = new(5, TimeSpan.FromMinutes(1));
+    // Rate Limiter: 50 Requests pro Minute (Anthropic Tier 1 - Claude Sonnet)
+    // Tier 1: 50 RPM, 40,000 TPM, 200,000 TPD
+    private static readonly RateLimiter _rateLimiter = new(50, TimeSpan.FromMinutes(1));
     
     // Retry Policy mit Exponential Backoff
     private static readonly AsyncRetryPolicy<HttpResponseMessage> _retryPolicy = Policy

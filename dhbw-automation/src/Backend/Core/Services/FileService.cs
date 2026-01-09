@@ -143,15 +143,18 @@ public class FileService : IFileService
         }
     }
 
-    public async Task<bool> ProcessDocumentAsync(int documentId)
+    public async Task<bool> ProcessDocumentAsync(int documentId, ProcessingOptions? options = null)
     {
+        // Use default options if not provided
+        options ??= ProcessingOptions.Default;
+
         try
         {
             var document = await _context.Documents.FindAsync(documentId);
             if (document == null || document.IsProcessed)
                 return false;
 
-            _logger.LogInformation($"Processing document {documentId} with enhanced AI pipeline");
+            _logger.LogInformation($"Processing document {documentId} with options: IntentAnalysis={options.EnableIntentAnalysis}, Correction={options.EnableTextCorrection}, Tags={options.GenerateTags}");
 
             Stream? fileStream = null;
             try
@@ -178,20 +181,27 @@ public class FileService : IFileService
                     return false;
                 }
 
-                // 3. Intent Analysis with Claude Sonnet 4.5 - THE BRAIN
-                var intent = await _intentService.AnalyzeDocumentIntentAsync(extractedText, document.DocumentCategory.ToString());
+                // 3. Intent Analysis with Claude Sonnet 4.5 - THE BRAIN (if enabled)
+                DocumentIntent? intent = null;
+                if (options.EnableIntentAnalysis)
+                {
+                    intent = await _intentService.AnalyzeDocumentIntentAsync(extractedText, document.DocumentCategory.ToString());
+                    _logger.LogInformation($"Document intent: {intent.PrimaryIntent}");
+                }
 
-                _logger.LogInformation($"Document intent: {intent.PrimaryIntent}");
-
-                // 4. Process Errors (Learning Analytics)
-                if (intent.Errors?.Any() == true)
+                // 4. Process Errors (Learning Analytics - if enabled)
+                if (intent?.Errors?.Any() == true && options.EnableLearningAnalytics)
                 {
                     document.DetectedErrors = JsonSerializer.Serialize(intent.Errors);
                     document.ErrorCount = intent.Errors.Count;
 
-                    // Generate corrected text using GPT-5 mini
-                    var correctionPrompt = $"Korrigiere folgende Fehler im Text:\n\n{extractedText.Substring(0, Math.Min(extractedText.Length, 3000))}\n\nFehler:\n{string.Join("\n", intent.Errors.Take(5).Select(e => $"- {e.Explanation}"))}";
-                    document.CorrectedText = await _aiService.ChatCompletionAsync(correctionPrompt, null);
+                    // OPTIONAL: Generate corrected text (expensive - default OFF)
+                    if (options.EnableTextCorrection)
+                    {
+                        var correctionPrompt = $"Korrigiere folgende Fehler im Text:\n\n{extractedText.Substring(0, Math.Min(extractedText.Length, 3000))}\n\nFehler:\n{string.Join("\n", intent.Errors.Take(5).Select(e => $"- {e.Explanation}"))}";
+                        document.CorrectedText = await _aiService.ChatCompletionAsync(correctionPrompt, null);
+                        _logger.LogInformation($"Generated corrected text for document {documentId}");
+                    }
 
                     // Save document first so we have the DetectedErrors field populated
                     await _context.SaveChangesAsync();
@@ -202,37 +212,43 @@ public class FileService : IFileService
                     _logger.LogInformation($"Detected {intent.Errors.Count} errors in document {documentId}");
                 }
 
-                // 5. Create UserInteractions based on intent
-                if (intent.Meeting != null || intent.Project != null || (intent.Errors?.Count > 2))
+                // 5. Create UserInteractions based on intent (if enabled)
+                if (intent != null && options.GenerateInteractions)
                 {
-                    var interactions = await _intentService.GenerateInteractionsAsync(intent, document.UserId, documentId);
-                    _context.UserInteractions.AddRange(interactions);
-
-                    _logger.LogInformation($"Created {interactions.Count} user interactions for document {documentId}");
-                }
-
-                // 6. Create TODOs automatically
-                foreach (var todo in intent.Todos ?? new List<ExtractedTodo>())
-                {
-                    var newTodo = new Todo
+                    if (intent.Meeting != null || intent.Project != null || (intent.Errors?.Count > 2))
                     {
-                        UserId = document.UserId,
-                        Title = todo.Title,
-                        Description = todo.Description,
-                        Category = todo.Category,
-                        Priority = todo.Priority,
-                        Status = "pending",
-                        DueDate = todo.SuggestedDeadline,
-                        RelatedDocumentId = documentId,
-                        ExtractedFrom = extractedText.Substring(0, Math.Min(extractedText.Length, 500)),
-                        AiSuggestion = "Automatisch aus Dokument extrahiert",
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    _context.Todos.Add(newTodo);
+                        var interactions = await _intentService.GenerateInteractionsAsync(intent, document.UserId, documentId);
+                        _context.UserInteractions.AddRange(interactions);
+
+                        _logger.LogInformation($"Created {interactions.Count} user interactions for document {documentId}");
+                    }
                 }
 
-                // 7. Handle Project
-                if (intent.Project != null)
+                // 6. Create TODOs automatically (if intent analysis is enabled)
+                if (intent != null && options.EnableIntentAnalysis)
+                {
+                    foreach (var todo in intent.Todos ?? new List<ExtractedTodo>())
+                    {
+                        var newTodo = new Todo
+                        {
+                            UserId = document.UserId,
+                            Title = todo.Title,
+                            Description = todo.Description,
+                            Category = todo.Category,
+                            Priority = todo.Priority,
+                            Status = "pending",
+                            DueDate = todo.SuggestedDeadline,
+                            RelatedDocumentId = documentId,
+                            ExtractedFrom = extractedText.Substring(0, Math.Min(extractedText.Length, 500)),
+                            AiSuggestion = "Automatisch aus Dokument extrahiert",
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        _context.Todos.Add(newTodo);
+                    }
+                }
+
+                // 7. Handle Project (if intent analysis is enabled)
+                if (intent?.Project != null && options.EnableIntentAnalysis)
                 {
                     // Check if project already exists
                     var existingProject = await _context.Projects
@@ -253,9 +269,20 @@ public class FileService : IFileService
                 }
 
                 // 8. Standard AI Processing (GPT-5 mini for cost-effective tasks)
-                document.Summary = await _aiService.SummarizeTextAsync(extractedText, 500);
-                var tags = await _aiService.GenerateTagsAsync(extractedText);
-                document.Tags = string.Join(", ", tags);
+                // Summary (OPTIONAL - can be disabled for bulk operations)
+                if (options.GenerateSummary)
+                {
+                    document.Summary = await _aiService.SummarizeTextAsync(extractedText, 500);
+                }
+
+                // Tags (OPTIONAL - can be disabled for fast processing)
+                if (options.GenerateTags)
+                {
+                    var tags = await _aiService.GenerateTagsAsync(extractedText);
+                    document.Tags = string.Join(", ", tags);
+                }
+
+                // Always store extracted text (for search and later processing)
                 document.ExtractedText = extractedText.Substring(0, Math.Min(extractedText.Length, 5000));
 
                 // 9. Document Categorization
