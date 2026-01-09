@@ -161,6 +161,8 @@ services:
       - Qdrant__Host=qdrant
       - Qdrant__Port=6333
       - APP_URL=http://192.168.178.198:8091
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production-min-32-chars}
+      - JWT_ISSUER=DHBWAutomation
     depends_on:
       mariadb:
         condition: service_healthy
