@@ -56,6 +56,12 @@ const router = createRouter({
       name: 'travel',
       component: () => import('../views/TravelView.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/validation',
+      name: 'validation',
+      component: () => import('../views/ValidationView.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

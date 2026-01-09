@@ -145,18 +145,19 @@ builder.Services.AddStackExchangeRedisCache(options =>
 });
 
 // Authentication & Authorization
+// JWT Secret einmalig beim Start laden
+var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") 
+    ?? builder.Configuration["JWT_SECRET"]
+    ?? "your-super-secret-jwt-key-change-this-in-production-min-32-chars";
+var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "DHBWAutomation";
+var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "DHBWAutomationUsers";
+var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
+
+Console.WriteLine($"[JWT CONFIG] Using JWT_SECRET (length: {jwtSecret.Length}), Issuer: {jwtIssuer}, Audience: {jwtAudience}");
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        // JWT Secret zur Laufzeit lesen, nicht zur Build-Zeit
-        var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") 
-            ?? builder.Configuration["JWT_SECRET"]
-            ?? "your-super-secret-jwt-key-change-this-in-production-min-32-chars";
-        var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "DHBWAutomation";
-        var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "DHBWAutomationUsers";
-        
-        Console.WriteLine($"[JWT CONFIG] Using JWT_SECRET (length: {jwtSecret.Length}), Issuer: {jwtIssuer}");
-        
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -165,10 +166,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = jwtIssuer,
             ValidAudience = jwtAudience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
-            // Wichtig: kid (Key ID) ist optional
-            RequireSignedTokens = true,
-            TryAllIssuerSigningKeys = false
+            IssuerSigningKey = securityKey,
+            ClockSkew = TimeSpan.FromMinutes(5)
         };
         
         // Detailliertes Logging für Debugging
