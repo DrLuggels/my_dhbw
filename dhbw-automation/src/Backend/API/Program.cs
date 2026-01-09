@@ -32,9 +32,21 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins(
-                Environment.GetEnvironmentVariable("APP_URL") ?? "http://localhost:5173"
-            )
+        var allowedOrigins = new List<string>
+        {
+            "http://localhost:5173",
+            "http://localhost:8091",
+            "http://192.168.178.198:8091",
+            "http://192.168.178.198:5173"
+        };
+        
+        var envAppUrl = Environment.GetEnvironmentVariable("APP_URL");
+        if (!string.IsNullOrEmpty(envAppUrl) && !allowedOrigins.Contains(envAppUrl))
+        {
+            allowedOrigins.Add(envAppUrl);
+        }
+        
+        policy.WithOrigins(allowedOrigins.ToArray())
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials();
