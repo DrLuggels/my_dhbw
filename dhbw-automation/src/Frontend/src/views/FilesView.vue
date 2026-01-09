@@ -100,8 +100,8 @@ const handleUpload = async () => {
   successMessage.value = ''
   
   try {
-    // Category is optional - AI will detect it automatically if not provided
-    const response = await api.uploadFile(file.value[0], category.value || '')
+    // AI will detect category automatically
+    const response = await api.uploadFile(file.value[0], '')
     
     if (response.success) {
       successMessage.value = 'Datei erfolgreich hochgeladen!'
@@ -111,8 +111,8 @@ const handleUpload = async () => {
       errorMessage.value = response.message || 'Upload fehlgeschlagen'
     }
   } catch (error: any) {
-    conAI will detect category automatically
-    const response = await api.uploadFile(file.value[0],hlagen'
+    console.error('Upload error:', error)
+    errorMessage.value = error.response?.data?.message || 'Upload fehlgeschlagen'
   } finally {
     uploading.value = false
   }
