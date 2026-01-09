@@ -141,6 +141,7 @@ builder.Services.AddScoped<IAIService, AIService>();
 builder.Services.AddScoped<IStorageService, MinIOStorageService>();
 builder.Services.AddScoped<IRaplaService, RaplaService>();
 builder.Services.AddScoped<IMailService, MailService>();
+builder.Services.AddScoped<ITravelService, HafasService>();
 
 // AI-Related Services
 builder.Services.AddScoped<IIntentAnalysisService, IntentAnalysisService>();
@@ -158,10 +159,14 @@ builder.Services.AddSingleton<AiMetrics>();
 // Rapla Client
 builder.Services.AddHttpClient<RaplaClient>();
 
+// HAFAS Travel Service
+builder.Services.AddHttpClient<HafasService>();
+
 // Background Workers
 builder.Services.AddHostedService<EmailSyncBackgroundService>();
 builder.Services.AddSingleton<DocumentProcessingBackgroundService>();
 builder.Services.AddHostedService(provider => provider.GetRequiredService<DocumentProcessingBackgroundService>());
+builder.Services.AddHostedService<PeriodicReviewBackgroundService>(); // Daily fundamental knowledge review
 // TODO: Weitere Background Workers implementieren
 // builder.Services.AddHostedService<MoodleSyncWorker>();
 

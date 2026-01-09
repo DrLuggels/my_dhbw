@@ -22,6 +22,7 @@ public class AppDbContext : DbContext
     public DbSet<Project> Projects { get; set; } = null!;
     public DbSet<LearningDeficit> LearningDeficits { get; set; } = null!;
     public DbSet<GeneratedExercise> GeneratedExercises { get; set; } = null!;
+    public DbSet<KnowledgeBaseItem> KnowledgeBaseItems { get; set; } = null!;
 
     // NEW: Email-System DbSets
     public DbSet<Email> Emails { get; set; } = null!;
@@ -198,6 +199,21 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.DeficitId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // KnowledgeBaseItem Configuration
+        modelBuilder.Entity<KnowledgeBaseItem>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.Subject, e.Topic });
+            entity.HasIndex(e => new { e.UserId, e.NextReviewDate });
+            entity.HasIndex(e => new { e.UserId, e.IsActive, e.NextReviewDate });
+            entity.HasIndex(e => e.Category);
+            entity.HasIndex(e => e.Importance);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Email Configuration

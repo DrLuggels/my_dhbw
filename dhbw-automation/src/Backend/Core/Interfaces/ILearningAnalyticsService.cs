@@ -33,4 +33,32 @@ public interface ILearningAnalyticsService
     /// Updates exercise based on user answer using SM-2 spaced repetition algorithm
     /// </summary>
     Task UpdateExerciseProgressAsync(int exerciseId, string userAnswer, bool isCorrect);
+
+    // Knowledge Base Methods - for periodic review of fundamentals
+
+    /// <summary>
+    /// Gets knowledge base items that are due for review (last tested >30 days ago)
+    /// </summary>
+    Task<List<KnowledgeBaseItem>> GetStaleKnowledgeItemsAsync(int userId, int daysSinceLastTest = 30);
+
+    /// <summary>
+    /// Generates exercises for fundamental knowledge items that haven't been tested recently
+    /// </summary>
+    Task<List<GeneratedExercise>> GeneratePeriodicReviewExercisesAsync(int userId, int count = 5);
+
+    /// <summary>
+    /// Creates or updates a knowledge base item from a subject/topic
+    /// </summary>
+    Task<KnowledgeBaseItem> UpsertKnowledgeBaseItemAsync(
+        int userId,
+        string subject,
+        string topic,
+        string category = "grundlagen",
+        string importance = "medium"
+    );
+
+    /// <summary>
+    /// Updates knowledge base item after an exercise is completed
+    /// </summary>
+    Task UpdateKnowledgeBaseScoreAsync(int knowledgeBaseItemId, double score);
 }

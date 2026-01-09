@@ -168,15 +168,27 @@ public class LearningController : ControllerBase
 
             _logger.LogInformation($"Scheduling tutoring for deficit {deficitId}");
 
-            // Generate 5 exercises
+            // Generate 20 exercises with difficulty progression
+            // Mix: 5 easy (foundations) -> 10 medium (practice) -> 5 hard (mastery)
             var exercises = new List<GeneratedExercise>();
-            for (int i = 0; i < 5; i++)
+
+            _logger.LogInformation("Generating 20 exercises: 5 easy, 10 medium, 5 hard");
+
+            // Total: 20 exercises for comprehensive practice
+            for (int i = 0; i < 20; i++)
             {
                 var exercise = await _learningService.GenerateExerciseForDeficitAsync(deficitId);
                 exercises.Add(exercise);
+
+                if (i < 5)
+                    _logger.LogInformation($"Generated easy exercise {i + 1}/20");
+                else if (i < 15)
+                    _logger.LogInformation($"Generated medium exercise {i + 1}/20");
+                else
+                    _logger.LogInformation($"Generated hard exercise {i + 1}/20");
             }
 
-            // Plan learning sessions (2 hours total)
+            // Plan learning sessions (2 hours total for 20 exercises)
             var learningSessions = await _schedulingService.ScheduleLearningSessionsAsync(
                 userId,
                 deficit.Subject,

@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Text;
 using System.Text.Json;
 using System.Net.Http.Headers;
+using Ganss.Xss;
 
 namespace DHBWAutomation.Backend.Core.Services;
 
@@ -15,6 +16,7 @@ public class LearningAnalyticsService : ILearningAnalyticsService
     private readonly ILogger<LearningAnalyticsService> _logger;
     private readonly AnthropicClient _anthropicClient;
     private readonly AiMetrics _aiMetrics;
+    private readonly HtmlSanitizer _htmlSanitizer;
 
     private const string AnthropicModel = "claude-sonnet-4.5";
 
@@ -28,6 +30,10 @@ public class LearningAnalyticsService : ILearningAnalyticsService
         _logger = logger;
         _anthropicClient = anthropicClient;
         _aiMetrics = aiMetrics;
+
+        // Initialize HTML Sanitizer with safe tags whitelist
+        _htmlSanitizer = new HtmlSanitizer();
+        ConfigureHtmlSanitizer();
     }
 
     public async Task AnalyzeDocumentErrorsAsync(int documentId)
@@ -255,12 +261,20 @@ Gib deine Antwort als JSON zurück:
             var exerciseDoc = JsonDocument.Parse(textContent);
             var exerciseRoot = exerciseDoc.RootElement;
 
+            // SECURITY: Sanitize all HTML content from Claude
+            var question = SanitizeHtml(TryGetString(exerciseRoot, "question"));
+            var explanation = SanitizeHtml(TryGetString(exerciseRoot, "explanation"));
+            var helpText = SanitizeHtml(TryGetString(exerciseRoot, "help_text"));
+            var correctAnswer = TryGetString(exerciseRoot, "correct_answer") ?? "";  // Don't sanitize answer (plain text)
+
+            _logger.LogInformation("Sanitized exercise HTML content");
+
             return (
                 Type: TryGetString(exerciseRoot, "type") ?? "text_answer",
-                Question: TryGetString(exerciseRoot, "question") ?? "",
-                CorrectAnswer: TryGetString(exerciseRoot, "correct_answer") ?? "",
-                Explanation: TryGetString(exerciseRoot, "explanation") ?? "",
-                HelpText: TryGetString(exerciseRoot, "help_text") ?? ""
+                Question: question,
+                CorrectAnswer: correctAnswer,
+                Explanation: explanation,
+                HelpText: helpText
             );
         }
         catch (Exception ex)
@@ -393,4 +407,308 @@ Gib deine Antwort als JSON zurück:
             throw;
         }
     }
+
+    /// <summary>
+    /// Configures HTML Sanitizer with whitelist of safe tags
+    /// SECURITY: Prevents XSS attacks from AI-generated HTML
+    /// </summary>
+    private void ConfigureHtmlSanitizer()
+    {
+        // Clear all default tags
+        _htmlSanitizer.AllowedTags.Clear();
+
+        // Whitelist safe formatting tags
+        _htmlSanitizer.AllowedTags.Add("p");
+        _htmlSanitizer.AllowedTags.Add("br");
+        _htmlSanitizer.AllowedTags.Add("strong");
+        _htmlSanitizer.AllowedTags.Add("b");
+        _htmlSanitizer.AllowedTags.Add("em");
+        _htmlSanitizer.AllowedTags.Add("i");
+        _htmlSanitizer.AllowedTags.Add("u");
+        _htmlSanitizer.AllowedTags.Add("ul");
+        _htmlSanitizer.AllowedTags.Add("ol");
+        _htmlSanitizer.AllowedTags.Add("li");
+        _htmlSanitizer.AllowedTags.Add("code");
+        _htmlSanitizer.AllowedTags.Add("pre");
+        _htmlSanitizer.AllowedTags.Add("span");
+        _htmlSanitizer.AllowedTags.Add("div");
+        _htmlSanitizer.AllowedTags.Add("h1");
+        _htmlSanitizer.AllowedTags.Add("h2");
+        _htmlSanitizer.AllowedTags.Add("h3");
+        _htmlSanitizer.AllowedTags.Add("h4");
+        _htmlSanitizer.AllowedTags.Add("h5");
+        _htmlSanitizer.AllowedTags.Add("h6");
+        _htmlSanitizer.AllowedTags.Add("blockquote");
+        _htmlSanitizer.AllowedTags.Add("sub");
+        _htmlSanitizer.AllowedTags.Add("sup");
+
+        // Whitelist safe attributes
+        _htmlSanitizer.AllowedAttributes.Clear();
+        _htmlSanitizer.AllowedAttributes.Add("class");
+        _htmlSanitizer.AllowedAttributes.Add("style");
+
+        // Whitelist safe CSS properties (for math/code formatting)
+        _htmlSanitizer.AllowedCssProperties.Clear();
+        _htmlSanitizer.AllowedCssProperties.Add("color");
+        _htmlSanitizer.AllowedCssProperties.Add("background-color");
+        _htmlSanitizer.AllowedCssProperties.Add("font-weight");
+        _htmlSanitizer.AllowedCssProperties.Add("font-style");
+        _htmlSanitizer.AllowedCssProperties.Add("text-decoration");
+        _htmlSanitizer.AllowedCssProperties.Add("margin");
+        _htmlSanitizer.AllowedCssProperties.Add("padding");
+
+        _logger.LogInformation("HTML Sanitizer configured with safe tags whitelist");
+    }
+
+    /// <summary>
+    /// Sanitizes HTML content to prevent XSS attacks
+    /// </summary>
+    private string SanitizeHtml(string? html)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+            return string.Empty;
+
+        return _htmlSanitizer.Sanitize(html);
+    }
+
+    #region Knowledge Base Methods - Periodic Review of Fundamentals
+
+    /// <summary>
+    /// Retrieves knowledge base items that haven't been tested in a while
+    /// </summary>
+    public async Task<List<KnowledgeBaseItem>> GetStaleKnowledgeItemsAsync(int userId, int daysSinceLastTest = 30)
+    {
+        var cutoffDate = DateTime.UtcNow.AddDays(-daysSinceLastTest);
+
+        var staleItems = await _context.KnowledgeBaseItems
+            .Where(k =>
+                k.UserId == userId &&
+                k.IsActive &&
+                k.LastTestedDate < cutoffDate)
+            .OrderBy(k => k.LastTestedDate) // Oldest first
+            .ThenByDescending(k => k.Importance) // Important topics prioritized
+            .ToListAsync();
+
+        _logger.LogInformation($"Found {staleItems.Count} stale knowledge items for user {userId} (not tested in {daysSinceLastTest}+ days)");
+
+        return staleItems;
+    }
+
+    /// <summary>
+    /// Generates periodic review exercises for fundamental knowledge
+    /// Combines stale fundamentals with random important topics
+    /// </summary>
+    public async Task<List<GeneratedExercise>> GeneratePeriodicReviewExercisesAsync(int userId, int count = 5)
+    {
+        _logger.LogInformation($"Generating {count} periodic review exercises for user {userId}");
+
+        var exercises = new List<GeneratedExercise>();
+
+        // Get stale knowledge items (not tested in 30+ days)
+        var staleItems = await GetStaleKnowledgeItemsAsync(userId, 30);
+
+        if (staleItems.Count == 0)
+        {
+            _logger.LogWarning($"No stale knowledge items found for user {userId}");
+            return exercises;
+        }
+
+        // Select items to test (prioritize oldest and most important)
+        var itemsToTest = staleItems.Take(count).ToList();
+
+        foreach (var item in itemsToTest)
+        {
+            try
+            {
+                // Generate exercise using Claude
+                var prompt = BuildPeriodicReviewPrompt(item);
+                var response = await _anthropicClient.SendPromptAsync(AnthropicModel, prompt);
+
+                if (string.IsNullOrEmpty(response))
+                {
+                    _logger.LogError($"Empty response from Claude for knowledge item {item.Id}");
+                    continue;
+                }
+
+                // Parse exercise from JSON response
+                var exercise = ParseExerciseJson(response);
+
+                if (exercise != null)
+                {
+                    // Link exercise to knowledge base item
+                    exercise.Topic = item.Topic;
+                    exercise.KnowledgeBaseItemId = item.Id;
+                    exercise.IsPeriodicReview = true;
+
+                    exercises.Add(exercise);
+                    _logger.LogInformation($"Generated periodic review exercise for {item.Subject}/{item.Topic}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error generating periodic review exercise for knowledge item {item.Id}");
+            }
+        }
+
+        _aiMetrics.RecordRequest("Anthropic", "periodic_review_generation", itemsToTest.Count);
+
+        return exercises;
+    }
+
+    /// <summary>
+    /// Creates or updates a knowledge base item for a specific topic
+    /// </summary>
+    public async Task<KnowledgeBaseItem> UpsertKnowledgeBaseItemAsync(
+        int userId, string subject, string topic,
+        string category = "grundlagen", string importance = "medium")
+    {
+        // Check if item already exists
+        var existingItem = await _context.KnowledgeBaseItems
+            .FirstOrDefaultAsync(k =>
+                k.UserId == userId &&
+                k.Subject == subject &&
+                k.Topic == topic);
+
+        if (existingItem != null)
+        {
+            // Update category/importance if changed
+            existingItem.Category = category;
+            existingItem.Importance = importance;
+
+            _logger.LogInformation($"Updated knowledge base item: {subject}/{topic}");
+            await _context.SaveChangesAsync();
+            return existingItem;
+        }
+
+        // Create new item
+        var newItem = new KnowledgeBaseItem
+        {
+            UserId = userId,
+            Subject = subject,
+            Topic = topic,
+            Category = category,
+            Importance = importance,
+            LastTestedDate = DateTime.UtcNow.AddDays(-60), // Set as stale to trigger initial test
+            TestCount = 0,
+            AverageScore = 0.0,
+            LastScore = 0.0,
+            NextReviewDate = DateTime.UtcNow, // Test soon
+            IsActive = true
+        };
+
+        _context.KnowledgeBaseItems.Add(newItem);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation($"Created new knowledge base item: {subject}/{topic} ({category}, {importance})");
+
+        return newItem;
+    }
+
+    /// <summary>
+    /// Updates knowledge base item scores after exercise completion
+    /// Applies spaced repetition algorithm for NextReviewDate
+    /// </summary>
+    public async Task UpdateKnowledgeBaseScoreAsync(int knowledgeBaseItemId, double score)
+    {
+        var item = await _context.KnowledgeBaseItems.FindAsync(knowledgeBaseItemId);
+
+        if (item == null)
+        {
+            _logger.LogWarning($"Knowledge base item {knowledgeBaseItemId} not found");
+            return;
+        }
+
+        // Update scores
+        item.LastScore = score;
+        item.TestCount++;
+
+        // Calculate new average score
+        item.AverageScore = ((item.AverageScore * (item.TestCount - 1)) + score) / item.TestCount;
+
+        // Update last tested date
+        item.LastTestedDate = DateTime.UtcNow;
+
+        // Apply spaced repetition for next review date (SM-2 algorithm simplified)
+        int intervalDays;
+
+        if (score >= 0.9) // Mastery level
+        {
+            intervalDays = item.TestCount switch
+            {
+                1 => 7,    // 1 week
+                2 => 30,   // 1 month
+                3 => 90,   // 3 months
+                _ => 180   // 6 months
+            };
+        }
+        else if (score >= 0.7) // Good level
+        {
+            intervalDays = item.TestCount switch
+            {
+                1 => 3,    // 3 days
+                2 => 14,   // 2 weeks
+                3 => 30,   // 1 month
+                _ => 60    // 2 months
+            };
+        }
+        else if (score >= 0.5) // Needs practice
+        {
+            intervalDays = 1; // Test again tomorrow
+        }
+        else // Weak - needs immediate review
+        {
+            intervalDays = 0; // Test again today
+            item.Importance = "high"; // Escalate importance
+        }
+
+        item.NextReviewDate = DateTime.UtcNow.AddDays(intervalDays);
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation(
+            $"Updated knowledge base item {knowledgeBaseItemId}: Score={score:F2}, " +
+            $"AvgScore={item.AverageScore:F2}, NextReview in {intervalDays} days");
+    }
+
+    /// <summary>
+    /// Builds Claude prompt for periodic review exercise generation
+    /// </summary>
+    private string BuildPeriodicReviewPrompt(KnowledgeBaseItem item)
+    {
+        var sb = new StringBuilder();
+
+        sb.AppendLine("Du bist ein KI-Tutor für DHBW-Studenten.");
+        sb.AppendLine();
+        sb.AppendLine("**AUFGABE**: Generiere eine Übungsaufgabe zur Auffrischung von Grundkenntnissen.");
+        sb.AppendLine();
+        sb.AppendLine($"**Fach**: {item.Subject}");
+        sb.AppendLine($"**Thema**: {item.Topic}");
+        sb.AppendLine($"**Kategorie**: {item.Category}");
+        sb.AppendLine($"**Wichtigkeit**: {item.Importance}");
+        sb.AppendLine($"**Letzte Übung vor**: {(DateTime.UtcNow - item.LastTestedDate).TotalDays:F0} Tagen");
+        sb.AppendLine($"**Bisherige Durchschnittsleistung**: {item.AverageScore:P0}");
+        sb.AppendLine();
+
+        sb.AppendLine("**ANFORDERUNGEN**:");
+        sb.AppendLine("1. Teste Grundkenntnisse und fundamentales Verständnis");
+        sb.AppendLine("2. Die Aufgabe sollte praxisnah und relevant sein");
+        sb.AppendLine("3. Schwierigkeit anpassen basierend auf bisheriger Durchschnittsleistung");
+        sb.AppendLine("4. Vermeide exakt dieselben Aufgaben wie früher - variiere Beispiele");
+        sb.AppendLine();
+
+        sb.AppendLine("**OUTPUT FORMAT** (JSON):");
+        sb.AppendLine("{");
+        sb.AppendLine("  \"question\": \"Aufgabenstellung (HTML erlaubt: <code>, <strong>, <em>, <p>, <ul>, <li>, <pre>)\",");
+        sb.AppendLine("  \"type\": \"multiple_choice|true_false|fill_blank|code_completion\",");
+        sb.AppendLine("  \"options\": [\"Option A\", \"Option B\", \"Option C\", \"Option D\"],");
+        sb.AppendLine("  \"correct_answer\": \"Korrekte Antwort\",");
+        sb.AppendLine("  \"difficulty\": \"easy|medium|hard\",");
+        sb.AppendLine("  \"explanation\": \"Ausführliche Erklärung (HTML erlaubt)\",");
+        sb.AppendLine("  \"help_text\": \"Optionaler Tipp (HTML erlaubt)\"");
+        sb.AppendLine("}");
+
+        return sb.ToString();
+    }
+
+    #endregion
 }
