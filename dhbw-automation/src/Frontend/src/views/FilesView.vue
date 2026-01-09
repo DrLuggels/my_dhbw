@@ -69,7 +69,7 @@
 import { ref, onMounted } from 'vue'
 import api from '@/services/api'
 
-const file = ref<File[]>([])
+const file = ref<File | null>(null)
 const uploading = ref(false)
 const loading = ref(false)
 const documents = ref<any[]>([])
@@ -90,7 +90,7 @@ const loadFiles = async () => {
 }
 
 const handleUpload = async () => {
-  if (file.value.length === 0) {
+  if (!file.value) {
     errorMessage.value = 'Bitte wähle eine Datei aus'
     return
   }
@@ -103,21 +103,18 @@ const handleUpload = async () => {
     // Debug logging
     console.log('=== FILE UPLOAD DEBUG ===')
     console.log('file.value:', file.value)
-    console.log('file.value[0]:', file.value[0])
-    console.log('file.value[0] type:', typeof file.value[0])
-    console.log('file.value[0] instanceof File:', file.value[0] instanceof File)
-    if (file.value[0]) {
-      console.log('File name:', file.value[0].name)
-      console.log('File size:', file.value[0].size)
-      console.log('File type:', file.value[0].type)
-    }
+    console.log('file.value type:', typeof file.value)
+    console.log('file.value instanceof File:', file.value instanceof File)
+    console.log('File name:', file.value.name)
+    console.log('File size:', file.value.size)
+    console.log('File type:', file.value.type)
 
     // AI will detect category automatically
-    const response = await api.uploadFile(file.value[0])
-    
+    const response = await api.uploadFile(file.value)
+
     if (response.success) {
       successMessage.value = 'Datei erfolgreich hochgeladen!'
-      file.value = []
+      file.value = null
       await loadFiles()
     } else {
       errorMessage.value = response.message || 'Upload fehlgeschlagen'
