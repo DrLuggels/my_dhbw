@@ -16,6 +16,7 @@ public class FileService : IFileService
     private readonly IIntentAnalysisService _intentService;
     private readonly ILearningAnalyticsService _learningService;
     private readonly ISchedulingService _schedulingService;
+    private readonly IValidationService _validationService;
     private readonly ILogger<FileService> _logger;
     private const string DefaultBucket = "dhbw-files";
 
@@ -27,6 +28,7 @@ public class FileService : IFileService
         IIntentAnalysisService intentService,
         ILearningAnalyticsService learningService,
         ISchedulingService schedulingService,
+        IValidationService validationService,
         ILogger<FileService> logger)
     {
         _context = context;
@@ -36,6 +38,7 @@ public class FileService : IFileService
         _intentService = intentService;
         _learningService = learningService;
         _schedulingService = schedulingService;
+        _validationService = validationService;
         _logger = logger;
     }
 
@@ -212,7 +215,26 @@ public class FileService : IFileService
                     _logger.LogInformation($"Detected {intent.Errors.Count} errors in document {documentId}");
                 }
 
-                // 5. Create UserInteractions based on intent (if enabled)
+                // 5. NEW: Stage entities for user confirmation (AI Staging System)
+                if (intent != null && options.EnableIntentAnalysis)
+                {
+                    // Stage ALL extracted entities (TODOs, Meetings, Projects)
+                    var stagedEntities = await _validationService.StageEntitiesAsync(intent, document.UserId, documentId);
+
+                    _logger.LogInformation($"Staged {stagedEntities.Count} entities for user review (Confidence: {intent.ConfidenceScore}%, Questions: {intent.Questions.Count})");
+
+                    // Auto-promote high-confidence entities (optional)
+                    if (options.AutoPromoteHighConfidence)
+                    {
+                        foreach (var staged in stagedEntities.Where(s => s.ConfidenceScore >= 95 && s.Questions.Count == 0))
+                        {
+                            var promotedId = await _validationService.ConfirmAndPromoteAsync(staged.Id, document.UserId, "Auto-promoted (high confidence)");
+                            _logger.LogInformation($"Auto-promoted {staged.EntityType} {promotedId} (Confidence: {staged.ConfidenceScore}%)");
+                        }
+                    }
+                }
+
+                // 6. Create UserInteractions for old system compatibility (if enabled)
                 if (intent != null && options.GenerateInteractions)
                 {
                     if (intent.Meeting != null || intent.Project != null || (intent.Errors?.Count > 2))
@@ -220,51 +242,7 @@ public class FileService : IFileService
                         var interactions = await _intentService.GenerateInteractionsAsync(intent, document.UserId, documentId);
                         _context.UserInteractions.AddRange(interactions);
 
-                        _logger.LogInformation($"Created {interactions.Count} user interactions for document {documentId}");
-                    }
-                }
-
-                // 6. Create TODOs automatically (if intent analysis is enabled)
-                if (intent != null && options.EnableIntentAnalysis)
-                {
-                    foreach (var todo in intent.Todos ?? new List<ExtractedTodo>())
-                    {
-                        var newTodo = new Todo
-                        {
-                            UserId = document.UserId,
-                            Title = todo.Title,
-                            Description = todo.Description,
-                            Category = todo.Category,
-                            Priority = todo.Priority,
-                            Status = "pending",
-                            DueDate = todo.SuggestedDeadline,
-                            RelatedDocumentId = documentId,
-                            ExtractedFrom = extractedText.Substring(0, Math.Min(extractedText.Length, 500)),
-                            AiSuggestion = "Automatisch aus Dokument extrahiert",
-                            CreatedAt = DateTime.UtcNow
-                        };
-                        _context.Todos.Add(newTodo);
-                    }
-                }
-
-                // 7. Handle Project (if intent analysis is enabled)
-                if (intent?.Project != null && options.EnableIntentAnalysis)
-                {
-                    // Check if project already exists
-                    var existingProject = await _context.Projects
-                        .FirstOrDefaultAsync(p =>
-                            p.UserId == document.UserId &&
-                            p.Name.ToLower().Contains(intent.Project.Name.ToLower()));
-
-                    if (existingProject != null)
-                    {
-                        // Link document to existing project
-                        document.RelatedProjectId = existingProject.Id;
-                        _logger.LogInformation($"Linked document {documentId} to existing project {existingProject.Id}");
-                    }
-                    else
-                    {
-                        _logger.LogInformation($"New project detected: '{intent.Project.Name}' - will ask user via UserInteraction");
+                        _logger.LogInformation($"Created {interactions.Count} legacy user interactions for document {documentId}");
                     }
                 }
 

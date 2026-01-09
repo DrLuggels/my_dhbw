@@ -43,6 +43,12 @@ public class ProcessingOptions
     public bool GenerateInteractions { get; set; } = true;
 
     /// <summary>
+    /// Automatically promote entities with very high confidence (>=95%) to production DB
+    /// Default: false (require user confirmation for all entities)
+    /// </summary>
+    public bool AutoPromoteHighConfidence { get; set; } = false;
+
+    /// <summary>
     /// Default options - balanced between features and API usage
     /// </summary>
     public static ProcessingOptions Default => new()
@@ -52,7 +58,8 @@ public class ProcessingOptions
         GenerateSummary = true,
         EnableIntentAnalysis = true,
         EnableLearningAnalytics = true,
-        GenerateInteractions = true
+        GenerateInteractions = true,
+        AutoPromoteHighConfidence = false // Require user confirmation
     };
 
     /// <summary>
@@ -66,7 +73,8 @@ public class ProcessingOptions
         GenerateSummary = true, // Keep summary (essential)
         EnableIntentAnalysis = true, // Keep intent (core feature)
         EnableLearningAnalytics = false, // Skip learning analytics
-        GenerateInteractions = false // Skip interactions
+        GenerateInteractions = false, // Skip interactions
+        AutoPromoteHighConfidence = true // Auto-promote to save time
     };
 
     /// <summary>
@@ -80,7 +88,8 @@ public class ProcessingOptions
         GenerateSummary = true,
         EnableIntentAnalysis = true,
         EnableLearningAnalytics = true,
-        GenerateInteractions = true
+        GenerateInteractions = true,
+        AutoPromoteHighConfidence = false // Manual review for important docs
     };
 
     /// <summary>
@@ -94,6 +103,7 @@ public class ProcessingOptions
         GenerateSummary = false,
         EnableIntentAnalysis = false,
         EnableLearningAnalytics = false,
-        GenerateInteractions = false
+        GenerateInteractions = false,
+        AutoPromoteHighConfidence = false
     };
 }

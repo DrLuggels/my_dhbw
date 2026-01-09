@@ -163,6 +163,9 @@ services:
       - APP_URL=http://192.168.178.198:8091
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production-min-32-chars}
       - JWT_ISSUER=DHBWAutomation
+      - Google__ClientId=${GOOGLE_CLIENT_ID:-}
+      - Google__ClientSecret=${GOOGLE_CLIENT_SECRET:-}
+      - Google__RedirectUri=${GOOGLE_REDIRECT_URI:-http://192.168.178.198:5001/api/calendar/google/callback}
     depends_on:
       mariadb:
         condition: service_healthy

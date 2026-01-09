@@ -197,6 +197,7 @@ builder.Services.AddScoped<ITravelService, HafasService>();
 builder.Services.AddScoped<IIntentAnalysisService, IntentAnalysisService>();
 builder.Services.AddScoped<ILearningAnalyticsService, LearningAnalyticsService>();
 builder.Services.AddScoped<IDocumentParsingService, DocumentParsingService>();
+builder.Services.AddScoped<IValidationService, ValidationService>(); // NEW: AI Staging System
 
 // Calendar Services
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();
