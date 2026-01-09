@@ -45,47 +45,41 @@ public class RaplaService : IRaplaService
                 return false;
             }
 
-            // Lösche alte Rapla-Events (älter als gestern)
-            var yesterday = DateTime.UtcNow.AddDays(-1);
+            // Lösche ALLE alten Rapla-Events und synchronisiere neu
             var oldEvents = await _context.CalendarEvents
-                .Where(e => e.UserId == userId && e.Source == "rapla" && e.StartTime < yesterday)
+                .Where(e => e.UserId == userId && e.Source == "rapla")
                 .ToListAsync();
 
             _context.CalendarEvents.RemoveRange(oldEvents);
+            await _context.SaveChangesAsync(); // Erst löschen speichern!
+            _logger.LogInformation("Deleted {Count} old Rapla events", oldEvents.Count);
 
             // Füge neue Events hinzu
+            int addedCount = 0;
             foreach (var raplaEvent in events)
             {
-                // Prüfe ob Event bereits existiert
-                var exists = await _context.CalendarEvents
-                    .AnyAsync(e => e.UserId == userId 
-                        && e.Source == "rapla" 
-                        && e.Title == raplaEvent.Title
-                        && e.StartTime == raplaEvent.StartTime);
-
-                if (!exists)
+                var calendarEvent = new CalendarEvent
                 {
-                    var calendarEvent = new CalendarEvent
-                    {
-                        UserId = userId,
-                        Title = raplaEvent.Title ?? "Unbekannte Veranstaltung",
-                        Description = raplaEvent.Description,
-                        Location = raplaEvent.Location,
-                        StartTime = raplaEvent.StartTime,
-                        EndTime = raplaEvent.EndTime,
-                        Source = "rapla",
-                        ExternalId = $"rapla_{raplaEvent.StartTime:yyyyMMddHHmm}_{raplaEvent.Title}",
-                        IsAllDay = false,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
-                    };
+                    UserId = userId,
+                    Title = raplaEvent.Title ?? "Unbekannte Veranstaltung",
+                    Description = raplaEvent.Description,
+                    Location = raplaEvent.Location,
+                    StartTime = raplaEvent.StartTime,
+                    EndTime = raplaEvent.EndTime,
+                    Source = "rapla",
+                    ExternalId = $"rapla_{raplaEvent.StartTime:yyyyMMddHHmm}_{raplaEvent.Title}",
+                    IsAllDay = false,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
 
-                    _context.CalendarEvents.Add(calendarEvent);
-                }
+                _context.CalendarEvents.Add(calendarEvent);
+                addedCount++;
             }
 
-            await _context.SaveChangesAsync();
-            _logger.LogInformation("Successfully synced {Count} Rapla events for user {UserId}", events.Count(), userId);
+            var savedCount = await _context.SaveChangesAsync();
+            _logger.LogInformation("Successfully synced {ParsedCount} Rapla events, {AddedCount} added to context, {SavedCount} saved to DB for user {UserId}", 
+                events.Count(), addedCount, savedCount, userId);
 
             return true;
         }
@@ -121,9 +115,8 @@ public class RaplaService : IRaplaService
             var user = _configuration["RAPLA_USER"] ?? "Daurer";
             var file = _configuration["RAPLA_FILE"] ?? "WDS125+1.+Sem";
 
-            var today = DateTime.Now;
-            // Don't use Uri.EscapeDataString for file parameter - Rapla expects + instead of %2B
-            var url = $"{baseUrl}?page=calendar&user={user}&file={file}&day={today.Day}&month={today.Month}&year={today.Year}";
+            // Use page=ical to get iCal format instead of HTML
+            var url = $"{baseUrl}?page=ical&user={user}&file={file}";
 
             _logger.LogInformation("Fetching Rapla calendar from: {Url}", url);
 
@@ -180,13 +173,13 @@ public class RaplaService : IRaplaService
                     {
                         currentEvent.Location = line.Substring(9);
                     }
-                    else if (line.StartsWith("DTSTART:"))
+                    else if (line.StartsWith("DTSTART"))
                     {
-                        currentEvent.StartTime = ParseICalDateTime(line.Substring(8));
+                        currentEvent.StartTime = ParseICalDateTime(line);
                     }
-                    else if (line.StartsWith("DTEND:"))
+                    else if (line.StartsWith("DTEND"))
                     {
-                        currentEvent.EndTime = ParseICalDateTime(line.Substring(6));
+                        currentEvent.EndTime = ParseICalDateTime(line);
                     }
                 }
             }
@@ -201,36 +194,67 @@ public class RaplaService : IRaplaService
         return events;
     }
 
-    private DateTime ParseICalDateTime(string icalDateTime)
+    private DateTime ParseICalDateTime(string icalLine)
     {
-        // iCal Format: 20260114T080000Z oder 20260114T080000
+        // iCal Format:
+        // DTSTART:20260114T080000Z (UTC)
+        // DTSTART;TZID=Europe/Berlin:20260114T080000 (lokale Zeit)
         try
         {
-            icalDateTime = icalDateTime.Replace(":", "").Replace("-", "");
-            
-            if (icalDateTime.EndsWith("Z"))
+            string dateTimeValue;
+            bool isUtc = false;
+            bool hasTimezone = false;
+
+            // Prüfe ob TZID angegeben ist
+            if (icalLine.Contains(";TZID="))
             {
-                // UTC Zeit
-                return DateTime.ParseExact(
-                    icalDateTime.TrimEnd('Z'),
-                    "yyyyMMddTHHmmss",
-                    CultureInfo.InvariantCulture,
-                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+                // Format: DTSTART;TZID=Europe/Berlin:20260114T080000
+                var colonIndex = icalLine.LastIndexOf(':');
+                dateTimeValue = icalLine.Substring(colonIndex + 1);
+                hasTimezone = true;
+            }
+            else if (icalLine.Contains(":"))
+            {
+                // Format: DTSTART:20260114T080000Z oder DTSTART:20260114T080000
+                var colonIndex = icalLine.IndexOf(':');
+                dateTimeValue = icalLine.Substring(colonIndex + 1);
+                isUtc = dateTimeValue.EndsWith("Z");
             }
             else
             {
-                // Lokale Zeit
-                return DateTime.ParseExact(
-                    icalDateTime,
-                    "yyyyMMddTHHmmss",
-                    CultureInfo.InvariantCulture,
-                    DateTimeStyles.AssumeLocal);
+                dateTimeValue = icalLine;
+                isUtc = dateTimeValue.EndsWith("Z");
+            }
+
+            // Bereinige das Datum
+            dateTimeValue = dateTimeValue.Replace(":", "").Replace("-", "").TrimEnd('Z');
+            
+            var parsedDateTime = DateTime.ParseExact(
+                dateTimeValue,
+                "yyyyMMddTHHmmss",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None);
+
+            // Wenn UTC Zeit, dann +1 Stunde für lokale Zeit (UTC+1)
+            if (isUtc)
+            {
+                return parsedDateTime.AddHours(1);
+            }
+            else if (hasTimezone)
+            {
+                // Bereits lokale Zeit (Europe/Berlin)
+                return parsedDateTime;
+            }
+            else
+            {
+                // Annahme: lokale Zeit
+                return parsedDateTime;
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error parsing iCal datetime: {DateTime}", icalDateTime);
-            return DateTime.UtcNow;
+            _logger.LogWarning(ex, "Error parsing iCal datetime: {DateTime}", icalLine);
+            return DateTime.Now;
         }
     }
 }

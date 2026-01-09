@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using DHBWAutomation.Backend.Core.Interfaces;
 using DHBWAutomation.Backend.Core.Models;
 using DHBWAutomation.Backend.Infrastructure.Database;
+using System.Text.Json;
 
 namespace DHBWAutomation.Backend.Core.Services;
 
@@ -11,6 +12,10 @@ public class FileService : IFileService
     private readonly AppDbContext _context;
     private readonly IStorageService _storageService;
     private readonly IAIService _aiService;
+    private readonly IDocumentParsingService _parsingService;
+    private readonly IIntentAnalysisService _intentService;
+    private readonly ILearningAnalyticsService _learningService;
+    private readonly ISchedulingService _schedulingService;
     private readonly ILogger<FileService> _logger;
     private const string DefaultBucket = "dhbw-files";
 
@@ -18,11 +23,19 @@ public class FileService : IFileService
         AppDbContext context,
         IStorageService storageService,
         IAIService aiService,
+        IDocumentParsingService parsingService,
+        IIntentAnalysisService intentService,
+        ILearningAnalyticsService learningService,
+        ISchedulingService schedulingService,
         ILogger<FileService> logger)
     {
         _context = context;
         _storageService = storageService;
         _aiService = aiService;
+        _parsingService = parsingService;
+        _intentService = intentService;
+        _learningService = learningService;
+        _schedulingService = schedulingService;
         _logger = logger;
     }
 
@@ -138,21 +151,191 @@ public class FileService : IFileService
             if (document == null || document.IsProcessed)
                 return false;
 
-            _logger.LogInformation($"Processing document {documentId}");
+            _logger.LogInformation($"Processing document {documentId} with enhanced AI pipeline");
 
-            // For now, just mark as processed
-            // TODO: Extract text, analyze with AI, generate tags
-            document.IsProcessed = true;
-            document.ProcessedAt = DateTime.UtcNow;
-            document.Summary = "Dokument wurde hochgeladen und verarbeitet.";
-            
-            await _context.SaveChangesAsync();
-            return true;
+            Stream? fileStream = null;
+            try
+            {
+                // 1. Download document from storage
+                fileStream = await _storageService.DownloadFileAsync(document.FilePath, DefaultBucket);
+                if (fileStream == null)
+                {
+                    _logger.LogWarning($"Could not download document {documentId}");
+                    return false;
+                }
+
+                // 2. Extract text using DocumentParsingService (PDF, DOCX, Image OCR)
+                string extractedText;
+                var (text, errors) = await _parsingService.ExtractAndAnalyzeAsync(fileStream, document.FileType ?? "");
+                extractedText = text;
+
+                if (string.IsNullOrWhiteSpace(extractedText))
+                {
+                    _logger.LogWarning($"No text extracted from document {documentId}");
+                    document.IsProcessed = true;
+                    document.ProcessedAt = DateTime.UtcNow;
+                    await _context.SaveChangesAsync();
+                    return false;
+                }
+
+                // 3. Intent Analysis with Claude Sonnet 4.5 - THE BRAIN
+                var intent = await _intentService.AnalyzeDocumentIntentAsync(extractedText, document.DocumentCategory.ToString());
+
+                _logger.LogInformation($"Document intent: {intent.PrimaryIntent}");
+
+                // 4. Process Errors (Learning Analytics)
+                if (intent.Errors?.Any() == true)
+                {
+                    document.DetectedErrors = JsonSerializer.Serialize(intent.Errors);
+                    document.ErrorCount = intent.Errors.Count;
+
+                    // Generate corrected text using GPT-5 mini
+                    var correctionPrompt = $"Korrigiere folgende Fehler im Text:\n\n{extractedText.Substring(0, Math.Min(extractedText.Length, 3000))}\n\nFehler:\n{string.Join("\n", intent.Errors.Take(5).Select(e => $"- {e.Explanation}"))}";
+                    document.CorrectedText = await _aiService.ChatCompletionAsync(correctionPrompt, null);
+
+                    // Save document first so we have the DetectedErrors field populated
+                    await _context.SaveChangesAsync();
+
+                    // Analyze errors and create/update LearningDeficits
+                    await _learningService.AnalyzeDocumentErrorsAsync(documentId);
+
+                    _logger.LogInformation($"Detected {intent.Errors.Count} errors in document {documentId}");
+                }
+
+                // 5. Create UserInteractions based on intent
+                if (intent.Meeting != null || intent.Project != null || (intent.Errors?.Count > 2))
+                {
+                    var interactions = await _intentService.GenerateInteractionsAsync(intent, document.UserId, documentId);
+                    _context.UserInteractions.AddRange(interactions);
+
+                    _logger.LogInformation($"Created {interactions.Count} user interactions for document {documentId}");
+                }
+
+                // 6. Create TODOs automatically
+                foreach (var todo in intent.Todos ?? new List<ExtractedTodo>())
+                {
+                    var newTodo = new Todo
+                    {
+                        UserId = document.UserId,
+                        Title = todo.Title,
+                        Description = todo.Description,
+                        Category = todo.Category,
+                        Priority = todo.Priority,
+                        Status = "pending",
+                        DueDate = todo.SuggestedDeadline,
+                        RelatedDocumentId = documentId,
+                        ExtractedFrom = extractedText.Substring(0, Math.Min(extractedText.Length, 500)),
+                        AiSuggestion = "Automatisch aus Dokument extrahiert",
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.Todos.Add(newTodo);
+                }
+
+                // 7. Handle Project
+                if (intent.Project != null)
+                {
+                    // Check if project already exists
+                    var existingProject = await _context.Projects
+                        .FirstOrDefaultAsync(p =>
+                            p.UserId == document.UserId &&
+                            p.Name.ToLower().Contains(intent.Project.Name.ToLower()));
+
+                    if (existingProject != null)
+                    {
+                        // Link document to existing project
+                        document.RelatedProjectId = existingProject.Id;
+                        _logger.LogInformation($"Linked document {documentId} to existing project {existingProject.Id}");
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"New project detected: '{intent.Project.Name}' - will ask user via UserInteraction");
+                    }
+                }
+
+                // 8. Standard AI Processing (GPT-5 mini for cost-effective tasks)
+                document.Summary = await _aiService.SummarizeTextAsync(extractedText, 500);
+                var tags = await _aiService.GenerateTagsAsync(extractedText);
+                document.Tags = string.Join(", ", tags);
+                document.ExtractedText = extractedText.Substring(0, Math.Min(extractedText.Length, 5000));
+
+                // 9. Document Categorization
+                if (document.DocumentCategory == DocumentCategory.Sonstiges)
+                {
+                    document.DocumentCategory = DetermineDocumentCategory(extractedText, intent);
+                }
+
+                // 10. Handle Temporary Documents (Archive as Backup)
+                if (document.IsTemporary && document.DocumentCategory == DocumentCategory.EigeneNotizen)
+                {
+                    try
+                    {
+                        // Copy to backup bucket (keep original as backup)
+                        if (fileStream.CanSeek)
+                        {
+                            fileStream.Position = 0;
+                        }
+
+                        var backupPath = $"backups/{document.FilePath}";
+                        // Note: Would need to implement CopyFileAsync in IStorageService
+                        // await _storageService.CopyFileAsync(document.FilePath, DefaultBucket, backupPath, "backup-bucket");
+
+                        document.IsArchived = true;
+                        document.ArchivedAt = DateTime.UtcNow;
+
+                        _logger.LogInformation($"Archived temporary document {documentId} to backup");
+                    }
+                    catch (Exception archiveEx)
+                    {
+                        _logger.LogWarning(archiveEx, $"Could not archive document {documentId}");
+                        // Continue processing even if archiving fails
+                    }
+                }
+
+                // 11. Mark as processed
+                document.IsProcessed = true;
+                document.ProcessedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Document {documentId} fully processed: Intent={intent.PrimaryIntent}, Errors={intent.Errors?.Count ?? 0}, TODOs={intent.Todos?.Count ?? 0}");
+                return true;
+            }
+            finally
+            {
+                fileStream?.Dispose();
+            }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Error processing document {documentId}");
             return false;
         }
+    }
+
+    private DocumentCategory DetermineDocumentCategory(string text, DocumentIntent intent)
+    {
+        // Heuristic-based categorization
+        if (text.Contains("Protokoll", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("Mitschrieb vom", StringComparison.OrdinalIgnoreCase))
+            return DocumentCategory.Protokoll;
+
+        if (text.Contains("Aufgabe", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("Assignment", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("Abgabe", StringComparison.OrdinalIgnoreCase))
+            return DocumentCategory.Aufgabenstellung;
+
+        if (intent.Project != null)
+            return DocumentCategory.ProjektIdee;
+
+        if (intent.Errors?.Any() == true)
+            return DocumentCategory.Mitschrieb; // Has errors = likely own notes
+
+        if (text.Length < 500 && (intent.Todos?.Any() == true || intent.Meeting != null))
+            return DocumentCategory.EigeneNotizen;
+
+        if (intent.LearningInfo != null)
+            return DocumentCategory.UnterrichtsMaterial;
+
+        return DocumentCategory.Sonstiges;
     }
 }

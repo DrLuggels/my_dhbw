@@ -176,11 +176,83 @@ In der Datenbank oder via Admin-UI:
 
 ```sql
 INSERT INTO MailAccounts (Type, ImapServer, ImapPort, SmtpServer, SmtpPort, Email, Password)
-VALUES 
+VALUES
   ('Study', 'imap.dhbw.de', 993, 'smtp.dhbw.de', 587, 'student@dhbw-ravensburg.de', 'encrypted_pw'),
   ('Private', 'imap.gmail.com', 993, 'smtp.gmail.com', 587, 'private@gmail.com', 'encrypted_pw'),
   ('Work', 'outlook.office365.com', 993, 'smtp.office365.com', 587, 'work@company.com', 'encrypted_pw');
 ```
+
+## 🤖 Multi-AI-Strategie
+
+Das System nutzt eine intelligente **Multi-Model-Strategie** mit den neuesten AI-Modellen (Januar 2026) für optimale Kosten-Qualitäts-Balance:
+
+### Modell-Auswahl nach Anwendungsfall
+
+| Anwendungsfall | Modell | Preis (Input/Output) | Begründung |
+| -------------- | ------ | -------------------- | ---------- |
+| **Bildanalyse & Text-Extraktion** | Google Gemini 3 Flash | $0.50/$3 per 1M tokens | Beste multimodale Fähigkeiten, 1M Token Context |
+| **Standard-Tasks** (Tags, Zusammenfassungen) | OpenAI GPT-5 mini | $0.25/$2 per 1M tokens | Kosteneffizient und schnell |
+| **Komplexes Reasoning** (Chat, Logik) | Anthropic Claude Sonnet 4.5 | $3/$15 per 1M tokens | Überlegenes Reasoning, das "Gehirn" |
+
+### Implementierte Features
+
+**AIService.cs** bietet folgende Methoden:
+
+```csharp
+// Gemini 3 Flash - Dokumentenanalyse mit Bildverarbeitung
+await _aiService.AnalyzeDocumentAsync(documentText, fileType);
+
+// GPT-5 mini - Schnelle Tag-Generierung
+await _aiService.GenerateTagsAsync(text);
+
+// GPT-5 mini - Kosteneffiziente Zusammenfassungen
+await _aiService.SummarizeTextAsync(text, maxLength: 500);
+
+// GPT-5 mini - Key Concepts Extraktion
+await _aiService.ExtractKeyConceptsAsync(text);
+
+// Claude Sonnet 4.5 - Intelligente Chat-Antworten mit Context
+await _aiService.ChatCompletionAsync(prompt, context);
+```
+
+### API-Keys konfigurieren
+
+In `.env` eintragen:
+
+```env
+# OpenAI GPT-5 (Standard-Tasks)
+OPENAI_API_KEY=sk-proj-xxxxx
+OPENAI_MODEL_GPT5_MINI=gpt-5-mini
+
+# Anthropic Claude (Reasoning)
+ANTHROPIC_API_KEY=sk-ant-api03-xxxxx
+ANTHROPIC_MODEL=claude-sonnet-4.5
+
+# Google Gemini (Multimodal)
+GEMINI_API_KEY=AIzaSyxxxxx
+GEMINI_MODEL=gemini-3-flash-preview
+```
+
+**Alle API-Keys können auch im Profil-Bereich der Weboberfläche hinterlegt werden.**
+
+### Automatische Dokumentenverarbeitung
+
+Beim Upload eines Dokuments wird automatisch:
+
+1. **Text extrahiert** (aus PDF, DOCX, TXT, etc.)
+2. **Analyse durchgeführt** mit Gemini 3 Flash (Kategorie, Fach, Themen)
+3. **Zusammenfassung generiert** mit GPT-5 mini
+4. **Tags erstellt** mit GPT-5 mini
+5. **Schlüsselkonzepte extrahiert** mit GPT-5 mini
+
+Alle Ergebnisse werden in der Datenbank gespeichert und sind durchsuchbar.
+
+### Kosten-Optimierung
+
+- **Caching**: 90% Kostenreduktion bei wiederholten Anfragen
+- **Batch Processing**: 50% Ersparnis für nicht-zeitkritische Tasks
+- **Smart Fallbacks**: Bei fehlenden API-Keys werden lokale Alternativen genutzt
+- **Token-Limiting**: Automatische Begrenzung der Input-Länge
 
 ## 🎯 Features & Module
 
