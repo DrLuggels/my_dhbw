@@ -166,7 +166,7 @@ const loadInteractions = async () => {
   if (!authStore.user?.id) return
 
   try {
-    const response = await api.get(`/api/interaction/pending/${authStore.user.id}`)
+    const response = await api.get(`/interaction/pending/${authStore.user.id}`)
     if (response.data.success) {
       pendingInteractions.value = response.data.data
     }

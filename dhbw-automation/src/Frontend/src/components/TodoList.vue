@@ -130,7 +130,7 @@ const loadTodos = async () => {
 
   loading.value = true
   try {
-    const response = await api.get(`/api/todo/user/${authStore.user.id}`, {
+    const response = await api.get(`/todo/user/${authStore.user.id}`, {
       params: {
         status: null // Get all todos
       }
@@ -153,7 +153,7 @@ const toggleTodo = async (todo: Todo) => {
   const newStatus = todo.status === 'completed' ? 'pending' : 'completed'
 
   try {
-    await api.patch(`/api/todo/${todo.id}/status`, {
+    await api.patch(`/todo/${todo.id}/status`, {
       userId: authStore.user.id,
       status: newStatus
     })

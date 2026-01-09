@@ -194,7 +194,7 @@ const loadDeficits = async () => {
 
   loading.value = true
   try {
-    const response = await api.get(`/api/learning/deficits/${authStore.user.id}`)
+    const response = await api.get(`/learning/deficits/${authStore.user.id}`)
 
     if (response.data.success) {
       deficits.value = response.data.data
@@ -212,7 +212,7 @@ const scheduleTutoring = async (deficit: LearningDeficit) => {
 
   try {
     const response = await api.post(
-      `/api/learning/schedule-tutoring/${deficit.id}?userId=${authStore.user?.id}`
+      `/learning/schedule-tutoring/${deficit.id}?userId=${authStore.user?.id}`
     )
 
     if (response.data.success) {
