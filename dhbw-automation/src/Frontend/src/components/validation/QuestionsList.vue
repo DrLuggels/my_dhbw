@@ -169,14 +169,22 @@ function getQuestionBorderColor(question: AIQuestion): string {
   return ''
 }
 
-// Sync local answers with parent
+// Flag to prevent infinite loop
+let isUpdatingFromProps = false
+
+// Sync local answers with parent (only if not updating from props)
 watch(localAnswers, (newAnswers) => {
-  emit('update:answers', newAnswers)
+  if (!isUpdatingFromProps) {
+    emit('update:answers', newAnswers)
+  }
 }, { deep: true })
 
-// Update local answers when props change
+// Update local answers when props change (with loop protection)
 watch(() => props.answers, (newAnswers) => {
+  isUpdatingFromProps = true
   localAnswers.value = { ...newAnswers }
+  // Reset flag in next tick to allow user changes
+  setTimeout(() => { isUpdatingFromProps = false }, 0)
 }, { deep: true })
 </script>
 
