@@ -106,7 +106,18 @@ public class AIService : IAIService
                 {
                     case "openai":
                         if (!string.IsNullOrEmpty(user.OpenAiApiKey))
-                            return _encryptionHelper.Decrypt(user.OpenAiApiKey);
+                        {
+                            _logger.LogWarning("DEBUG: Encrypted key from DB (first 30 chars): {EncryptedKey}",
+                                user.OpenAiApiKey.Substring(0, Math.Min(30, user.OpenAiApiKey.Length)));
+
+                            var decrypted = _encryptionHelper.Decrypt(user.OpenAiApiKey);
+
+                            _logger.LogWarning("DEBUG: Decrypted key (first 25 chars): {DecryptedKey}, Length: {Length}",
+                                decrypted?.Substring(0, Math.Min(25, decrypted?.Length ?? 0)) ?? "null",
+                                decrypted?.Length ?? 0);
+
+                            return decrypted;
+                        }
                         break;
                     case "anthropic":
                         if (!string.IsNullOrEmpty(user.AnthropicApiKey))
