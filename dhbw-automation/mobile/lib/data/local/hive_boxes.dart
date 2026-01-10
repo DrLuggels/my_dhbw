@@ -1,6 +1,7 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/files/document_model.dart';
 import '../models/calendar/calendar_event_model.dart';
+import '../models/learning/exercise_model.dart';
 
 /// Hive Database Manager
 /// Handles initialization and box management for offline storage
@@ -27,13 +28,12 @@ class HiveBoxes {
     // Register TypeAdapters
     Hive.registerAdapter(DocumentModelAdapter());
     Hive.registerAdapter(CalendarEventModelAdapter());
-    // TODO: Register when models are ready:
-    // Hive.registerAdapter(ExerciseModelAdapter());
+    Hive.registerAdapter(ExerciseModelAdapter());
 
     // Open boxes (typed)
     await Hive.openBox<DocumentModel>(documentsBox);
     await Hive.openBox<CalendarEventModel>(eventsBox);
-    await Hive.openBox(exercisesBox);
+    await Hive.openBox<ExerciseModel>(exercisesBox);
 
     _initialized = true;
   }
@@ -49,8 +49,8 @@ class HiveBoxes {
   }
 
   /// Get Exercises Box
-  Box getExercisesBox() {
-    return Hive.box(exercisesBox);
+  Box<ExerciseModel> getExercisesBox() {
+    return Hive.box<ExerciseModel>(exercisesBox);
   }
 
   /// Close all boxes

@@ -138,7 +138,7 @@ class FilesRepository {
   ) async {
     try {
       final response = await _dioClient.post(
-        ApiConstants.bulkDelete,
+        ApiConstants.bulkDeleteFiles,
         data: fileIds,
       );
 

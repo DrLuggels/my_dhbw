@@ -22,7 +22,11 @@
       "Bash(flutter analyze:*)",
       "Bash(timeout /t 3)",
       "Bash(flutter run:*)",
-      "Bash(flutter pub run build_runner build:*)"
+      "Bash(flutter pub run build_runner build:*)",
+      "Bash(flutter devices:*)",
+      "Bash(xcopy:*)",
+      "Bash(if not exist C:dev mkdir C:dev)",
+      "Bash(flutter build:*)"
     ]
   }
 }

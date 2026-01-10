@@ -392,7 +392,7 @@ class _ConfidenceChip extends StatelessWidget {
       child: Text(
         '$score% Confidence',
         style: TextStyle(
-          color: color.shade700,
+          color: Color.alphaBlend(Colors.black.withOpacity(0.3), color),
           fontSize: 12,
           fontWeight: FontWeight.bold,
         ),
@@ -433,7 +433,7 @@ class _PriorityChip extends StatelessWidget {
       child: Text(
         priority.toUpperCase(),
         style: TextStyle(
-          color: color.shade700,
+          color: Color.alphaBlend(Colors.black.withOpacity(0.3), color),
           fontSize: 12,
           fontWeight: FontWeight.bold,
         ),
