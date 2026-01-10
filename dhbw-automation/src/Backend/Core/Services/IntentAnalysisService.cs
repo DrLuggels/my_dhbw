@@ -1,6 +1,8 @@
 using DHBWAutomation.Backend.Core.Interfaces;
 using DHBWAutomation.Backend.Core.Models;
 using DHBWAutomation.Backend.Shared.Helpers;
+using DHBWAutomation.Backend.Infrastructure.Database;
+using Microsoft.EntityFrameworkCore;
 using System.Text;
 using System.Text.Json;
 using System.Net.Http.Headers;
@@ -9,20 +11,71 @@ namespace DHBWAutomation.Backend.Core.Services;
 
 public class IntentAnalysisService : IIntentAnalysisService
 {
-    private readonly AnthropicClient _anthropicClient;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly AiMetrics _aiMetrics;
     private readonly ILogger<IntentAnalysisService> _logger;
+    private readonly AppDbContext _context;
+    private readonly EncryptionHelper _encryptionHelper;
 
     private const string AnthropicModel = "claude-sonnet-4.5";
+    private const string AnthropicEndpoint = "https://api.anthropic.com/v1/messages";
+    private const string AnthropicVersion = "2023-06-01";
+
+    // Fallback API key from environment variables
+    private readonly string? _anthropicApiKey;
 
     public IntentAnalysisService(
-        AnthropicClient anthropicClient,
+        IHttpClientFactory httpClientFactory,
         AiMetrics aiMetrics,
-        ILogger<IntentAnalysisService> logger)
+        ILogger<IntentAnalysisService> logger,
+        AppDbContext context,
+        EncryptionHelper encryptionHelper)
     {
-        _anthropicClient = anthropicClient;
+        _httpClientFactory = httpClientFactory;
         _aiMetrics = aiMetrics;
         _logger = logger;
+        _context = context;
+        _encryptionHelper = encryptionHelper;
+
+        // Load fallback API key from environment
+        _anthropicApiKey = Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY");
+    }
+
+    /// <summary>
+    /// Holt den Anthropic API-Key - priorisiert User-Key vor globalem Key
+    /// </summary>
+    private async Task<string?> GetApiKeyAsync(int? userId)
+    {
+        _logger.LogInformation("🔑 GetApiKeyAsync called for Anthropic - UserId: {UserId}", userId);
+
+        if (userId.HasValue)
+        {
+            var user = await _context.Users.FindAsync(userId.Value);
+
+            if (user != null && !string.IsNullOrEmpty(user.AnthropicApiKey))
+            {
+                _logger.LogInformation("🔑 User-specific Anthropic key found, decrypting...");
+                var decrypted = _encryptionHelper.Decrypt(user.AnthropicApiKey);
+
+                _logger.LogInformation("🔑 Decrypted Anthropic key (first 20 chars): {KeyPrefix}, Length: {Length}",
+                    decrypted?.Substring(0, Math.Min(20, decrypted?.Length ?? 0)) ?? "null",
+                    decrypted?.Length ?? 0);
+
+                return decrypted;
+            }
+            else
+            {
+                _logger.LogWarning("🔑 User Anthropic key not found or empty, falling back to system key");
+            }
+        }
+        else
+        {
+            _logger.LogWarning("🔑 UserId is NULL, using system fallback key for Anthropic");
+        }
+
+        // Fallback to system environment variable
+        _logger.LogInformation("🔑 Using system Anthropic key, exists? {Exists}", !string.IsNullOrEmpty(_anthropicApiKey));
+        return _anthropicApiKey;
     }
 
     public async Task<DocumentIntent> AnalyzeDocumentIntentAsync(string text, string documentType, int? userId = null)
@@ -32,6 +85,19 @@ public class IntentAnalysisService : IIntentAnalysisService
             try
             {
                 _logger.LogInformation("Analyzing document intent with Claude Sonnet 4.5 for user {UserId}", userId);
+
+                // Get user-specific Anthropic API key
+                var anthropicKey = await GetApiKeyAsync(userId);
+                if (string.IsNullOrEmpty(anthropicKey))
+                {
+                    _logger.LogError("Anthropic API Key not configured for user {UserId} - cannot analyze intent", userId);
+                    return new DocumentIntent
+                    {
+                        PrimaryIntent = "unknown",
+                        ActionRequired = "none",
+                        ConfidenceScore = 0
+                    };
+                }
 
                 var systemPrompt = @"Du bist ein Experte für Intent-Erkennung in studentischen Dokumenten.
 
@@ -142,15 +208,52 @@ Wichtig:
 
                 var userMessage = $"Analysiere dieses {documentType}-Dokument:\n\n{text.Substring(0, Math.Min(text.Length, 8000))}";
 
-                var responseDoc = await _anthropicClient.ChatJsonAsync(
-                    systemPrompt,
-                    userMessage,
-                    AnthropicModel,
-                    maxTokens: 4096
-                );
+                // Manual HTTP request to Anthropic API with user-specific key
+                var client = _httpClientFactory.CreateClient();
+                client.DefaultRequestHeaders.Add("x-api-key", anthropicKey);
+                client.DefaultRequestHeaders.Add("anthropic-version", AnthropicVersion);
+
+                var requestBody = new
+                {
+                    model = AnthropicModel,
+                    max_tokens = 4096,
+                    system = systemPrompt,
+                    messages = new[]
+                    {
+                        new
+                        {
+                            role = "user",
+                            content = userMessage
+                        }
+                    }
+                };
+
+                var json = JsonSerializer.Serialize(requestBody);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await client.PostAsync(AnthropicEndpoint, content);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("Anthropic API error: Status={Status}, Content={Content}",
+                        response.StatusCode, errorContent);
+                    throw new InvalidOperationException($"Anthropic API error: {response.StatusCode}");
+                }
+
+                var responseJson = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("Anthropic response received, parsing JSON...");
+
+                // Parse response - Anthropic returns { "content": [{ "text": "..." }] }
+                var responseDoc = JsonDocument.Parse(responseJson);
+                var contentArray = responseDoc.RootElement.GetProperty("content");
+                var textContent = contentArray[0].GetProperty("text").GetString() ?? "{}";
+
+                // Parse the text content as JSON (it should be the DocumentIntent JSON)
+                var intentDoc = JsonDocument.Parse(textContent);
 
                 // Parse the JSON response with defensive parsing
-                var intent = ParseIntentFromJsonDocument(responseDoc);
+                var intent = ParseIntentFromJsonDocument(intentDoc);
 
                 _logger.LogInformation($"Intent analysis complete: PrimaryIntent={intent.PrimaryIntent}");
                 return intent;
