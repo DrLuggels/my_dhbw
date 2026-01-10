@@ -347,24 +347,46 @@ Wichtig:
                     .ToList();
             }
 
-            // Parse meeting (defensive)
-            if (root.TryGetProperty("meeting", out var meeting) && meeting.ValueKind == JsonValueKind.Object)
+            // Parse meeting (defensive) - handle both "meetings" array and "meeting" object
+            JsonElement meetingElement = default;
+            bool hasMeeting = false;
+
+            // First try "meetings" array (Claude returns this)
+            if (root.TryGetProperty("meetings", out var meetings) && meetings.ValueKind == JsonValueKind.Array)
+            {
+                var meetingsArray = meetings.EnumerateArray().ToList();
+                if (meetingsArray.Count > 0)
+                {
+                    meetingElement = meetingsArray[0]; // Take first meeting
+                    hasMeeting = true;
+                    _logger.LogInformation($"📅 Found {meetingsArray.Count} meetings in array, taking first one");
+                }
+            }
+            // Fallback to "meeting" object (for backward compatibility)
+            else if (root.TryGetProperty("meeting", out var meeting) && meeting.ValueKind == JsonValueKind.Object)
+            {
+                meetingElement = meeting;
+                hasMeeting = true;
+                _logger.LogInformation("📅 Found single meeting object");
+            }
+
+            if (hasMeeting)
             {
                 intent.Meeting = new ExtractedMeeting
                 {
-                    PersonName = TryGetString(meeting, "personName") ?? "",
-                    Purpose = TryGetString(meeting, "purpose") ?? "",
-                    EstimatedDurationMinutes = TryGetInt32(meeting, "estimatedDurationMinutes") ?? 60,
-                    ConfidenceScore = TryGetInt32(meeting, "confidenceScore") ?? 100
+                    PersonName = TryGetString(meetingElement, "personName") ?? "",
+                    Purpose = TryGetString(meetingElement, "purpose") ?? "",
+                    EstimatedDurationMinutes = TryGetInt32(meetingElement, "estimatedDurationMinutes") ?? 60,
+                    ConfidenceScore = TryGetInt32(meetingElement, "confidenceScore") ?? 100
                 };
 
-                var dateStr = TryGetString(meeting, "suggestedDate");
+                var dateStr = TryGetString(meetingElement, "suggestedDate");
                 if (!string.IsNullOrEmpty(dateStr) && DateTime.TryParse(dateStr, out var date))
                 {
                     intent.Meeting.SuggestedDate = date;
                 }
 
-                intent.Meeting.SuggestedTime = TryGetString(meeting, "suggestedTime");
+                intent.Meeting.SuggestedTime = TryGetString(meetingElement, "suggestedTime");
             }
 
             // Parse todos (defensive)
