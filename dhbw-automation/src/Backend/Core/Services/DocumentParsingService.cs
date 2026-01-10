@@ -315,12 +315,18 @@ public class DocumentParsingService : IDocumentParsingService
                      fileType.Contains("plain", StringComparison.OrdinalIgnoreCase))
             {
                 // Plain text - just read directly
+                _logger.LogInformation($"Extracting plain text - FileType: {fileType}");
+                _logger.LogInformation($"Stream CanSeek: {fileStream.CanSeek}, Position: {fileStream.Position}, Length: {fileStream.Length}");
+
                 if (fileStream.CanSeek)
                 {
                     fileStream.Position = 0;
+                    _logger.LogInformation($"Stream position reset to 0");
                 }
+
                 using var reader = new StreamReader(fileStream);
                 extractedText = await reader.ReadToEndAsync();
+                _logger.LogInformation($"Text extracted: {extractedText.Length} characters");
             }
             else
             {

@@ -230,10 +230,15 @@ public class FileService : IFileService
                     return false;
                 }
 
+                _logger.LogInformation($"Downloaded file from MinIO: Path={document.FilePath}, FileType={document.FileType}");
+                _logger.LogInformation($"Stream properties: CanRead={fileStream.CanRead}, CanSeek={fileStream.CanSeek}, Position={fileStream.Position}, Length={fileStream.Length}");
+
                 // 2. Extract text using DocumentParsingService (PDF, DOCX, Image OCR)
                 string extractedText;
                 var (text, errors) = await _parsingService.ExtractAndAnalyzeAsync(fileStream, document.FileType ?? "");
                 extractedText = text;
+
+                _logger.LogInformation($"Text extraction result: Length={extractedText?.Length ?? 0}, IsEmpty={string.IsNullOrWhiteSpace(extractedText)}");
 
                 if (string.IsNullOrWhiteSpace(extractedText))
                 {
