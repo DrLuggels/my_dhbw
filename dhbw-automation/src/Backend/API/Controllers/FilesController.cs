@@ -295,4 +295,42 @@ public class FilesController : ControllerBase
             });
         }
     }
+
+    [HttpPost("bulk-delete")]
+    public async Task<ActionResult<ApiResponse<object>>> BulkDeleteDocuments([FromBody] int[] documentIds)
+    {
+        try
+        {
+            if (documentIds == null || documentIds.Length == 0)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Keine Dokument-IDs angegeben"
+                });
+            }
+
+            // TODO: Get userId from JWT token
+            int userId = 1; // Temporär hardcoded
+
+            var (successCount, failureCount) = await _fileService.BulkDeleteDocumentsAsync(documentIds, userId);
+
+            return Ok(new ApiResponse<object>
+            {
+                Success = true,
+                Data = new { successCount, failureCount, totalRequested = documentIds.Length },
+                Message = $"{successCount} Dokument(e) erfolgreich gelöscht, {failureCount} fehlgeschlagen"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fehler beim Bulk-Löschen der Dokumente");
+            return StatusCode(500, new ApiResponse<object>
+            {
+                Success = false,
+                Message = "Ein Fehler ist aufgetreten",
+                Errors = new[] { ex.Message }
+            });
+        }
+    }
 }

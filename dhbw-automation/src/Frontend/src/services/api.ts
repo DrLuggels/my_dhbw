@@ -113,6 +113,11 @@ class ApiService {
     return response.data
   }
 
+  async bulkDeleteFiles(fileIds: number[]) {
+    const response = await this.api.post('/files/bulk-delete', fileIds)
+    return response.data
+  }
+
   // Direct API access methods
   get(url: string, config?: any) {
     return this.api.get(url, config)

@@ -37,19 +37,63 @@
     </v-card>
     
     <v-card>
-      <v-card-title>Meine Dateien</v-card-title>
+      <v-card-title class="d-flex justify-space-between align-center">
+        <span>Meine Dateien</span>
+        <div class="d-flex align-center gap-2">
+          <v-switch
+            v-model="showProcessed"
+            label="Verarbeitete anzeigen"
+            color="primary"
+            hide-details
+            density="compact"
+          ></v-switch>
+          <v-btn
+            v-if="selectedDocuments.length > 0"
+            color="error"
+            @click="handleBulkDelete"
+            size="small"
+          >
+            <v-icon left>mdi-delete</v-icon>
+            {{ selectedDocuments.length }} löschen
+          </v-btn>
+        </div>
+      </v-card-title>
       <v-card-text>
-        <v-alert v-if="documents.length === 0" type="info">
+        <v-alert v-if="filteredDocuments.length === 0 && documents.length === 0" type="info">
           Noch keine Dateien hochgeladen
         </v-alert>
-        
+
+        <v-alert v-else-if="filteredDocuments.length === 0 && documents.length > 0" type="info">
+          Alle Dokumente sind verarbeitet. Aktiviere "Verarbeitete anzeigen" um sie zu sehen.
+        </v-alert>
+
         <v-list v-else>
           <v-list-item
-            v-for="doc in documents"
+            v-for="doc in filteredDocuments"
             :key="doc.id"
-            :title="doc.fileName"
-            :subtitle="`${doc.fileType} • ${formatFileSize(doc.fileSize)}`"
           >
+            <template v-slot:prepend>
+              <v-checkbox
+                v-model="selectedDocuments"
+                :value="doc.id"
+                hide-details
+                density="compact"
+              ></v-checkbox>
+            </template>
+
+            <v-list-item-title>{{ doc.fileName }}</v-list-item-title>
+            <v-list-item-subtitle>
+              {{ doc.fileType }} • {{ formatFileSize(doc.fileSize) }}
+              <v-chip
+                v-if="doc.isProcessed"
+                size="x-small"
+                color="success"
+                class="ml-2"
+              >
+                Verarbeitet
+              </v-chip>
+            </v-list-item-subtitle>
+
             <template v-slot:append>
               <v-btn icon size="small" variant="text" @click="handleDownload(doc)">
                 <v-icon>mdi-download</v-icon>
@@ -66,7 +110,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import api from '@/services/api'
 
 const file = ref<File | null>(null)
@@ -75,6 +119,15 @@ const loading = ref(false)
 const documents = ref<any[]>([])
 const errorMessage = ref('')
 const successMessage = ref('')
+const showProcessed = ref(false)
+const selectedDocuments = ref<number[]>([])
+
+const filteredDocuments = computed(() => {
+  if (showProcessed.value) {
+    return documents.value
+  }
+  return documents.value.filter(doc => !doc.isProcessed)
+})
 
 const loadFiles = async () => {
   loading.value = true
@@ -145,7 +198,7 @@ const handleDownload = async (doc: any) => {
 
 const handleDelete = async (doc: any) => {
   if (!confirm(`Möchtest du "${doc.fileName}" wirklich löschen?`)) return
-  
+
   try {
     const response = await api.deleteFile(doc.id)
     if (response.success) {
@@ -155,6 +208,29 @@ const handleDelete = async (doc: any) => {
   } catch (error) {
     console.error('Delete error:', error)
     errorMessage.value = 'Löschen fehlgeschlagen'
+  }
+}
+
+const handleBulkDelete = async () => {
+  if (selectedDocuments.value.length === 0) return
+
+  const count = selectedDocuments.value.length
+  if (!confirm(`Möchtest du wirklich ${count} Dokument(e) löschen?`)) return
+
+  try {
+    const response = await api.bulkDeleteFiles(selectedDocuments.value)
+    if (response.success) {
+      const data = response.data as { successCount: number; failureCount: number }
+      successMessage.value = `${data.successCount} Dokument(e) gelöscht`
+      if (data.failureCount > 0) {
+        errorMessage.value = `${data.failureCount} Dokument(e) konnten nicht gelöscht werden`
+      }
+      selectedDocuments.value = []
+      await loadFiles()
+    }
+  } catch (error) {
+    console.error('Bulk delete error:', error)
+    errorMessage.value = 'Bulk-Löschen fehlgeschlagen'
   }
 }
 

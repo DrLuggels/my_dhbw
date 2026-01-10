@@ -198,6 +198,57 @@ public class FileService : IFileService
         }
     }
 
+    public async Task<(int successCount, int failureCount)> BulkDeleteDocumentsAsync(IEnumerable<int> documentIds, int userId)
+    {
+        int successCount = 0;
+        int failureCount = 0;
+
+        try
+        {
+            // Fetch all documents that belong to the user
+            var documents = await _context.Documents
+                .Where(d => documentIds.Contains(d.Id) && d.UserId == userId)
+                .ToListAsync();
+
+            _logger.LogInformation($"Bulk delete: Found {documents.Count} documents for user {userId} out of {documentIds.Count()} requested IDs");
+
+            foreach (var document in documents)
+            {
+                try
+                {
+                    // Delete from storage
+                    await _storageService.DeleteFileAsync(document.FilePath, DefaultBucket);
+
+                    // Remove from database
+                    _context.Documents.Remove(document);
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Error deleting document {document.Id}");
+                    failureCount++;
+                }
+            }
+
+            // Account for documents not found or not belonging to user
+            failureCount += documentIds.Count() - documents.Count;
+
+            // Save all changes at once
+            if (successCount > 0)
+            {
+                await _context.SaveChangesAsync();
+            }
+
+            _logger.LogInformation($"Bulk delete completed: {successCount} success, {failureCount} failures");
+            return (successCount, failureCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in bulk delete operation");
+            return (successCount, documentIds.Count() - successCount);
+        }
+    }
+
     public async Task<Stream?> DownloadFileAsync(int documentId, int userId)
     {
         try
