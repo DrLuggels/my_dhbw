@@ -184,8 +184,9 @@ public class ValidationService : IValidationService
     public async Task<List<StagedEntity>> GetPendingStagedEntitiesAsync(int userId, string? status = null)
     {
         var query = _context.StagedEntities
+            .AsNoTracking() // Prevent loading navigation properties that cause circular references
             .Include(s => s.Questions)
-            .Include(s => s.SourceDocument)
+            // Removed .Include(s => s.SourceDocument) to prevent circular reference (User -> StagedEntities -> Document -> User)
             .Where(s => s.UserId == userId && !s.IsPromoted);
 
         if (!string.IsNullOrEmpty(status))
