@@ -257,6 +257,12 @@ Wichtig:
                 _logger.LogWarning("🔍 DEBUG: Extracted text content (first 1000 chars): {TextContent}",
                     textContent?.Substring(0, Math.Min(1000, textContent?.Length ?? 0)) ?? "null");
 
+                // Remove markdown code blocks if present (Claude often wraps JSON in ```json ... ```)
+                textContent = RemoveMarkdownCodeBlocks(textContent);
+
+                _logger.LogWarning("🔍 DEBUG: After removing markdown (first 500 chars): {CleanedContent}",
+                    textContent?.Substring(0, Math.Min(500, textContent?.Length ?? 0)) ?? "null");
+
                 // Parse the text content as JSON (it should be the DocumentIntent JSON)
                 var intentDoc = JsonDocument.Parse(textContent);
 
@@ -285,6 +291,35 @@ Wichtig:
                 };
             }
         });
+    }
+
+    /// <summary>
+    /// Removes markdown code blocks from text (e.g., ```json ... ```)
+    /// Claude often wraps JSON responses in markdown code blocks
+    /// </summary>
+    private string RemoveMarkdownCodeBlocks(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return text;
+
+        // Remove opening markdown code block (```json or ```)
+        text = text.Trim();
+        if (text.StartsWith("```json"))
+        {
+            text = text.Substring(7).TrimStart(); // Remove ```json and leading whitespace
+        }
+        else if (text.StartsWith("```"))
+        {
+            text = text.Substring(3).TrimStart(); // Remove ``` and leading whitespace
+        }
+
+        // Remove closing markdown code block (```)
+        if (text.EndsWith("```"))
+        {
+            text = text.Substring(0, text.Length - 3).TrimEnd();
+        }
+
+        return text.Trim();
     }
 
     private DocumentIntent ParseIntentFromJsonDocument(JsonDocument doc)
