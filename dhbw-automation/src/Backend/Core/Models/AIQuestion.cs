@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace DHBWAutomation.Backend.Core.Models;
 
@@ -14,6 +15,7 @@ public class AIQuestion
     public int StagedEntityId { get; set; }
 
     [ForeignKey(nameof(StagedEntityId))]
+    [JsonIgnore] // Prevent circular reference: StagedEntity.Questions -> AIQuestion.StagedEntity -> Questions -> ...
     public StagedEntity StagedEntity { get; set; } = null!;
 
     /// <summary>
