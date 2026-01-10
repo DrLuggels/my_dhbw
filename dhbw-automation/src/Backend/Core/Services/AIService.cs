@@ -220,6 +220,10 @@ Dokument ({fileType}):
                     {
                         var client = _httpClientFactory.CreateClient("OpenAI");
 
+                        // CRITICAL: Set user-specific API key dynamically
+                        client.DefaultRequestHeaders.Authorization =
+                            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", openAiKey);
+
                         var requestBody = new
                         {
                             model = OpenAiModel,
@@ -306,6 +310,10 @@ Dokument ({fileType}):
                     var response = await _openAiResiliencePolicy.ExecuteAsync(async () =>
                     {
                         var client = _httpClientFactory.CreateClient("OpenAI");
+
+                        // CRITICAL: Set user-specific API key dynamically
+                        client.DefaultRequestHeaders.Authorization =
+                            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", openAiKey);
 
                         var requestBody = new
                         {
