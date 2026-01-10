@@ -205,7 +205,12 @@
     <!-- Snooze Dialog -->
     <v-dialog v-model="showSnoozeDialog" max-width="400">
       <v-card>
-        <v-card-title>Erinnerung planen</v-card-title>
+        <v-card-title class="d-flex justify-space-between align-center">
+          <span>Erinnerung planen</span>
+          <v-btn icon size="small" variant="text" @click="showSnoozeDialog = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
         <v-card-text>
           <v-list>
             <v-list-item @click="snooze(1)">

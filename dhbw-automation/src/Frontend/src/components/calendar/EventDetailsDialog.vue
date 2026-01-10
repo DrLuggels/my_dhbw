@@ -3,9 +3,14 @@
     <v-card v-if="event">
       <v-card-title class="d-flex justify-space-between align-center">
         <span>Event Details</span>
-        <v-chip :color="getSourceColor(event.source)" size="small">
-          {{ event.source }}
-        </v-chip>
+        <div class="d-flex align-center gap-2">
+          <v-chip :color="getSourceColor(event.source)" size="small">
+            {{ event.source }}
+          </v-chip>
+          <v-btn icon size="small" variant="text" @click="emit('update:modelValue', false)">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </div>
       </v-card-title>
 
       <v-card-text>

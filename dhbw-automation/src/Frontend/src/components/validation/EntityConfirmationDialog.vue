@@ -8,6 +8,9 @@
           {{ getEntityTypeLabel(entity.entityType) }} bestätigen
         </span>
         <div class="d-flex align-center gap-2">
+          <v-btn icon size="small" variant="text" @click="handleClose" class="text-white">
+            <v-icon color="white">mdi-close</v-icon>
+          </v-btn>
           <v-chip :color="getConfidenceColor(entity.confidenceScore)" size="small">
             <v-icon start size="small">mdi-speedometer</v-icon>
             {{ entity.confidenceScore }}%

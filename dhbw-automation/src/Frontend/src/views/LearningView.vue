@@ -1,10 +1,15 @@
 <template>
   <v-container>
     <div class="d-flex justify-space-between align-center mb-6">
-      <h1 class="text-h3">
-        <v-icon left color="primary">mdi-school</v-icon>
-        Lernbereich
-      </h1>
+      <div class="d-flex align-center">
+        <v-btn icon variant="text" @click="$router.back()" class="mr-3">
+          <v-icon>mdi-arrow-left</v-icon>
+        </v-btn>
+        <h1 class="text-h3">
+          <v-icon left color="primary">mdi-school</v-icon>
+          Lernbereich
+        </h1>
+      </div>
     </div>
 
     <!-- Statistics Cards -->

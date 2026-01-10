@@ -1,6 +1,11 @@
 <template>
   <v-container>
-    <h1 class="text-h3 mb-6">Dateien</h1>
+    <div class="d-flex align-center mb-6">
+      <v-btn icon variant="text" @click="$router.back()" class="mr-3">
+        <v-icon>mdi-arrow-left</v-icon>
+      </v-btn>
+      <h1 class="text-h3">Dateien</h1>
+    </div>
     
     <v-card class="mb-4">
       <v-card-title>Datei hochladen</v-card-title>

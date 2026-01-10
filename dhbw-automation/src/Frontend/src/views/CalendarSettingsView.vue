@@ -1,6 +1,11 @@
 <template>
   <div class="calendar-settings">
-    <h1>Kalender-Einstellungen</h1>
+    <div class="d-flex align-center mb-6">
+      <v-btn icon variant="text" @click="$router.back()" class="mr-3">
+        <v-icon>mdi-arrow-left</v-icon>
+      </v-btn>
+      <h1>Kalender-Einstellungen</h1>
+    </div>
     
     <div class="settings-sections">
       <!-- Google Calendar Integration -->

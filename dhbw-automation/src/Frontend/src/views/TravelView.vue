@@ -1,13 +1,18 @@
 <template>
   <div class="travel-view">
     <v-container>
+      <div class="d-flex align-center mb-4">
+        <v-btn icon variant="text" @click="$router.back()" class="mr-3">
+          <v-icon>mdi-arrow-left</v-icon>
+        </v-btn>
+        <h1 class="text-h4">
+          <v-icon left color="primary">mdi-train</v-icon>
+          Zugverbindungen
+        </h1>
+      </div>
       <v-row>
         <v-col cols="12">
           <v-card>
-            <v-card-title class="text-h4 pa-6">
-              <v-icon left color="primary">mdi-train</v-icon>
-              Zugverbindungen
-            </v-card-title>
 
             <v-card-text>
               <!-- Suchformular -->

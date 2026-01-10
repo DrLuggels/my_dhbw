@@ -1,10 +1,15 @@
 <template>
   <v-container>
     <div class="d-flex justify-space-between align-center mb-6">
-      <h1 class="text-h3">
-        <v-icon left size="large">mdi-chat-question-outline</v-icon>
-        AI Rückfragen
-      </h1>
+      <div class="d-flex align-center">
+        <v-btn icon variant="text" @click="$router.back()" class="mr-3">
+          <v-icon>mdi-arrow-left</v-icon>
+        </v-btn>
+        <h1 class="text-h3">
+          <v-icon left size="large">mdi-chat-question-outline</v-icon>
+          AI Rückfragen
+        </h1>
+      </div>
       <div class="d-flex gap-3">
         <v-btn
           color="success"
@@ -226,7 +231,15 @@
     <!-- Bulk Confirm Dialog -->
     <v-dialog v-model="showBulkConfirmDialog" max-width="600px">
       <v-card>
-        <v-card-title>Bulk-Bestätigung</v-card-title>
+        <v-card-title class="d-flex justify-space-between align-center">
+          <span>Bulk-Bestätigung</span>
+          <v-btn icon size="small" variant="text" @click="showBulkConfirmDialog = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+          <v-btn icon size="small" variant="text" @click="showBulkConfirmDialog = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
         <v-card-text>
           <p>Alle Entitäten mit einem Confidence Score von mindestens {{ bulkConfidenceThreshold }}% und ohne offene Fragen werden automatisch bestätigt.</p>
           <v-slider
