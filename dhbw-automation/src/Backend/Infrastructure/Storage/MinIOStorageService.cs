@@ -65,32 +65,48 @@ public class MinIOStorageService : IStorageService
         {
             _logger.LogInformation($"Downloading file from MinIO: Bucket={bucketName}, Path={filePath}");
 
+            // First verify the file exists and get its metadata
+            var statArgs = new StatObjectArgs()
+                .WithBucket(bucketName)
+                .WithObject(filePath);
+
+            var stat = await _minioClient.StatObjectAsync(statArgs);
+            _logger.LogInformation($"File exists in MinIO: Size={stat.Size} bytes, ContentType={stat.ContentType}");
+
+            // Create MemoryStream to hold the downloaded data
             var memoryStream = new MemoryStream();
 
+            // Download the file using callback (MUST be synchronous!)
             await _minioClient.GetObjectAsync(new GetObjectArgs()
                 .WithBucket(bucketName)
                 .WithObject(filePath)
                 .WithCallbackStream(stream =>
                 {
-                    _logger.LogInformation($"MinIO stream callback invoked: CanRead={stream.CanRead}, CanSeek={stream.CanSeek}");
+                    _logger.LogInformation($"✓ MinIO callback invoked successfully!");
+                    _logger.LogInformation($"Stream: CanRead={stream.CanRead}, CanSeek={stream.CanSeek}");
 
-                    // Try to get length if available
                     try
                     {
-                        _logger.LogInformation($"MinIO stream length: {stream.Length}");
+                        var length = stream.Length;
+                        _logger.LogInformation($"Stream Length: {length} bytes");
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning($"Could not get stream length: {ex.Message}");
+                        _logger.LogWarning($"Could not read stream length: {ex.Message}");
                     }
 
-                    _logger.LogInformation("Starting stream copy...");
-                    stream.CopyTo(memoryStream);
-                    _logger.LogInformation($"Stream copied successfully: {memoryStream.Length} bytes copied to MemoryStream");
+                    _logger.LogInformation("Copying stream to MemoryStream...");
+                    stream.CopyTo(memoryStream);  // SYNCHRONOUS copy!
+                    _logger.LogInformation($"✓ Successfully copied {memoryStream.Length} bytes to MemoryStream");
                 }));
 
             memoryStream.Position = 0;
-            _logger.LogInformation($"Download complete: MemoryStream Length={memoryStream.Length}, Position={memoryStream.Position}");
+            _logger.LogInformation($"Download complete: Final MemoryStream Length={memoryStream.Length}");
+
+            if (memoryStream.Length == 0)
+            {
+                _logger.LogWarning($"WARNING: Downloaded stream is EMPTY despite file size being {stat.Size}!");
+            }
 
             return memoryStream;
         }
