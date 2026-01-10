@@ -76,10 +76,19 @@ public class FileService : IFileService
             _logger.LogInformation("FileService Step 4: Uploading to storage service");
             _logger.LogInformation("  Bucket: {Bucket}", DefaultBucket);
             string filePath;
-            using (var stream = file.OpenReadStream())
+
+            // Copy IFormFile stream to MemoryStream to ensure seekability
+            using (var sourceStream = file.OpenReadStream())
+            using (var memoryStream = new MemoryStream())
             {
-                _logger.LogInformation("  Stream opened, length: {StreamLength}", stream.Length);
-                filePath = await _storageService.UploadFileAsync(stream, uniqueFileName, DefaultBucket);
+                _logger.LogInformation("  Copying IFormFile stream to MemoryStream...");
+                await sourceStream.CopyToAsync(memoryStream);
+                memoryStream.Position = 0;
+
+                _logger.LogInformation("  MemoryStream created: Length={Length}, CanSeek={CanSeek}",
+                    memoryStream.Length, memoryStream.CanSeek);
+
+                filePath = await _storageService.UploadFileAsync(memoryStream, uniqueFileName, DefaultBucket);
                 _logger.LogInformation("  Upload completed, FilePath: {FilePath}", filePath);
             }
 
