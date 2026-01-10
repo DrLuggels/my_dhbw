@@ -244,10 +244,18 @@ Wichtig:
                 var responseJson = await response.Content.ReadAsStringAsync();
                 _logger.LogInformation("Anthropic response received, parsing JSON...");
 
+                // DEBUG: Log full Anthropic response
+                _logger.LogWarning("🔍 DEBUG: Full Anthropic response (first 1000 chars): {Response}",
+                    responseJson.Substring(0, Math.Min(1000, responseJson.Length)));
+
                 // Parse response - Anthropic returns { "content": [{ "text": "..." }] }
                 var responseDoc = JsonDocument.Parse(responseJson);
                 var contentArray = responseDoc.RootElement.GetProperty("content");
                 var textContent = contentArray[0].GetProperty("text").GetString() ?? "{}";
+
+                // DEBUG: Log extracted text content
+                _logger.LogWarning("🔍 DEBUG: Extracted text content (first 1000 chars): {TextContent}",
+                    textContent?.Substring(0, Math.Min(1000, textContent?.Length ?? 0)) ?? "null");
 
                 // Parse the text content as JSON (it should be the DocumentIntent JSON)
                 var intentDoc = JsonDocument.Parse(textContent);
