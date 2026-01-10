@@ -97,26 +97,36 @@ public class AIService : IAIService
     /// </summary>
     private async Task<string?> GetApiKeyAsync(string provider, int? userId)
     {
+        _logger.LogWarning("🔑 GetApiKeyAsync called - Provider: {Provider}, UserId: {UserId}", provider, userId);
+
         if (userId.HasValue)
         {
+            _logger.LogWarning("🔑 UserId has value: {UserId}, fetching user from DB...", userId.Value);
             var user = await _context.Users.FindAsync(userId.Value);
+
             if (user != null)
             {
+                _logger.LogWarning("🔑 User found! OpenAiApiKey empty? {IsEmpty}", string.IsNullOrEmpty(user.OpenAiApiKey));
+
                 switch (provider.ToLower())
                 {
                     case "openai":
                         if (!string.IsNullOrEmpty(user.OpenAiApiKey))
                         {
-                            _logger.LogWarning("DEBUG: Encrypted key from DB (first 30 chars): {EncryptedKey}",
+                            _logger.LogWarning("🔑 DEBUG: Encrypted key from DB (first 30 chars): {EncryptedKey}",
                                 user.OpenAiApiKey.Substring(0, Math.Min(30, user.OpenAiApiKey.Length)));
 
                             var decrypted = _encryptionHelper.Decrypt(user.OpenAiApiKey);
 
-                            _logger.LogWarning("DEBUG: Decrypted key (first 25 chars): {DecryptedKey}, Length: {Length}",
+                            _logger.LogWarning("🔑 DEBUG: Decrypted key (first 25 chars): {DecryptedKey}, Length: {Length}",
                                 decrypted?.Substring(0, Math.Min(25, decrypted?.Length ?? 0)) ?? "null",
                                 decrypted?.Length ?? 0);
 
                             return decrypted;
+                        }
+                        else
+                        {
+                            _logger.LogWarning("🔑 User OpenAiApiKey is NULL or empty, falling back to system key");
                         }
                         break;
                     case "anthropic":
@@ -129,9 +139,20 @@ public class AIService : IAIService
                         break;
                 }
             }
+            else
+            {
+                _logger.LogWarning("🔑 User NOT found in DB for userId: {UserId}", userId.Value);
+            }
+        }
+        else
+        {
+            _logger.LogWarning("🔑 UserId is NULL, using system fallback keys");
         }
 
         // Fallback auf globale Keys
+        _logger.LogWarning("🔑 Falling back to system key for provider: {Provider}, Key exists? {Exists}",
+            provider, !string.IsNullOrEmpty(_openAiApiKey) && provider.ToLower() == "openai");
+
         return provider.ToLower() switch
         {
             "openai" => _openAiApiKey,
