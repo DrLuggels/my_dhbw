@@ -214,6 +214,10 @@ Dokument ({fileType}):
                     return new[] { "studium", "dhbw", "dokument" };
                 }
 
+                // DEBUG: Log key prefix for verification
+                _logger.LogInformation("Using OpenAI key for user {UserId}: {KeyPrefix}...",
+                    userId, openAiKey?.Substring(0, Math.Min(15, openAiKey?.Length ?? 0)) ?? "null");
+
                 return await _openAiLimiter.ExecuteAsync(async () =>
                 {
                     var response = await _openAiResiliencePolicy.ExecuteAsync(async () =>
