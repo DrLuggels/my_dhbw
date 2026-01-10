@@ -1,6 +1,7 @@
 using Minio;
 using Minio.DataModel.Args;
 using DHBWAutomation.Backend.Core.Interfaces;
+using Microsoft.Extensions.Configuration;
 
 namespace DHBWAutomation.Backend.Infrastructure.Storage;
 
@@ -9,14 +10,17 @@ public class MinIOStorageService : IStorageService
     private readonly IMinioClient _minioClient;
     private readonly ILogger<MinIOStorageService> _logger;
 
-    public MinIOStorageService(ILogger<MinIOStorageService> logger)
+    public MinIOStorageService(IConfiguration configuration, ILogger<MinIOStorageService> logger)
     {
         _logger = logger;
-        
-        var endpoint = Environment.GetEnvironmentVariable("MINIO_ENDPOINT") ?? "localhost:9000";
-        var accessKey = Environment.GetEnvironmentVariable("MINIO_ACCESS_KEY") ?? "minioadmin";
-        var secretKey = Environment.GetEnvironmentVariable("MINIO_SECRET_KEY") ?? "minioadmin";
-        var useSSL = Environment.GetEnvironmentVariable("MINIO_USE_SSL") == "true";
+
+        // Use IConfiguration to support ASP.NET Core config format (MinIO__Endpoint)
+        var endpoint = configuration["MinIO:Endpoint"] ?? Environment.GetEnvironmentVariable("MINIO_ENDPOINT") ?? "localhost:9000";
+        var accessKey = configuration["MinIO:AccessKey"] ?? Environment.GetEnvironmentVariable("MINIO_ACCESS_KEY") ?? "minioadmin";
+        var secretKey = configuration["MinIO:SecretKey"] ?? Environment.GetEnvironmentVariable("MINIO_SECRET_KEY") ?? "minioadmin";
+        var useSSL = (configuration["MinIO:UseSSL"] ?? Environment.GetEnvironmentVariable("MINIO_USE_SSL")) == "true";
+
+        _logger.LogInformation($"Initializing MinIO client: Endpoint={endpoint}, UseSSL={useSSL}");
 
         _minioClient = new MinioClient()
             .WithEndpoint(endpoint)

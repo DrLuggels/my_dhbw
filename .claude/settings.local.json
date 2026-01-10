@@ -13,7 +13,10 @@
       "Bash(timeout /t 5 /nobreak)",
       "Bash(dotnet build:*)",
       "Bash(npm run type-check:*)",
-      "Bash(scp:*)"
+      "Bash(ssh:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }
