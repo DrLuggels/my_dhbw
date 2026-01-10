@@ -63,15 +63,23 @@ public class MinIOStorageService : IStorageService
     {
         try
         {
+            _logger.LogInformation($"Downloading file from MinIO: Bucket={bucketName}, Path={filePath}");
+
             var memoryStream = new MemoryStream();
             var getObjectArgs = new GetObjectArgs()
                 .WithBucket(bucketName)
                 .WithObject(filePath)
-                .WithCallbackStream(stream => stream.CopyTo(memoryStream));
+                .WithCallbackStream(async (stream) =>
+                {
+                    _logger.LogInformation($"MinIO callback stream: CanRead={stream.CanRead}, Length={stream.Length}");
+                    await stream.CopyToAsync(memoryStream);
+                    _logger.LogInformation($"Copied {memoryStream.Length} bytes to MemoryStream");
+                });
 
             await _minioClient.GetObjectAsync(getObjectArgs);
             memoryStream.Position = 0;
-            
+
+            _logger.LogInformation($"Download complete: MemoryStream Length={memoryStream.Length}");
             return memoryStream;
         }
         catch (Exception ex)
