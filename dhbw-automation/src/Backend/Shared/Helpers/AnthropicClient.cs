@@ -80,18 +80,23 @@ public class AnthropicClient
     /// <param name="model">Claude-Modell (Standard: claude-sonnet-4.5)</param>
     /// <param name="maxTokens">Maximale Anzahl Tokens für die Antwort</param>
     /// <param name="temperature">Temperature für Kreativität (0.0 - 1.0)</param>
+    /// <param name="apiKey">Optional: User-spezifischer API Key (überschreibt den System-Key)</param>
     /// <returns>Claude's Antwort-Text</returns>
     public async Task<string> ChatAsync(
-        string systemPrompt, 
-        string userMessage, 
+        string systemPrompt,
+        string userMessage,
         string model = "claude-sonnet-4.5",
         int maxTokens = 1024,
-        double temperature = 0.3)
+        double temperature = 0.3,
+        string? apiKey = null)
     {
-        if (string.IsNullOrEmpty(_apiKey))
+        // Use provided apiKey, fallback to environment variable
+        var effectiveApiKey = apiKey ?? _apiKey;
+
+        if (string.IsNullOrEmpty(effectiveApiKey))
         {
             _logger.LogError("Anthropic API Key not configured");
-            throw new InvalidOperationException("ANTHROPIC_API_KEY environment variable not set");
+            throw new InvalidOperationException("No Anthropic API Key provided (neither user-specific nor system environment variable)");
         }
 
         return await _rateLimiter.ExecuteAsync(async () =>
@@ -101,7 +106,7 @@ public class AnthropicClient
                 var response = await _resiliencePolicy.ExecuteAsync(async () =>
                 {
                     var client = _httpClientFactory.CreateClient("Anthropic");
-                    
+
                     var requestBody = new
                     {
                         model,
@@ -120,10 +125,19 @@ public class AnthropicClient
                         "application/json"
                     );
 
-                    _logger.LogInformation("Calling Anthropic Claude API (Model: {Model}, MaxTokens: {MaxTokens})", 
-                        model, maxTokens);
+                    // Create request message to set custom headers
+                    var request = new HttpRequestMessage(HttpMethod.Post, "messages")
+                    {
+                        Content = content
+                    };
 
-                    return await client.PostAsync("messages", content);
+                    // Override x-api-key with user-specific key if provided
+                    request.Headers.TryAddWithoutValidation("x-api-key", effectiveApiKey);
+
+                    _logger.LogInformation("Calling Anthropic Claude API (Model: {Model}, MaxTokens: {MaxTokens}, UserKey: {HasUserKey})",
+                        model, maxTokens, apiKey != null);
+
+                    return await client.SendAsync(request);
                 });
 
                 response.EnsureSuccessStatusCode();
@@ -166,14 +180,16 @@ public class AnthropicClient
     /// <param name="userMessage">User-Message</param>
     /// <param name="model">Claude-Modell</param>
     /// <param name="maxTokens">Maximale Tokens</param>
+    /// <param name="apiKey">Optional: User-spezifischer API Key</param>
     /// <returns>Parsed JsonDocument</returns>
     public async Task<JsonDocument> ChatJsonAsync(
         string systemPrompt,
         string userMessage,
         string model = "claude-sonnet-4.5",
-        int maxTokens = 4096)
+        int maxTokens = 4096,
+        string? apiKey = null)
     {
-        var responseText = await ChatAsync(systemPrompt, userMessage, model, maxTokens, temperature: 0.3);
+        var responseText = await ChatAsync(systemPrompt, userMessage, model, maxTokens, temperature: 0.3, apiKey: apiKey);
         
         // Extrahiere JSON aus Markdown-Code-Blöcken falls vorhanden
         var jsonText = ExtractJsonFromMarkdown(responseText);

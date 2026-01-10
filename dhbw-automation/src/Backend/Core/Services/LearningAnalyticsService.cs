@@ -17,6 +17,7 @@ public class LearningAnalyticsService : ILearningAnalyticsService
     private readonly AnthropicClient _anthropicClient;
     private readonly AiMetrics _aiMetrics;
     private readonly HtmlSanitizer _htmlSanitizer;
+    private readonly EncryptionHelper _encryptionHelper;
 
     private const string AnthropicModel = "claude-sonnet-4.5";
 
@@ -24,16 +25,37 @@ public class LearningAnalyticsService : ILearningAnalyticsService
         AppDbContext context,
         ILogger<LearningAnalyticsService> logger,
         AnthropicClient anthropicClient,
-        AiMetrics aiMetrics)
+        AiMetrics aiMetrics,
+        EncryptionHelper encryptionHelper)
     {
         _context = context;
         _logger = logger;
         _anthropicClient = anthropicClient;
         _aiMetrics = aiMetrics;
+        _encryptionHelper = encryptionHelper;
 
         // Initialize HTML Sanitizer with safe tags whitelist
         _htmlSanitizer = new HtmlSanitizer();
         ConfigureHtmlSanitizer();
+    }
+
+    /// <summary>
+    /// Holt den Anthropic API-Key - priorisiert User-Key vor globalem Key
+    /// </summary>
+    private async Task<string?> GetApiKeyAsync(int? userId)
+    {
+        if (userId.HasValue)
+        {
+            var user = await _context.Users.FindAsync(userId.Value);
+
+            if (user != null && !string.IsNullOrEmpty(user.AnthropicApiKey))
+            {
+                return _encryptionHelper.Decrypt(user.AnthropicApiKey);
+            }
+        }
+
+        // Fallback to system environment variable (handled by AnthropicClient)
+        return null;
     }
 
     public async Task AnalyzeDocumentErrorsAsync(int documentId)
@@ -68,7 +90,7 @@ public class LearningAnalyticsService : ILearningAnalyticsService
 
                 if (deficit == null)
                 {
-                    // Create new deficit
+                    // Create new deficit - mark for tutoring immediately
                     deficit = new LearningDeficit
                     {
                         UserId = document.UserId,
@@ -80,11 +102,12 @@ public class LearningAnalyticsService : ILearningAnalyticsService
                         FirstOccurrence = DateTime.UtcNow,
                         LastOccurrence = DateTime.UtcNow,
                         Severity = error.Severity,
+                        NeedsTutoring = true, // Mark for tutoring on first error
                         RelatedDocumentIds = JsonSerializer.Serialize(new[] { documentId })
                     };
 
                     _context.LearningDeficits.Add(deficit);
-                    _logger.LogInformation($"Created new learning deficit: {error.Subject} - {error.Topic}");
+                    _logger.LogInformation($"Created new learning deficit (needs tutoring): {error.Subject} - {error.Topic}");
                 }
                 else
                 {
@@ -93,10 +116,16 @@ public class LearningAnalyticsService : ILearningAnalyticsService
                     deficit.LastOccurrence = DateTime.UtcNow;
 
                     // Escalate severity based on occurrence count
+                    // Mark as needing tutoring immediately after first error
+                    if (deficit.OccurrenceCount >= 1)
+                    {
+                        deficit.NeedsTutoring = true;
+                    }
+
+                    // Escalate severity after multiple occurrences
                     if (deficit.OccurrenceCount >= 3)
                     {
                         deficit.Severity = "high";
-                        deficit.NeedsTutoring = true;
                         _logger.LogWarning($"Deficit escalated to HIGH: {error.Subject} - {error.Topic} (occurred {deficit.OccurrenceCount} times)");
                     }
                     else if (deficit.OccurrenceCount >= 2)
@@ -190,11 +219,15 @@ Gib deine Antwort als JSON zurück:
     ""help_text"": ""Hilfestellung/Tipps wenn der Student nicht weiterkommt""
 }}";
 
+                // Get user-specific API key
+                var apiKey = await GetApiKeyAsync(deficit.UserId);
+
                 var responseDoc = await _anthropicClient.ChatJsonAsync(
                     systemPrompt,
                     "Generiere jetzt eine Übungsaufgabe.",
                     AnthropicModel,
-                    maxTokens: 2048
+                    maxTokens: 2048,
+                    apiKey: apiKey
                 );
 
                 // Parse exercise JSON with defensive parsing
@@ -516,6 +549,9 @@ Gib deine Antwort als JSON zurück:
         // Select items to test (prioritize oldest and most important)
         var itemsToTest = staleItems.Take(count).ToList();
 
+        // Get user-specific API key once for all exercises
+        var apiKey = await GetApiKeyAsync(userId);
+
         foreach (var item in itemsToTest)
         {
             try
@@ -526,7 +562,8 @@ Gib deine Antwort als JSON zurück:
                     systemPrompt: "Du bist ein KI-Tutor für DHBW-Studenten.",
                     userMessage: prompt,
                     model: AnthropicModel,
-                    maxTokens: 2048);
+                    maxTokens: 2048,
+                    apiKey: apiKey);
 
                 // Parse exercise from JSON response
                 var exerciseData = ParseExerciseJson(responseDoc);
