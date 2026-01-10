@@ -69,10 +69,10 @@ public class MinIOStorageService : IStorageService
             var getObjectArgs = new GetObjectArgs()
                 .WithBucket(bucketName)
                 .WithObject(filePath)
-                .WithCallbackStream(async (stream) =>
+                .WithCallbackStream((stream) =>
                 {
                     _logger.LogInformation($"MinIO callback stream: CanRead={stream.CanRead}, Length={stream.Length}");
-                    await stream.CopyToAsync(memoryStream);
+                    stream.CopyTo(memoryStream);
                     _logger.LogInformation($"Copied {memoryStream.Length} bytes to MemoryStream");
                 });
 
