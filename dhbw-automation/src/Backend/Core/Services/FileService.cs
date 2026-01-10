@@ -17,6 +17,7 @@ public class FileService : IFileService
     private readonly ILearningAnalyticsService _learningService;
     private readonly ISchedulingService _schedulingService;
     private readonly IValidationService _validationService;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<FileService> _logger;
     private const string DefaultBucket = "dhbw-files";
 
@@ -29,6 +30,7 @@ public class FileService : IFileService
         ILearningAnalyticsService learningService,
         ISchedulingService schedulingService,
         IValidationService validationService,
+        IServiceScopeFactory scopeFactory,
         ILogger<FileService> logger)
     {
         _context = context;
@@ -39,6 +41,7 @@ public class FileService : IFileService
         _learningService = learningService;
         _schedulingService = schedulingService;
         _validationService = validationService;
+        _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
@@ -106,18 +109,23 @@ public class FileService : IFileService
             await _context.SaveChangesAsync();
             _logger.LogInformation("  Document saved successfully with ID: {DocumentId}", document.Id);
 
-            // Process document in background (simplified - should use background job)
+            // Process document in background with new scope to avoid disposed DbContext
             _logger.LogInformation("FileService Step 8: Starting background processing");
-            _ = Task.Run(async () => 
+            var documentId = document.Id; // Capture ID before context is disposed
+            _ = Task.Run(async () =>
             {
                 try
                 {
-                    await ProcessDocumentAsync(document.Id);
-                    _logger.LogInformation("Background processing completed for document {DocumentId}", document.Id);
+                    // Create new scope with fresh DbContext
+                    using var scope = _scopeFactory.CreateScope();
+                    var scopedFileService = scope.ServiceProvider.GetRequiredService<IFileService>();
+
+                    await scopedFileService.ProcessDocumentAsync(documentId);
+                    _logger.LogInformation("Background processing completed for document {DocumentId}", documentId);
                 }
                 catch (Exception bgEx)
                 {
-                    _logger.LogError(bgEx, "Background processing failed for document {DocumentId}", document.Id);
+                    _logger.LogError(bgEx, "Background processing failed for document {DocumentId}", documentId);
                 }
             });
 
