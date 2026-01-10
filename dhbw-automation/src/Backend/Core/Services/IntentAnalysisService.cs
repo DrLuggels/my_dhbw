@@ -330,9 +330,11 @@ Wichtig:
         }
 
         // Remove closing markdown code block (```)
-        if (text.EndsWith("```"))
+        // Use regex to handle any trailing whitespace/newlines after the backticks
+        var closingBacktickIndex = text.LastIndexOf("```");
+        if (closingBacktickIndex >= 0)
         {
-            text = text.Substring(0, text.Length - 3).TrimEnd();
+            text = text.Substring(0, closingBacktickIndex).TrimEnd();
         }
 
         return text.Trim();
