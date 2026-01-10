@@ -9,7 +9,7 @@ public class DocumentIntent
     public List<string> SecondaryIntents { get; set; } = new();
 
     // Extracted Information
-    public ExtractedMeeting? Meeting { get; set; }
+    public List<ExtractedMeeting> Meetings { get; set; } = new(); // Changed from single Meeting to List
     public List<ExtractedTodo> Todos { get; set; } = new();
     public ExtractedProject? Project { get; set; }
     public List<DetectedError> Errors { get; set; } = new();

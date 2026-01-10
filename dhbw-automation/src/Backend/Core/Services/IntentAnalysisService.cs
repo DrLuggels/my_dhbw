@@ -121,7 +121,12 @@ Analysiere den gegebenen Text und extrahiere strukturierte Informationen:
    - PersonName, Purpose, SuggestedDate, SuggestedTime, EstimatedDurationMinutes, ConfidenceScore (0-100)
 
 3. **TODOs**: Extrahiere allgemeine Aufgaben (NIEMALS Meetings/Termine!)
-   - Beispiele: ""xy erledigen"", ""Hausaufgaben machen"", ""Code aufräumen""
+   - ⚠️ WICHTIG: IGNORIERE Meta-Aufgaben wie:
+     * ""Termin eintragen"", ""Termin die Tage eintragen""
+     * ""xy erledigen"", ""Aufgabe xy muss noch gemacht werden"" (zu unspezifisch!)
+     * Nur erstellen wenn KONKRETE Aufgabe beschrieben ist
+   - ⚠️ Title ist PFLICHT! Wenn kein konkreter Title -> KEIN TODO erstellen!
+   - Beispiele für echte TODOs: ""Hausaufgaben machen"", ""Code refactoren"", ""Präsentation vorbereiten""
    - Title, Description, Priority (low/medium/high/urgent), SuggestedDeadline, Category, ConfidenceScore (0-100)
 
 4. **Projekte**: Projektideen mit Name, Description, Requirements, Ideas, EstimatedPriority, ConfidenceScore (0-100)
@@ -372,46 +377,57 @@ Wichtig:
                     .ToList();
             }
 
-            // Parse meeting (defensive) - handle both "meetings" array and "meeting" object
-            JsonElement meetingElement = default;
-            bool hasMeeting = false;
-
-            // First try "meetings" array (Claude returns this)
+            // Parse meetings (defensive) - handle both "meetings" array and "meeting" object
             if (root.TryGetProperty("meetings", out var meetings) && meetings.ValueKind == JsonValueKind.Array)
             {
                 var meetingsArray = meetings.EnumerateArray().ToList();
-                if (meetingsArray.Count > 0)
+                _logger.LogInformation($"📅 Found {meetingsArray.Count} meetings in array");
+
+                foreach (var meetingElement in meetingsArray)
                 {
-                    meetingElement = meetingsArray[0]; // Take first meeting
-                    hasMeeting = true;
-                    _logger.LogInformation($"📅 Found {meetingsArray.Count} meetings in array, taking first one");
+                    if (meetingElement.ValueKind != JsonValueKind.Object) continue;
+
+                    var extractedMeeting = new ExtractedMeeting
+                    {
+                        PersonName = TryGetString(meetingElement, "personName") ?? "",
+                        Purpose = TryGetString(meetingElement, "purpose") ?? "",
+                        EstimatedDurationMinutes = TryGetInt32(meetingElement, "estimatedDurationMinutes") ?? 60,
+                        ConfidenceScore = TryGetInt32(meetingElement, "confidenceScore") ?? 100
+                    };
+
+                    var dateStr = TryGetString(meetingElement, "suggestedDate");
+                    if (!string.IsNullOrEmpty(dateStr) && DateTime.TryParse(dateStr, out var date))
+                    {
+                        extractedMeeting.SuggestedDate = date;
+                    }
+
+                    extractedMeeting.SuggestedTime = TryGetString(meetingElement, "suggestedTime");
+
+                    intent.Meetings.Add(extractedMeeting);
                 }
             }
             // Fallback to "meeting" object (for backward compatibility)
             else if (root.TryGetProperty("meeting", out var meeting) && meeting.ValueKind == JsonValueKind.Object)
             {
-                meetingElement = meeting;
-                hasMeeting = true;
-                _logger.LogInformation("📅 Found single meeting object");
-            }
+                _logger.LogInformation("📅 Found single meeting object (legacy format)");
 
-            if (hasMeeting)
-            {
-                intent.Meeting = new ExtractedMeeting
+                var extractedMeeting = new ExtractedMeeting
                 {
-                    PersonName = TryGetString(meetingElement, "personName") ?? "",
-                    Purpose = TryGetString(meetingElement, "purpose") ?? "",
-                    EstimatedDurationMinutes = TryGetInt32(meetingElement, "estimatedDurationMinutes") ?? 60,
-                    ConfidenceScore = TryGetInt32(meetingElement, "confidenceScore") ?? 100
+                    PersonName = TryGetString(meeting, "personName") ?? "",
+                    Purpose = TryGetString(meeting, "purpose") ?? "",
+                    EstimatedDurationMinutes = TryGetInt32(meeting, "estimatedDurationMinutes") ?? 60,
+                    ConfidenceScore = TryGetInt32(meeting, "confidenceScore") ?? 100
                 };
 
-                var dateStr = TryGetString(meetingElement, "suggestedDate");
+                var dateStr = TryGetString(meeting, "suggestedDate");
                 if (!string.IsNullOrEmpty(dateStr) && DateTime.TryParse(dateStr, out var date))
                 {
-                    intent.Meeting.SuggestedDate = date;
+                    extractedMeeting.SuggestedDate = date;
                 }
 
-                intent.Meeting.SuggestedTime = TryGetString(meetingElement, "suggestedTime");
+                extractedMeeting.SuggestedTime = TryGetString(meeting, "suggestedTime");
+
+                intent.Meetings.Add(extractedMeeting);
             }
 
             // Parse todos (defensive)
@@ -590,16 +606,16 @@ Wichtig:
 
         try
         {
-            // Generate interaction for meeting
-            if (intent.Meeting != null)
+            // Generate interaction for each meeting
+            foreach (var meeting in intent.Meetings)
             {
                 var meetingInteraction = new UserInteraction
                 {
                     UserId = userId,
                     InteractionType = "schedule_meeting",
-                    Context = JsonSerializer.Serialize(intent.Meeting),
-                    Question = $"Du möchtest dich mit {intent.Meeting.PersonName} treffen" +
-                              (string.IsNullOrEmpty(intent.Meeting.Purpose) ? "" : $" ({intent.Meeting.Purpose})") +
+                    Context = JsonSerializer.Serialize(meeting),
+                    Question = $"Du möchtest dich mit {meeting.PersonName} treffen" +
+                              (string.IsNullOrEmpty(meeting.Purpose) ? "" : $" ({meeting.Purpose})") +
                               ". Wann passt es dir?",
                     SuggestedOptions = JsonSerializer.Serialize(new[]
                     {

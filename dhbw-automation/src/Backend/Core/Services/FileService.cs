@@ -362,7 +362,7 @@ public class FileService : IFileService
                 // 6. Create UserInteractions for old system compatibility (if enabled)
                 if (intent != null && options.GenerateInteractions)
                 {
-                    if (intent.Meeting != null || intent.Project != null || (intent.Errors?.Count > 2))
+                    if (intent.Meetings.Count > 0 || intent.Project != null || (intent.Errors?.Count > 2))
                     {
                         var interactions = await _intentService.GenerateInteractionsAsync(intent, document.UserId, documentId);
                         _context.UserInteractions.AddRange(interactions);
@@ -471,7 +471,7 @@ public class FileService : IFileService
         if (intent.Errors?.Any() == true)
             return DocumentCategory.Mitschrieb; // Has errors = likely own notes
 
-        if (text.Length < 500 && (intent.Todos?.Any() == true || intent.Meeting != null))
+        if (text.Length < 500 && (intent.Todos?.Any() == true || intent.Meetings.Count > 0))
             return DocumentCategory.EigeneNotizen;
 
         if (intent.LearningInfo != null)

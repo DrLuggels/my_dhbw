@@ -23,10 +23,12 @@ public class ValidationService : IValidationService
 
         try
         {
-            // 1. Stage Meeting (wenn vorhanden)
-            if (intent.Meeting != null)
+            // 1. Stage Meetings (wenn vorhanden) - EACH meeting as separate entity
+            for (int i = 0; i < intent.Meetings.Count; i++)
             {
-                var staged = await StageMeetingAsync(intent.Meeting, intent.Questions, userId, documentId);
+                var meeting = intent.Meetings[i];
+                var meetingQuestions = intent.Questions.Where(q => q.EntityIndex == i && q.FieldName.StartsWith("meeting")).ToList();
+                var staged = await StageMeetingAsync(meeting, meetingQuestions, userId, documentId, i);
                 stagedEntities.Add(staged);
             }
 
@@ -63,7 +65,8 @@ public class ValidationService : IValidationService
         ExtractedMeeting meeting,
         List<ExtractedQuestion> questions,
         int userId,
-        int? documentId)
+        int? documentId,
+        int meetingIndex)
     {
         var staged = new StagedEntity
         {
@@ -80,9 +83,8 @@ public class ValidationService : IValidationService
         _context.StagedEntities.Add(staged);
         await _context.SaveChangesAsync(); // Save to get ID
 
-        // Add questions
-        var meetingQuestions = questions.Where(q => q.FieldName.StartsWith("meeting")).ToList();
-        foreach (var q in meetingQuestions)
+        // Add questions (already filtered by caller)
+        foreach (var q in questions)
         {
             var aiQuestion = new AIQuestion
             {

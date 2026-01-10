@@ -19,7 +19,10 @@
       "Bash(git push:*)",
       "Bash(flutter pub add:*)",
       "Bash(flutter pub get:*)",
-      "Bash(flutter analyze:*)"
+      "Bash(flutter analyze:*)",
+      "Bash(timeout /t 3)",
+      "Bash(flutter run:*)",
+      "Bash(flutter pub run build_runner build:*)"
     ]
   }
 }
