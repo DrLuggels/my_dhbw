@@ -276,7 +276,7 @@ public class FileService : IFileService
                     if (options.EnableTextCorrection)
                     {
                         var correctionPrompt = $"Korrigiere folgende Fehler im Text:\n\n{extractedText.Substring(0, Math.Min(extractedText.Length, 3000))}\n\nFehler:\n{string.Join("\n", intent.Errors.Take(5).Select(e => $"- {e.Explanation}"))}";
-                        document.CorrectedText = await _aiService.ChatCompletionAsync(correctionPrompt, document.UserId);
+                        document.CorrectedText = await _aiService.ChatCompletionAsync(correctionPrompt, null, document.UserId);
                         _logger.LogInformation($"Generated corrected text for document {documentId}");
                     }
 
