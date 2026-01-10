@@ -40,6 +40,13 @@ public class MinIOStorageService : IStorageService
                 _logger.LogInformation($"Created bucket: {bucketName}");
             }
 
+            // CRITICAL: Reset stream position to 0 before upload!
+            if (fileStream.CanSeek)
+            {
+                fileStream.Position = 0;
+                _logger.LogInformation($"Reset stream position to 0 before upload. Stream length: {fileStream.Length}");
+            }
+
             // Upload file
             var putObjectArgs = new PutObjectArgs()
                 .WithBucket(bucketName)
