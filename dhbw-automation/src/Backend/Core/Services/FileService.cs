@@ -262,7 +262,7 @@ public class FileService : IFileService
                 DocumentIntent? intent = null;
                 if (options.EnableIntentAnalysis)
                 {
-                    intent = await _intentService.AnalyzeDocumentIntentAsync(extractedText, document.DocumentCategory.ToString());
+                    intent = await _intentService.AnalyzeDocumentIntentAsync(extractedText, document.DocumentCategory.ToString(), document.UserId);
                     _logger.LogInformation($"Document intent: {intent.PrimaryIntent}");
                 }
 
@@ -276,7 +276,7 @@ public class FileService : IFileService
                     if (options.EnableTextCorrection)
                     {
                         var correctionPrompt = $"Korrigiere folgende Fehler im Text:\n\n{extractedText.Substring(0, Math.Min(extractedText.Length, 3000))}\n\nFehler:\n{string.Join("\n", intent.Errors.Take(5).Select(e => $"- {e.Explanation}"))}";
-                        document.CorrectedText = await _aiService.ChatCompletionAsync(correctionPrompt, null);
+                        document.CorrectedText = await _aiService.ChatCompletionAsync(correctionPrompt, document.UserId);
                         _logger.LogInformation($"Generated corrected text for document {documentId}");
                     }
 
@@ -324,14 +324,25 @@ public class FileService : IFileService
                 // Summary (OPTIONAL - can be disabled for bulk operations)
                 if (options.GenerateSummary)
                 {
-                    document.Summary = await _aiService.SummarizeTextAsync(extractedText, 500);
+                    document.Summary = await _aiService.SummarizeTextAsync(extractedText, 500, document.UserId);
                 }
 
                 // Tags (OPTIONAL - can be disabled for fast processing)
                 if (options.GenerateTags)
                 {
-                    var tags = await _aiService.GenerateTagsAsync(extractedText);
-                    document.Tags = string.Join(", ", tags);
+                    var tags = await _aiService.GenerateTagsAsync(extractedText, document.UserId);
+
+                    // Only store tags if they're not the default fallback tags
+                    // Tags must be stored as valid JSON array due to database constraint
+                    if (tags != null && tags.Length > 0 &&
+                        !(tags.Length == 3 && tags.Contains("studium") && tags.Contains("dhbw") && tags.Contains("dokument")))
+                    {
+                        document.Tags = JsonSerializer.Serialize(tags);
+                    }
+                    else
+                    {
+                        document.Tags = null; // NULL is valid for JSON constraint
+                    }
                 }
 
                 // Always store extracted text (for search and later processing)

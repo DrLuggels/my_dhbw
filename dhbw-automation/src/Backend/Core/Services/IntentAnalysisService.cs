@@ -25,13 +25,13 @@ public class IntentAnalysisService : IIntentAnalysisService
         _logger = logger;
     }
 
-    public async Task<DocumentIntent> AnalyzeDocumentIntentAsync(string text, string documentType)
+    public async Task<DocumentIntent> AnalyzeDocumentIntentAsync(string text, string documentType, int? userId = null)
     {
         return await _aiMetrics.TrackAsync("AnalyzeIntent", "Anthropic", AnthropicModel, async () =>
         {
             try
             {
-                _logger.LogInformation("Analyzing document intent with Claude Sonnet 4.5");
+                _logger.LogInformation("Analyzing document intent with Claude Sonnet 4.5 for user {UserId}", userId);
 
                 var systemPrompt = @"Du bist ein Experte für Intent-Erkennung in studentischen Dokumenten.
 
