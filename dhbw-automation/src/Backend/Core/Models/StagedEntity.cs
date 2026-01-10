@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace DHBWAutomation.Backend.Core.Models;
 
@@ -14,6 +15,7 @@ public class StagedEntity
     public int UserId { get; set; }
 
     [ForeignKey(nameof(UserId))]
+    [JsonIgnore] // Prevent circular reference in JSON serialization
     public User User { get; set; } = null!;
 
     /// <summary>
@@ -22,6 +24,7 @@ public class StagedEntity
     public int? SourceDocumentId { get; set; }
 
     [ForeignKey(nameof(SourceDocumentId))]
+    [JsonIgnore] // Prevent circular reference in JSON serialization
     public Document? SourceDocument { get; set; }
 
     /// <summary>

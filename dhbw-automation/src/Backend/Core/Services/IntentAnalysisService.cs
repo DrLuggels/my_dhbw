@@ -111,7 +111,9 @@ Analysiere den gegebenen Text und extrahiere strukturierte Informationen:
    - 'question': Frage/Unklarheit
    - 'note': Allgemeine Notiz
 
-2. **Meetings**: Extrahiere ALLE Erwähnungen von Treffen mit Personen
+2. **Meetings**: Extrahiere JEDE Erwähnung als SEPARATES Meeting
+   - ⚠️ WICHTIG: Wenn mehrere Personen oder verschiedene Zwecke erwähnt werden → SEPARATE Meetings!
+   - Beispiel: ""Java Nachhilfe"" + ""mit Paulina treffen"" = 2 SEPARATE Meetings
    - PersonName, Purpose, SuggestedDate, SuggestedTime, EstimatedDurationMinutes, ConfidenceScore (0-100)
 
 3. **TODOs**: Extrahiere ALLE Aufgaben
@@ -125,7 +127,13 @@ Analysiere den gegebenen Text und extrahiere strukturierte Informationen:
 
 6. **Lerninhalt**: Subject, Topic, KeyConcepts, ComprehensionLevel (good/partial/poor), NeedsMoreStudy
 
-=== NEU: CONFIDENCE SCORES & FRAGEN-SYSTEM ===
+=== CONFIDENCE SCORES & FRAGEN-SYSTEM ===
+
+⚠️ KRITISCH: ERSTELLE IMMER FRAGEN WENN:
+- Wichtige Daten fehlen (Person, Datum, Zeit bei Meetings)
+- Unklare Formulierungen (z.B. ""demnächst"", ""bald"")
+- Verwirrende Details (z.B. unerwartete Zahlen wie ""1800"")
+- ConfidenceScore < 90
 
 Für jede extrahierte Entität (Meeting, TODO, Projekt):
 - Gib einen ConfidenceScore (0-100) an:
@@ -133,18 +141,14 @@ Für jede extrahierte Entität (Meeting, TODO, Projekt):
   * 70-89: Unsicher, einige Daten fehlen
   * 0-69: Sehr unklar, kritische Daten fehlen
 
-Wenn Daten unklar/fehlen (ConfidenceScore < 90):
-- Erstelle Klärungsfragen im ""questions""-Array
-- Pro fehlendes/unklares Feld eine Frage
-
 Frage-Format:
 {
-  ""fieldName"": ""meeting.suggestedDate"",  // oder ""todo.0.dueDate"" bei Listen
+  ""fieldName"": ""meetings.0.suggestedDate"",  // Format: ""meetings.INDEX.field"" oder ""todos.INDEX.field""
   ""questionText"": ""Wann genau möchtest du dieses Meeting planen?"",
   ""suggestedAnswers"": [""Montag 14:00"", ""Mittwoch 16:00"", ""Freitag 10:00"", ""Nächste Woche""],
   ""priority"": ""high"",  // critical, high, medium, low
   ""answerType"": ""datetime"",  // text, date, time, datetime, choice, number
-  ""entityIndex"": 0  // nur bei Listen (todos), sonst null
+  ""entityIndex"": 0  // Index im meetings/todos Array
 }
 
 Priority-Regeln:
@@ -155,43 +159,53 @@ Priority-Regeln:
 
 Beispiele für Fragen:
 - Meeting ohne Datum: ""Wann möchtest du [Person] treffen?"" (priority: high)
+- Unklare Zahl: ""Was bedeutet '1800' in deinem Text?"" (priority: medium)
 - TODO ohne Deadline: ""Bis wann möchtest du das erledigen?"" (priority: medium)
-- Projekt ohne Priorität: ""Wie wichtig ist dir dieses Projekt?"" (priority: medium)
 - Meeting ohne Person: ""Mit wem möchtest du dich treffen?"" (priority: critical)
 
-JSON-Format:
+JSON-Format (WICHTIG: meetings ist ARRAY!):
 {
   ""primaryIntent"": ""..."",
   ""secondaryIntents"": [...],
   ""confidenceScore"": 85,  // Overall Score
-  ""meeting"": {
-    ""personName"": ""Paulina"",
-    ""purpose"": ""Matheprojekt besprechen"",
-    ""suggestedDate"": null,
-    ""suggestedTime"": null,
-    ""estimatedDurationMinutes"": 60,
-    ""confidenceScore"": 65  // Niedrig weil Datum/Zeit fehlt
-  },
+  ""meetings"": [
+    {
+      ""personName"": ""Paulina"",
+      ""purpose"": ""Treffen"",
+      ""suggestedDate"": null,
+      ""suggestedTime"": null,
+      ""estimatedDurationMinutes"": 60,
+      ""confidenceScore"": 40
+    },
+    {
+      ""personName"": null,
+      ""purpose"": ""Java Nachhilfe"",
+      ""suggestedDate"": null,
+      ""suggestedTime"": null,
+      ""estimatedDurationMinutes"": 90,
+      ""confidenceScore"": 30
+    }
+  ],
   ""todos"": [...],
   ""project"": {...} oder null,
   ""errors"": [...],
   ""learningInfo"": {...} oder null,
   ""questions"": [
     {
-      ""fieldName"": ""meeting.suggestedDate"",
+      ""fieldName"": ""meetings.0.suggestedDate"",
       ""questionText"": ""Wann möchtest du Paulina treffen?"",
-      ""suggestedAnswers"": [""Montag Nachmittag"", ""Mittwoch Nachmittag"", ""Freitag Vormittag"", ""Nächste Woche""],
+      ""suggestedAnswers"": [""Heute Abend"", ""Morgen"", ""Diese Woche"", ""Nächste Woche""],
       ""priority"": ""high"",
       ""answerType"": ""datetime"",
-      ""entityIndex"": null
+      ""entityIndex"": 0
     },
     {
-      ""fieldName"": ""meeting.suggestedTime"",
-      ""questionText"": ""Um welche Uhrzeit ungefähr?"",
-      ""suggestedAnswers"": [""10:00"", ""14:00"", ""16:00"", ""18:00""],
-      ""priority"": ""medium"",
-      ""answerType"": ""time"",
-      ""entityIndex"": null
+      ""fieldName"": ""meetings.1.personName"",
+      ""questionText"": ""Von wem benötigst du Java Nachhilfe?"",
+      ""suggestedAnswers"": [""Tutor suchen"", ""Kommilitone"", ""Professor"", ""Online""],
+      ""priority"": ""critical"",
+      ""answerType"": ""text"",
+      ""entityIndex"": 1
     }
   ],
   ""actionRequired"": ""ask_user"",
@@ -199,6 +213,8 @@ JSON-Format:
 }
 
 Wichtig:
+- ⚠️ TRENNE verschiedene Meetings/TODOs - vermische sie NICHT!
+- ⚠️ ERSTELLE IMMER Fragen wenn wichtige Daten fehlen oder unklar sind
 - Erkenne auch implizite Intents (z.B. ""demnächst mit paulina treffen"" = schedule_meeting)
 - Bei Mathe/Programmierung: Prüfe auf Fehler in Berechnungen/Code
 - Sei präzise bei Datums- und Zeitangaben
