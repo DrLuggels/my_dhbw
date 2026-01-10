@@ -66,20 +66,32 @@ public class MinIOStorageService : IStorageService
             _logger.LogInformation($"Downloading file from MinIO: Bucket={bucketName}, Path={filePath}");
 
             var memoryStream = new MemoryStream();
-            var getObjectArgs = new GetObjectArgs()
+
+            await _minioClient.GetObjectAsync(new GetObjectArgs()
                 .WithBucket(bucketName)
                 .WithObject(filePath)
-                .WithCallbackStream((stream) =>
+                .WithCallbackStream(stream =>
                 {
-                    _logger.LogInformation($"MinIO callback stream: CanRead={stream.CanRead}, Length={stream.Length}");
+                    _logger.LogInformation($"MinIO stream callback invoked: CanRead={stream.CanRead}, CanSeek={stream.CanSeek}");
+
+                    // Try to get length if available
+                    try
+                    {
+                        _logger.LogInformation($"MinIO stream length: {stream.Length}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning($"Could not get stream length: {ex.Message}");
+                    }
+
+                    _logger.LogInformation("Starting stream copy...");
                     stream.CopyTo(memoryStream);
-                    _logger.LogInformation($"Copied {memoryStream.Length} bytes to MemoryStream");
-                });
+                    _logger.LogInformation($"Stream copied successfully: {memoryStream.Length} bytes copied to MemoryStream");
+                }));
 
-            await _minioClient.GetObjectAsync(getObjectArgs);
             memoryStream.Position = 0;
+            _logger.LogInformation($"Download complete: MemoryStream Length={memoryStream.Length}, Position={memoryStream.Position}");
 
-            _logger.LogInformation($"Download complete: MemoryStream Length={memoryStream.Length}");
             return memoryStream;
         }
         catch (Exception ex)
