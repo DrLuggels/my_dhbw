@@ -8,7 +8,7 @@ public interface IIntentAnalysisService
     /// Analyzes document text to determine user intent and extract structured information
     /// Uses Claude Sonnet 4.5 for complex reasoning
     /// </summary>
-    Task<DocumentIntent> AnalyzeDocumentIntentAsync(string text, string documentType);
+    Task<DocumentIntent> AnalyzeDocumentIntentAsync(string text, string documentType, int? userId = null);
 
     /// <summary>
     /// Generates UserInteraction objects based on document intent
