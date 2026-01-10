@@ -25,67 +25,15 @@
             {{ question.questionText }}
           </div>
 
-          <!-- Answer Input based on type -->
+          <!-- Answer Input - Always text field -->
           <v-text-field
-            v-if="question.answerType === 'text'"
             v-model="localAnswers[question.fieldName]"
             label="Antwort"
             variant="outlined"
             density="comfortable"
             :placeholder="question.isAnswered ? question.userAnswer : 'Ihre Antwort...'"
-          />
-
-          <v-text-field
-            v-else-if="question.answerType === 'number'"
-            v-model="localAnswers[question.fieldName]"
-            label="Antwort"
-            type="number"
-            variant="outlined"
-            density="comfortable"
-          />
-
-          <v-text-field
-            v-else-if="question.answerType === 'date'"
-            v-model="localAnswers[question.fieldName]"
-            label="Datum"
-            type="date"
-            variant="outlined"
-            density="comfortable"
-          />
-
-          <v-text-field
-            v-else-if="question.answerType === 'time'"
-            v-model="localAnswers[question.fieldName]"
-            label="Uhrzeit"
-            type="time"
-            variant="outlined"
-            density="comfortable"
-          />
-
-          <v-text-field
-            v-else-if="question.answerType === 'datetime'"
-            v-model="localAnswers[question.fieldName]"
-            label="Datum und Uhrzeit"
-            type="datetime-local"
-            variant="outlined"
-            density="comfortable"
-          />
-
-          <v-select
-            v-else-if="question.answerType === 'choice' && suggestedAnswers(question)"
-            v-model="localAnswers[question.fieldName]"
-            :items="suggestedAnswers(question)"
-            label="Wählen Sie eine Antwort"
-            variant="outlined"
-            density="comfortable"
-          />
-
-          <v-text-field
-            v-else
-            v-model="localAnswers[question.fieldName]"
-            label="Antwort"
-            variant="outlined"
-            density="comfortable"
+            :hint="getInputHint(question.answerType)"
+            persistent-hint
           />
 
           <!-- Suggested Answers as Chips (if available and not choice) -->
@@ -167,6 +115,18 @@ function getQuestionBorderColor(question: AIQuestion): string {
     return 'error'
   }
   return ''
+}
+
+function getInputHint(answerType: string): string {
+  const hints: Record<string, string> = {
+    date: 'z.B. "Heute", "Morgen", "15.01.2026" oder "Montag"',
+    time: 'z.B. "14:00", "16 Uhr" oder "nachmittags"',
+    datetime: 'z.B. "Heute 14:00", "Montag nachmittag" oder "15.01.2026 um 16 Uhr"',
+    number: 'Geben Sie eine Zahl ein',
+    choice: 'Wählen Sie eine der Vorschläge oder geben Sie eigene Antwort ein',
+    text: ''
+  }
+  return hints[answerType] || ''
 }
 
 // Flag to prevent infinite loop

@@ -222,6 +222,18 @@ watch(() => props.entity, (newEntity) => {
 async function handleConfirm() {
   if (!props.entity) return
 
+  // Check if user wants to ignore this entity
+  const hasIgnoreAnswer = Object.values(answers.value).some(answer =>
+    answer && answer.toLowerCase().includes('ignorieren')
+  )
+
+  if (hasIgnoreAnswer) {
+    // User wants to ignore - trigger reject instead
+    rejectReason.value = 'User möchte diese Entität ignorieren'
+    await confirmReject()
+    return
+  }
+
   isConfirming.value = true
 
   try {

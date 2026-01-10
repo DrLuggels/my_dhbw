@@ -104,19 +104,24 @@ public class IntentAnalysisService : IIntentAnalysisService
 Analysiere den gegebenen Text und extrahiere strukturierte Informationen:
 
 1. **Primary Intent**: Was möchte der Student mit diesem Dokument? Optionen:
-   - 'schedule_meeting': Meeting/Termin planen
+   - 'schedule_meeting': Meeting/Termin planen (auch ""Termin eintragen"", ""Treffen planen"")
    - 'learning_content': Lerninhalt/Mitschrift
    - 'project_idea': Projektidee
-   - 'todo': Aufgabenliste
+   - 'todo': Allgemeine Aufgabenliste (KEINE Termine!)
    - 'question': Frage/Unklarheit
    - 'note': Allgemeine Notiz
 
-2. **Meetings**: Extrahiere JEDE Erwähnung als SEPARATES Meeting
-   - ⚠️ WICHTIG: Wenn mehrere Personen oder verschiedene Zwecke erwähnt werden → SEPARATE Meetings!
-   - Beispiel: ""Java Nachhilfe"" + ""mit Paulina treffen"" = 2 SEPARATE Meetings
+2. **Meetings**: Extrahiere NUR echte, konkrete Meetings/Termine
+   - ⚠️ WICHTIG: Nur extrahieren wenn WER, WANN oder WARUM klar ist
+   - KEINE Meetings für: ""Termin eintragen"", ""xy erledigen"", ""irgendwann treffen""
+   - Beispiele für echte Meetings:
+     * ""mit Paulina treffen"" → Meeting (PersonName: Paulina)
+     * ""Java Nachhilfe"" → Meeting (Purpose: Java Nachhilfe)
+     * ""heute abend Treffen"" → Meeting (SuggestedDate: heute abend)
    - PersonName, Purpose, SuggestedDate, SuggestedTime, EstimatedDurationMinutes, ConfidenceScore (0-100)
 
-3. **TODOs**: Extrahiere ALLE Aufgaben
+3. **TODOs**: Extrahiere allgemeine Aufgaben (NIEMALS Meetings/Termine!)
+   - Beispiele: ""xy erledigen"", ""Hausaufgaben machen"", ""Code aufräumen""
    - Title, Description, Priority (low/medium/high/urgent), SuggestedDeadline, Category, ConfidenceScore (0-100)
 
 4. **Projekte**: Projektideen mit Name, Description, Requirements, Ideas, EstimatedPriority, ConfidenceScore (0-100)
@@ -214,12 +219,14 @@ JSON-Format (WICHTIG: meetings ist ARRAY!):
 
 Wichtig:
 - ⚠️ TRENNE verschiedene Meetings/TODOs - vermische sie NICHT!
-- ⚠️ ERSTELLE IMMER Fragen wenn wichtige Daten fehlen oder unklar sind
-- Erkenne auch implizite Intents (z.B. ""demnächst mit paulina treffen"" = schedule_meeting)
+- ⚠️ ERSTELLE Fragen wenn wichtige Daten fehlen oder unklar sind
+- ⚠️ KEINE DUPLIKAT-FRAGEN! Jedes Feld nur EINMAL fragen, nicht mehrfach mit verschiedener Formulierung
+- ⚠️ ""Termin eintragen"" = TODO, NICHT Meeting! (außer es ist klar mit wem/wann)
+- Erkenne implizite Intents (z.B. ""demnächst mit paulina treffen"" = schedule_meeting)
 - Bei Mathe/Programmierung: Prüfe auf Fehler in Berechnungen/Code
 - Sei präzise bei Datums- und Zeitangaben
 - IMMER ConfidenceScore berechnen
-- Wenn ConfidenceScore < 90: Erstelle passende Fragen
+- Wenn ConfidenceScore < 90: Erstelle passende Fragen (KEINE Duplikate!)
 - Wenn unklar: ActionRequired = ""ask_user""";
 
                 var userMessage = $"Analysiere dieses {documentType}-Dokument:\n\n{text.Substring(0, Math.Min(text.Length, 8000))}";

@@ -258,24 +258,41 @@ public class ValidationService : IValidationService
         foreach (var question in staged.Questions.Where(q => q.IsAnswered))
         {
             var fieldPath = question.FieldName.Split('.');
-            if (fieldPath.Length >= 2)
+
+            // Extract actual field name:
+            // "meetings.0.suggestedDate" -> "suggestedDate" (fieldPath[2])
+            // "todos.0.title" -> "title" (fieldPath[2])
+            // "meeting.suggestedDate" -> "suggestedDate" (fieldPath[1])
+            string fieldName;
+            if (fieldPath.Length == 3)
             {
-                var fieldName = fieldPath[1];
+                // Array notation: "meetings.INDEX.field" or "todos.INDEX.field"
+                fieldName = fieldPath[2];
+            }
+            else if (fieldPath.Length == 2)
+            {
+                // Object notation: "meeting.field" or "todo.field"
+                fieldName = fieldPath[1];
+            }
+            else
+            {
+                // Simple field name
+                fieldName = question.FieldName;
+            }
 
-                // Convert answer based on answer type
-                object? value = question.AnswerType switch
-                {
-                    "date" => DateTime.TryParse(question.UserAnswer, out var date) ? date : (DateTime?)null,
-                    "time" => question.UserAnswer,
-                    "datetime" => DateTime.TryParse(question.UserAnswer, out var dt) ? dt : (DateTime?)null,
-                    "number" => int.TryParse(question.UserAnswer, out var num) ? num : (int?)null,
-                    _ => question.UserAnswer
-                };
+            // Convert answer based on answer type
+            object? value = question.AnswerType switch
+            {
+                "date" => DateTime.TryParse(question.UserAnswer, out var date) ? date : (DateTime?)null,
+                "time" => question.UserAnswer,
+                "datetime" => DateTime.TryParse(question.UserAnswer, out var dt) ? dt : (DateTime?)null,
+                "number" => int.TryParse(question.UserAnswer, out var num) ? num : (int?)null,
+                _ => question.UserAnswer
+            };
 
-                if (value != null)
-                {
-                    dataDict[fieldName] = JsonSerializer.SerializeToElement(value);
-                }
+            if (value != null)
+            {
+                dataDict[fieldName] = JsonSerializer.SerializeToElement(value);
             }
         }
 
