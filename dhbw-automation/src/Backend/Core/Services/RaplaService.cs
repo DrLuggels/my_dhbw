@@ -86,19 +86,27 @@ public class RaplaService : IRaplaService
                 }
             }
 
-            // Lösche alte Rapla-Events, die nicht mehr im Kalender sind
+            // Lösche nur Rapla-Events, die im Zeitraum der geholten Events liegen, aber nicht mehr im Feed sind
+            // Dies verhindert, dass alte Events gelöscht werden, wenn Rapla nur einen bestimmten Zeitraum liefert
             var fetchedExternalIds = fetchedEvents.Select(e => e.ExternalId).ToList();
+
+            // Bestimme den Zeitraum der geholten Events
+            var minDate = fetchedEvents.Min(e => e.StartTime);
+            var maxDate = fetchedEvents.Max(e => e.EndTime);
+
             var eventsToDelete = await _context.CalendarEvents
                 .Where(e =>
                     e.UserId == userId &&
                     e.Source == "rapla" &&
-                    !fetchedExternalIds.Contains(e.ExternalId))
+                    !fetchedExternalIds.Contains(e.ExternalId) &&
+                    e.StartTime >= minDate &&
+                    e.EndTime <= maxDate)
                 .ToListAsync();
 
             if (eventsToDelete.Any())
             {
                 _context.CalendarEvents.RemoveRange(eventsToDelete);
-                _logger.LogInformation($"Removed {eventsToDelete.Count} obsolete events");
+                _logger.LogInformation($"Removed {eventsToDelete.Count} obsolete events in sync timeframe ({minDate:yyyy-MM-dd} to {maxDate:yyyy-MM-dd})");
             }
 
             await _context.SaveChangesAsync();
