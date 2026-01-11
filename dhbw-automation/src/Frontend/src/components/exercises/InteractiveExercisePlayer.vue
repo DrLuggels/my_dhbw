@@ -185,12 +185,25 @@ import FillInBlank from './FillInBlank.vue'
 import TextInput from './TextInput.vue'
 import api from '@/services/api'
 
+interface ExerciseData {
+  id: number
+  subject: string
+  topic: string
+  difficulty: string
+  exerciseContent: string
+  stepProgress: string
+  completedSteps: number
+  totalSteps: number
+  score: number
+}
+
 interface Props {
-  exerciseId: number
+  exercise?: ExerciseData
+  exerciseId?: number
 }
 
 const props = defineProps<Props>()
-const emit = defineEmits(['complete', 'progress'])
+const emit = defineEmits(['complete', 'progress', 'close'])
 
 const { mobile: isMobile } = useDisplay()
 
@@ -310,15 +323,17 @@ function requestHint() {
   }
 }
 
+const exerciseId = computed(() => props.exercise?.id || props.exerciseId)
+
 async function submitStep() {
-  if (!currentStep.value || isSubmitting.value) return
+  if (!currentStep.value || isSubmitting.value || !exerciseId.value) return
 
   isSubmitting.value = true
   feedback.value = null
 
   try {
     const response = await api.post(
-      `/exercises/interactive/${props.exerciseId}/steps/${currentStep.value.id}/submit`,
+      `/exercises/interactive/${exerciseId.value}/steps/${currentStep.value.id}/submit`,
       currentAnswer.value
     )
 
@@ -364,37 +379,57 @@ async function submitStep() {
 }
 
 async function completeExercise() {
+  if (!exerciseId.value) return
+
   try {
-    await api.post(`/exercises/interactive/${props.exerciseId}/complete`)
+    await api.post(`/exercises/interactive/${exerciseId.value}/complete`)
     showCompletionDialog.value = true
   } catch (error) {
     console.error('Error completing exercise:', error)
   }
 }
 
-async function loadExercise() {
+function parseExerciseData(data: ExerciseData) {
+  exercise.value = data
+
+  // Parse exercise content
   try {
-    const response = await api.get(`/exercises/interactive/${props.exerciseId}`)
-    const data = response.data.data
-
-    exercise.value = data
-
-    // Parse exercise content
     const content = JSON.parse(data.exerciseContent)
     steps.value = content.steps || []
+  } catch {
+    steps.value = []
+  }
 
-    // Parse step progress
+  // Parse step progress
+  try {
     if (data.stepProgress) {
       const progress = JSON.parse(data.stepProgress)
-      stepProgress.value = progress.steps || {}
+      stepProgress.value = progress.Steps || progress.steps || {}
     }
+  } catch {
+    stepProgress.value = {}
+  }
 
-    // Find first incomplete step
-    const firstIncomplete = steps.value.findIndex(
-      (s: any) => !stepProgress.value[s.id]?.completed
-    )
-    currentStepIndex.value = firstIncomplete >= 0 ? firstIncomplete : 0
+  // Find first incomplete step
+  const firstIncomplete = steps.value.findIndex(
+    (s: any) => !stepProgress.value[s.id]?.completed
+  )
+  currentStepIndex.value = firstIncomplete >= 0 ? firstIncomplete : 0
+}
 
+async function loadExercise() {
+  // If exercise data is provided directly, use it
+  if (props.exercise) {
+    parseExerciseData(props.exercise)
+    return
+  }
+
+  // Otherwise load from API
+  if (!props.exerciseId) return
+
+  try {
+    const response = await api.get(`/exercises/interactive/${props.exerciseId}`)
+    parseExerciseData(response.data.data)
   } catch (error) {
     console.error('Error loading exercise:', error)
   }
@@ -404,8 +439,13 @@ onMounted(() => {
   loadExercise()
 })
 
+// Watch for prop changes
+watch(() => props.exercise, (newExercise) => {
+  if (newExercise) parseExerciseData(newExercise)
+}, { immediate: false })
+
 watch(() => props.exerciseId, () => {
-  loadExercise()
+  if (props.exerciseId && !props.exercise) loadExercise()
 })
 </script>
 

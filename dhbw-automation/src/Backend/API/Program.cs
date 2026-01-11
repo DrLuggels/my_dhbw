@@ -12,6 +12,7 @@ using DHBWAutomation.Backend.Infrastructure.ExternalAPIs.Rapla;
 using DHBWAutomation.Backend.Shared.Helpers;
 using DHBWAutomation.Backend.API.Filters;
 using DHBWAutomation.Backend.Infrastructure.VectorDb;
+using DHBWAutomation.Backend.Infrastructure.ExternalAPIs.Nextcloud;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -219,6 +220,11 @@ builder.Services.AddScoped<IInteractiveExerciseService, InteractiveExerciseServi
 builder.Services.AddSingleton<IQdrantService, QdrantService>();
 builder.Services.AddScoped<IEmbeddingService, EmbeddingService>();
 
+// Nextcloud Integration
+builder.Services.AddScoped<INextcloudWebDavClient, NextcloudWebDavClient>();
+builder.Services.AddScoped<INextcloudSyncService, NextcloudSyncService>();
+builder.Services.AddHttpClient("Nextcloud");
+
 // Calendar Services
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();
 builder.Services.AddScoped<IGoogleCalendarService, GoogleCalendarService>();
@@ -328,22 +334,26 @@ using (var scope = app.Services.CreateScope())
 
     try
     {
-        // Für SQLite: Erstelle Datenbank automatisch
-        if (dbProvider.ToLower() == "sqlite")
-        {
-            dbContext.Database.EnsureCreated();
-            Console.WriteLine("✅ SQLite Database created/verified successfully");
-        }
-        else
-        {
-            // Für MariaDB: Verwende Migrationen
-            await dbContext.Database.MigrateAsync();
-            Console.WriteLine("✅ Database migration completed successfully");
-        }
+        // EnsureCreated für beide Datenbank-Typen (keine Migrationen nötig)
+        // Erstellt neue Tabellen automatisch, ändert keine existierenden
+        dbContext.Database.EnsureCreated();
+        Console.WriteLine($"✅ {(dbProvider.ToLower() == "sqlite" ? "SQLite" : "MariaDB")} Database tables ensured");
     }
     catch (Exception ex)
     {
         Console.WriteLine($"❌ Database initialization failed: {ex.Message}");
+    }
+
+    // Initialize Qdrant collections
+    try
+    {
+        var qdrantService = scope.ServiceProvider.GetRequiredService<IQdrantService>();
+        await qdrantService.InitializeCollectionsAsync();
+        Console.WriteLine("✅ Qdrant collections initialized successfully");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"⚠️ Qdrant initialization failed (will retry on demand): {ex.Message}");
     }
 }
 

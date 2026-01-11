@@ -5,6 +5,11 @@ namespace DHBWAutomation.Backend.Core.Interfaces;
 public interface IInteractiveExerciseService
 {
     /// <summary>
+    /// Gets a specific interactive exercise by ID
+    /// </summary>
+    Task<InteractiveExercise?> GetInteractiveExerciseAsync(int exerciseId);
+
+    /// <summary>
     /// Generates an interactive Brilliant-style exercise for learning new concepts
     /// </summary>
     Task<InteractiveExercise> GenerateInteractiveExerciseAsync(

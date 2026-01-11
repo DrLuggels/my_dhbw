@@ -37,6 +37,15 @@ public class InteractiveExerciseService : IInteractiveExerciseService
         ConfigureHtmlSanitizer();
     }
 
+    #region Get Exercise
+
+    public async Task<InteractiveExercise?> GetInteractiveExerciseAsync(int exerciseId)
+    {
+        return await _context.InteractiveExercises.FindAsync(exerciseId);
+    }
+
+    #endregion
+
     #region Exercise Type Decision
 
     public string DetermineExerciseType(string difficulty, bool isNewConcept, bool isExamPrep)

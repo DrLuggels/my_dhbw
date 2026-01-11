@@ -24,6 +24,27 @@ public class InteractiveExerciseController : ControllerBase
     #region Interactive Exercises (Brilliant-Style)
 
     /// <summary>
+    /// Get a specific interactive exercise by ID
+    /// </summary>
+    [HttpGet("interactive/{exerciseId}")]
+    public async Task<IActionResult> GetInteractiveExercise(int exerciseId)
+    {
+        try
+        {
+            var exercise = await _exerciseService.GetInteractiveExerciseAsync(exerciseId);
+            if (exercise == null)
+                return NotFound(new { success = false, message = "Exercise not found" });
+
+            return Ok(new { success = true, data = exercise });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting interactive exercise {ExerciseId}", exerciseId);
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Generate a new interactive Brilliant-style exercise
     /// </summary>
     [HttpPost("interactive/generate")]
