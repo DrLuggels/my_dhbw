@@ -275,24 +275,8 @@ Gib deine Antwort als JSON zurück:
     {
         try
         {
-            var root = doc.RootElement
-                .GetProperty("content")[0]
-                .GetProperty("text");
-
-            var textContent = root.GetString() ?? "{}";
-            
-            // Remove markdown formatting if present
-            textContent = textContent.Trim();
-            if (textContent.StartsWith("```json"))
-                textContent = textContent.Substring(7);
-            if (textContent.StartsWith("```"))
-                textContent = textContent.Substring(3);
-            if (textContent.EndsWith("```"))
-                textContent = textContent.Substring(0, textContent.Length - 3);
-            textContent = textContent.Trim();
-
-            var exerciseDoc = JsonDocument.Parse(textContent);
-            var exerciseRoot = exerciseDoc.RootElement;
+            // ChatJsonAsync already returns the parsed JSON directly, not the raw API response
+            var exerciseRoot = doc.RootElement;
 
             // SECURITY: Sanitize all HTML content from Claude
             var question = SanitizeHtml(TryGetString(exerciseRoot, "question"));
@@ -300,7 +284,7 @@ Gib deine Antwort als JSON zurück:
             var helpText = SanitizeHtml(TryGetString(exerciseRoot, "help_text"));
             var correctAnswer = TryGetString(exerciseRoot, "correct_answer") ?? "";  // Don't sanitize answer (plain text)
 
-            _logger.LogInformation("Sanitized exercise HTML content");
+            _logger.LogInformation("Parsed exercise JSON successfully");
 
             return (
                 Type: TryGetString(exerciseRoot, "type") ?? "text_answer",
