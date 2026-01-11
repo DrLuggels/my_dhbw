@@ -327,7 +327,7 @@ public class TagsController : ControllerBase
                 {
                     entityType = a.EntityType,
                     entityId = a.EntityId,
-                    createdAt = a.CreatedAt
+                    assignedAt = a.AssignedAt
                 })
                 .ToListAsync();
 
