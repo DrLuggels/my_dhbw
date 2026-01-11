@@ -68,6 +68,12 @@ const router = createRouter({
       name: 'tasks',
       component: () => import('../views/TasksView.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/knowledge',
+      name: 'knowledge',
+      component: () => import('../views/KnowledgeNetworkView.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

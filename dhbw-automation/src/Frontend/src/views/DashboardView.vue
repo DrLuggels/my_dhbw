@@ -142,6 +142,10 @@
               <v-icon left>mdi-format-list-checks</v-icon>
               Aufgaben verwalten
             </v-btn>
+            <v-btn color="purple" class="mr-2" to="/knowledge">
+              <v-icon left>mdi-graph</v-icon>
+              Wissensnetzwerk
+            </v-btn>
             <v-btn color="secondary" @click="testRapla" :loading="testing">
               <v-icon left>mdi-calendar</v-icon>
               Rapla-Verbindung testen

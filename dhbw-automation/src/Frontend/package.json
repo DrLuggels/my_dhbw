@@ -30,7 +30,8 @@
     "marked": "^11.1.1",
     "dompurify": "^3.0.8",
     "vue-toastification": "^2.0.0-rc.5",
-    "vuedraggable": "^4.1.0"
+    "vuedraggable": "^4.1.0",
+    "vis-network": "^9.1.9"
   },
   "devDependencies": {
     "@types/node": "^20.11.5",
