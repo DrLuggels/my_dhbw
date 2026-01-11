@@ -69,6 +69,14 @@ const emit = defineEmits<{
 
 const hours = Array.from({ length: 15 }, (_, i) => i + 7)
 
+// Helper to format date in local timezone (YYYY-MM-DD)
+function toLocalDateString(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 const weekDays = computed(() => {
   const days = []
   const dayNames = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
@@ -77,7 +85,7 @@ const weekDays = computed(() => {
     const date = new Date(props.currentWeekStart)
     date.setDate(date.getDate() + i)
     days.push({
-      date: date.toISOString().split('T')[0],
+      date: toLocalDateString(date),
       name: dayNames[i]
     })
   }
@@ -86,13 +94,13 @@ const weekDays = computed(() => {
 })
 
 function isToday(dateStr: string): boolean {
-  const today = new Date().toISOString().split('T')[0]
+  const today = toLocalDateString(new Date())
   return dateStr === today
 }
 
 function getDayEvents(dateStr: string): CalendarEvent[] {
   return props.events.filter(event => {
-    const eventDate = new Date(event.startTime).toISOString().split('T')[0]
+    const eventDate = toLocalDateString(new Date(event.startTime))
     return eventDate === dateStr
   })
 }
@@ -143,7 +151,7 @@ function getEventStyle(event: CalendarEvent) {
   const clampedTop = Math.max(0, Math.min(topOffset, maxHeight))
   const clampedHeight = Math.max(30, Math.min(duration, maxHeight - clampedTop))
 
-  const dateStr = start.toISOString().split('T')[0]
+  const dateStr = toLocalDateString(start)
   const dayEvents = getDayEvents(dateStr)
   const { index, total } = getOverlappingEvents(event, dayEvents)
 
