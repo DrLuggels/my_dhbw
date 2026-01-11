@@ -216,6 +216,35 @@ public class KnowledgeNetworkController : ControllerBase
             return BadRequest(new { success = false, message = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Index all existing documents and exercises (create embeddings)
+    /// </summary>
+    [HttpPost("index-all")]
+    public async Task<IActionResult> IndexAllContent()
+    {
+        var userId = GetUserId();
+        if (userId == 0) return Unauthorized();
+
+        try
+        {
+            var result = await _networkService.IndexAllUserContentAsync(userId);
+            return Ok(new
+            {
+                success = true,
+                documentsProcessed = result.DocumentsProcessed,
+                exercisesProcessed = result.ExercisesProcessed,
+                knowledgeItemsProcessed = result.KnowledgeItemsProcessed,
+                totalProcessed = result.TotalProcessed,
+                errors = result.Errors
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error indexing content");
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
 }
 
 /// <summary>
