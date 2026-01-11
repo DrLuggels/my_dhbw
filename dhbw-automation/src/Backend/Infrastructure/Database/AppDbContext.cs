@@ -19,10 +19,12 @@ public class AppDbContext : DbContext
     // NEW: AI-System DbSets
     public DbSet<UserInteraction> UserInteractions { get; set; } = null!;
     public DbSet<Todo> Todos { get; set; } = null!;
+    public DbSet<TodoList> TodoLists { get; set; } = null!;
     public DbSet<Project> Projects { get; set; } = null!;
     public DbSet<LearningDeficit> LearningDeficits { get; set; } = null!;
     public DbSet<GeneratedExercise> GeneratedExercises { get; set; } = null!;
     public DbSet<KnowledgeBaseItem> KnowledgeBaseItems { get; set; } = null!;
+    public DbSet<InteractiveExercise> InteractiveExercises { get; set; } = null!;
 
     // NEW: Email-System DbSets
     public DbSet<Email> Emails { get; set; } = null!;
@@ -134,17 +136,48 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
+        // TodoList Configuration
+        modelBuilder.Entity<TodoList>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.Name }).IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.SortOrder });
+            entity.HasIndex(e => e.IsDefault);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.Todos)
+                .WithOne(t => t.List)
+                .HasForeignKey(t => t.ListId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
         // Todo Configuration
         modelBuilder.Entity<Todo>(entity =>
         {
             entity.HasIndex(e => new { e.UserId, e.Status });
             entity.HasIndex(e => new { e.UserId, e.DueDate });
             entity.HasIndex(e => e.Category);
+            entity.HasIndex(e => e.ListId);
+            entity.HasIndex(e => e.ArchivedAt);
+            entity.HasIndex(e => new { e.Status, e.ArchivedAt, e.CompletedAt });
 
             entity.HasOne(e => e.User)
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.List)
+                .WithMany(l => l.Todos)
+                .HasForeignKey(e => e.ListId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.ParentTodo)
+                .WithMany()
+                .HasForeignKey(e => e.ParentTodoId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasOne(e => e.RelatedDocument)
                 .WithMany()
@@ -218,6 +251,30 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // InteractiveExercise Configuration (Brilliant-style exercises)
+        modelBuilder.Entity<InteractiveExercise>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.Subject });
+            entity.HasIndex(e => e.NextReviewDate);
+            entity.HasIndex(e => new { e.UserId, e.CompletedAt });
+            entity.HasIndex(e => e.Difficulty);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Deficit)
+                .WithMany()
+                .HasForeignKey(e => e.DeficitId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.KnowledgeBaseItem)
+                .WithMany()
+                .HasForeignKey(e => e.KnowledgeBaseItemId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // Email Configuration

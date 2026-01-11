@@ -43,6 +43,22 @@ public class GeneratedExercise
     [MaxLength(50)]
     public string Difficulty { get; set; } = "medium"; // "easy", "medium", "hard"
 
+    // Exercise Mode for KA preparation
+    [Required]
+    [MaxLength(30)]
+    public string ExerciseMode { get; set; } = "learning"; // "learning", "exam_prep", "exam_simulation"
+
+    // Timer for exam simulation (in seconds, null = no limit)
+    public int? TimeLimitSeconds { get; set; }
+
+    // Sub-questions support (a, b, c style)
+    [Column(TypeName = "TEXT")]
+    public string? SubQuestions { get; set; } // JSON array of sub-questions
+
+    // Attempt tracking for exam modes
+    public int AttemptCount { get; set; } = 0;
+    public int? MaxAttempts { get; set; } // null = unlimited
+
     // User Response
     [Column(TypeName = "TEXT")]
     public string? UserAnswer { get; set; }

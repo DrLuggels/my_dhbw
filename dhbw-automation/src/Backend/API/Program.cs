@@ -212,6 +212,7 @@ builder.Services.AddScoped<IIntentAnalysisService, IntentAnalysisService>();
 builder.Services.AddScoped<ILearningAnalyticsService, LearningAnalyticsService>();
 builder.Services.AddScoped<IDocumentParsingService, DocumentParsingService>();
 builder.Services.AddScoped<IValidationService, ValidationService>(); // NEW: AI Staging System
+builder.Services.AddScoped<IInteractiveExerciseService, InteractiveExerciseService>(); // NEW: Hybrid Exercise System
 
 // Calendar Services
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();
@@ -236,6 +237,8 @@ builder.Services.AddHostedService<EmailSyncBackgroundService>();
 builder.Services.AddSingleton<DocumentProcessingBackgroundService>();
 builder.Services.AddHostedService(provider => provider.GetRequiredService<DocumentProcessingBackgroundService>());
 builder.Services.AddHostedService<PeriodicReviewBackgroundService>(); // Daily fundamental knowledge review
+builder.Services.AddHostedService<TodoArchivingBackgroundService>(); // Auto-archive and cleanup completed todos
+builder.Services.AddHostedService<TodoReminderBackgroundService>(); // Reminders for overdue todos
 // TODO: Weitere Background Workers implementieren
 // builder.Services.AddHostedService<MoodleSyncWorker>();
 
