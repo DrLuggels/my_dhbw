@@ -132,11 +132,16 @@ public class TodoReminderBackgroundService : BackgroundService
         var interaction = new UserInteraction
         {
             UserId = todo.UserId,
-            Type = "todo_reminder",
-            Priority = todo.Priority == "urgent" ? "high" : (todo.Priority == "high" ? "medium" : "low"),
-            Title = $"Erinnerung: {todo.Title}",
-            Message = $"Diese Aufgabe ist seit {daysOld} Tagen offen. Möchtest du einen Termin dafür einplanen?",
-            ActionOptions = System.Text.Json.JsonSerializer.Serialize(new[]
+            InteractionType = "todo_reminder",
+            Context = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                todoId = todo.Id,
+                todoTitle = todo.Title,
+                priority = todo.Priority,
+                daysOld = daysOld
+            }),
+            Question = $"Erinnerung: {todo.Title}\n\nDiese Aufgabe ist seit {daysOld} Tagen offen. Möchtest du einen Termin dafür einplanen?",
+            SuggestedOptions = System.Text.Json.JsonSerializer.Serialize(new object[]
             {
                 new { action = "schedule", label = $"Termin am {suggestedDate:dd.MM.yyyy} eintragen", suggestedDate = suggestedDate.ToString("o") },
                 new { action = "snooze", label = "In 3 Tagen erinnern" },

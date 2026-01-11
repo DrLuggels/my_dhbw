@@ -235,16 +235,30 @@ public class QdrantService : IQdrantService
     {
         try
         {
-            await _client.DeleteAsync(
-                collectionName,
-                new PointsSelector
+            // Parse UUID string to Guid
+            if (!Guid.TryParse(pointId, out var guid))
+            {
+                _logger.LogError("Invalid UUID format: {PointId}", pointId);
+                throw new ArgumentException($"Invalid UUID format: {pointId}");
+            }
+
+            // Use filter-based deletion since direct ID deletion has API compatibility issues
+            var filter = new Filter
+            {
+                Must =
                 {
-                    Points = new PointsIdsList
+                    new Condition
                     {
-                        Ids = { new PointId { Uuid = pointId } }
+                        Field = new FieldCondition
+                        {
+                            Key = "id",
+                            Match = new Match { Keyword = guid.ToString() }
+                        }
                     }
                 }
-            );
+            };
+
+            await _client.DeleteAsync(collectionName, filter);
 
             _logger.LogDebug("Deleted point {PointId} from {Collection}", pointId, collectionName);
         }

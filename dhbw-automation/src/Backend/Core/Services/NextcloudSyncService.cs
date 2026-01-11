@@ -266,12 +266,22 @@ public class NextcloudSyncService : INextcloudSyncService
             // Create a memory stream for processing
             using var stream = new MemoryStream(content);
 
-            // Upload to our storage and process via FileService
-            var document = await _fileService.UploadAndProcessDocumentAsync(
-                userId,
+            // Create FormFile wrapper for FileService upload
+            var formFile = new Microsoft.AspNetCore.Http.FormFile(
                 stream,
-                file.FileName,
-                file.FileType,
+                0,
+                content.Length,
+                "file",
+                file.FileName)
+            {
+                Headers = new Microsoft.AspNetCore.Http.HeaderDictionary(),
+                ContentType = DetermineContentType(file.FileType)
+            };
+
+            // Upload to our storage and process via FileService
+            var document = await _fileService.UploadFileAsync(
+                userId,
+                formFile,
                 "nextcloud_sync"
             );
 
@@ -337,6 +347,23 @@ public class NextcloudSyncService : INextcloudSyncService
         await _context.SaveChangesAsync();
 
         _logger.LogDebug("Updated file tracking: {Path}", remoteFile.Path);
+    }
+
+    private string DetermineContentType(string fileType)
+    {
+        return fileType.ToLowerInvariant() switch
+        {
+            "pdf" => "application/pdf",
+            "doc" => "application/msword",
+            "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "ppt" => "application/vnd.ms-powerpoint",
+            "pptx" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "xls" => "application/vnd.ms-excel",
+            "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "txt" => "text/plain",
+            "md" => "text/markdown",
+            _ => "application/octet-stream"
+        };
     }
 }
 

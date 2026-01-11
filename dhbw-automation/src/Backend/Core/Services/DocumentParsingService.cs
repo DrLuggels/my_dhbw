@@ -6,8 +6,12 @@ using Polly.Retry;
 using Polly.Wrap;
 using System.Text;
 using System.Text.Json;
-using UglyToad.PdfPig;
-using UglyToad.PdfPig.Content;
+// TODO: Restore PdfPig when version conflicts are resolved - using itext7 instead
+// using UglyToad.PdfPig;
+// using UglyToad.PdfPig.Content;
+using iText.Kernel.Pdf;
+using iText.Kernel.Pdf.Canvas.Parser;
+using iText.Kernel.Pdf.Canvas.Parser.Listener;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 
@@ -81,12 +85,15 @@ public class DocumentParsingService : IDocumentParsingService
 
             var textBuilder = new StringBuilder();
 
-            // Try to extract text using PdfPig
-            using (var document = PdfDocument.Open(pdfStream))
+            // Extract text using iText7 (replaced PdfPig due to version conflicts)
+            using (var pdfReader = new PdfReader(pdfStream))
+            using (var pdfDocument = new PdfDocument(pdfReader))
             {
-                foreach (var page in document.GetPages())
+                for (int pageNum = 1; pageNum <= pdfDocument.GetNumberOfPages(); pageNum++)
                 {
-                    var pageText = page.Text;
+                    var page = pdfDocument.GetPage(pageNum);
+                    var strategy = new SimpleTextExtractionStrategy();
+                    var pageText = PdfTextExtractor.GetTextFromPage(page, strategy);
                     textBuilder.AppendLine(pageText);
                 }
             }

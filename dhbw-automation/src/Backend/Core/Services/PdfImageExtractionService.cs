@@ -6,8 +6,9 @@ using DHBWAutomation.Backend.Core.Models;
 using DHBWAutomation.Backend.Infrastructure.Database;
 using DHBWAutomation.Backend.Shared.Helpers;
 using Microsoft.EntityFrameworkCore;
-using UglyToad.PdfPig;
-using UglyToad.PdfPig.Content;
+// TODO: Restore PdfPig when version conflicts are resolved
+// using UglyToad.PdfPig;
+// using UglyToad.PdfPig.Content;
 
 namespace DHBWAutomation.Backend.Core.Services;
 
@@ -65,8 +66,8 @@ public class PdfImageExtractionService : IPdfImageExtractionService
                 return extractedImages;
             }
 
-            // Download PDF from storage
-            var pdfStream = await _storageService.DownloadFileAsync(document.FilePath);
+            // Download PDF from storage (documents are stored in dhbw-files bucket)
+            var pdfStream = await _storageService.DownloadFileAsync(document.FilePath, "dhbw-files");
             if (pdfStream == null)
             {
                 _logger.LogWarning("Could not download PDF for document {DocumentId}", documentId);
@@ -77,6 +78,10 @@ public class PdfImageExtractionService : IPdfImageExtractionService
             await pdfStream.CopyToAsync(memoryStream);
             memoryStream.Position = 0;
 
+            // TODO: Restore PdfPig image extraction when version conflicts are resolved
+            _logger.LogWarning("PDF image extraction temporarily disabled due to PdfPig version conflicts");
+
+            /* TEMPORARILY DISABLED - PdfPig version conflict
             // Extract images using PdfPig
             using var pdfDocument = PdfDocument.Open(memoryStream);
             var imageIndex = 0;
@@ -100,10 +105,9 @@ public class PdfImageExtractionService : IPdfImageExtractionService
                         // Upload to MinIO
                         using var imageStream = new MemoryStream(imageBytes);
                         await _storageService.UploadFileAsync(
-                            ImagesBucket,
-                            storagePath,
                             imageStream,
-                            $"image/{format}"
+                            storagePath,
+                            ImagesBucket
                         );
 
                         var documentImage = new DocumentImage
@@ -130,6 +134,7 @@ public class PdfImageExtractionService : IPdfImageExtractionService
                     }
                 }
             }
+            */
 
             // Update document
             document.ImageCount = extractedImages.Count;
@@ -356,7 +361,7 @@ Antworte auf Deutsch und strukturiert."
         var image = await _context.DocumentImages.FindAsync(imageId);
         if (image == null) return null;
 
-        return await _storageService.GetPresignedUrlAsync(ImagesBucket, image.StoragePath, 3600);
+        return await _storageService.GetFileUrlAsync(image.StoragePath, ImagesBucket, 60);
     }
 
     private async Task<string?> GetGeminiApiKeyAsync(int userId)
