@@ -127,6 +127,78 @@ Bei Fragen zur Dokumentation:
 - 📧 E-Mail: docs@example.com
 - 🐛 Issue: [Documentation Issue erstellen](https://github.com/yourusername/dhbw-automation/issues/new?labels=documentation)
 
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                           EXTERNE DIENSTE & APIs                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────┐
+│   🤖 OpenAI      │  │ 🧠 Anthropic     │  │ 🔮 Google       │  │ 🎤 Deepgram  │
+│   GPT-5 Mini     │  │ Claude Sonnet 4.5│  │ Gemini 3 Flash   │  │ Speech-to-   │
+│                  │  │                  │  │                  │  │ Text (Live)  │
+│ • Tag Generation │  │ • Chat/Reasoning │  │ • OCR/Vision     │  │              │
+│ • Embeddings     │  │ • Complex Tasks  │  │ • Multimodal     │  │ • Vorlesung  │
+│ • Summarization  │  │ • Document Anal. │  │ • Image Extract  │  │   Recording  │
+└────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘  └──────┬───────┘
+         │                     │                      │                   │
+         └─────────────────────┼──────────────────────┼───────────────────┘
+                               │                      │
+                          API Calls                   │
+                               │                      │
+┌──────────────────────────────▼──────────────────────▼───────────────────────────┐
+│                                                                                 │
+│                         ┌────────────────────┐                                  │
+│                         │   NGINX Proxy      │ :80, :440 (SSL)                  │
+│                         │   + SSL/TLS        │                                  │
+│                         └─────────┬──────────┘                                  │
+│                                   │                                             │
+│                  ┌────────────────┼─────────────────┐                           │
+│                  │                │                 │                           │
+│          ┌───────▼──────┐   ┌─────▼──────┐   ┌─────▼────────┐                   │
+│          │   Frontend   │   │  Backend   │   │ phpMyAdmin   │                   │
+│          │   Vue.js 3   │   │  .NET 8    │   │              │                   │
+│          └──────────────┘   └─────┬──────┘   └──────────────┘                   │
+│                                   │                                             │
+│         ┌─────────────────────────┼──────────────────────────┐                  │
+│         │                         │                          │                  │
+│    ┌────▼─────┐  ┌───────────────▼──┐  ┌────────────┐  ┌───▼────────┐           │
+│    │ MariaDB  │  │  Background      │  │   Redis    │  │  RabbitMQ  │           │
+│    │          │  │  Workers:        │  │            │  │            │           │
+│    │ • Users  │  │  • EmailSync     │  │  • Cache   │  │ • Queues   │           │
+│    │ • Docs   │  │  • FileProcess   │  │  • Session │  │ • Jobs     │           │
+│    │ • Events │  │  • TodoReminder  │  │            │  │            │           │
+│    │ • Emails │  │  • Review        │  │            │  │            │           │
+│    └──────────┘  └───────────────┬──┘  └────────────┘  └────────────┘           │
+│                                  │                                              │
+│              ┌───────────────────┼─────────────────┐                            │
+│              │                   │                 │                            │
+│         ┌────▼──────┐      ┌────▼─────┐     ┌────▼──────┐                       │
+│         │   MinIO   │      │  Qdrant  │     │  MinIO    │                       │
+│         │  Storage  │      │  Vector  │     │  Setup    │                       │
+│         │           │      │    DB    │     │ (init)    │                       │
+│         │ • Files   │      │          │     └───────────┘                       │
+│         │ • Backups │      │ • Search │                                         │
+│         └───────────┘      └──────────┘                                         │
+│                                                                                 │
+└────────────────────────────────────┬────────────────────────────────────────────┘
+                                     │
+                ┌────────────────────┼────────────────────┐
+                │                    │                    │
+        ┌───────▼───────┐   ┌────────▼────────┐  ┌───────▼──────────┐
+        │  📧 Gmail/    │   │  📅 Google     │  │  🎓 DHBW Moodle  │
+        │  IMAP/SMTP    │   │  Calendar API   │  │  Web Services    │
+        │               │   │                 │  │                  │
+        │ • Email Sync  │   │ • Event Sync    │  │ • Course Files   │
+        │ • Attachments │   │ • Create Events │  │ • Assignments    │
+        │ • AI Analysis │   │ • OAuth 2.0     │  │ • Schedules      │
+        └───────────────┘   └─────────────────┘  └──────────────────┘
+
+        ┌────────────────┐   ┌─────────────────┐
+        │  🚆 HAFAS API  │   │  📆 RAPLA API  │
+        │  (DB Bahn)     │   │  (DHBW)         │
+        │                │   │                 │
+        │ • Travel Info  │   │ • Schedule Sync │
+        │ • Connections  │   │ • Room Plans    │
+        └────────────────┘   └─────────────────┘
 ---
 
 **Letzte Aktualisierung:** 2026-01-07
