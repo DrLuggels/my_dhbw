@@ -26,7 +26,8 @@
       "Bash(flutter devices:*)",
       "Bash(xcopy:*)",
       "Bash(if not exist C:dev mkdir C:dev)",
-      "Bash(flutter build:*)"
+      "Bash(flutter build:*)",
+      "WebFetch(domain:jappuccini.github.io)"
     ]
   }
 }

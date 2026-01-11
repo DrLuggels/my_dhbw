@@ -84,6 +84,8 @@ services:
       /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin;
       /usr/bin/mc mb myminio/dhbw-files;
       /usr/bin/mc mb myminio/dhbw-backups;
+      /usr/bin/mc mb myminio/dhbw-images;
+      /usr/bin/mc mb myminio/dhbw-nextcloud-cache;
       /usr/bin/mc anonymous set download myminio/dhbw-files;
       exit 0;
       "

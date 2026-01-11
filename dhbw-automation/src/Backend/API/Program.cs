@@ -225,6 +225,15 @@ builder.Services.AddScoped<INextcloudWebDavClient, NextcloudWebDavClient>();
 builder.Services.AddScoped<INextcloudSyncService, NextcloudSyncService>();
 builder.Services.AddHttpClient("Nextcloud");
 
+// Java-Docs Scraper
+builder.Services.AddScoped<IJavaDocsScraperService, JavaDocsScraperService>();
+
+// Knowledge Network ("Spinnennetz")
+builder.Services.AddScoped<IKnowledgeNetworkService, KnowledgeNetworkService>();
+
+// PDF Image Extraction
+builder.Services.AddScoped<IPdfImageExtractionService, PdfImageExtractionService>();
+
 // Calendar Services
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();
 builder.Services.AddScoped<IGoogleCalendarService, GoogleCalendarService>();
