@@ -108,18 +108,7 @@ Wenn du Code änderst, aktualisiere bitte auch die relevante Dokumentation:
 3. **Breaking Changes** → Migration Guide
 4. **Bug Fixes** → `troubleshooting.md` erweitern
 
-## 📊 Diagramme
-
-Diagramme werden mit [Mermaid](https://mermaid.js.org/) erstellt:
-
-```mermaid
-graph TD
-    A[User] --> B[Frontend]
-    B --> C[API Gateway]
-    C --> D[Backend Services]
-```
-
-## 🙋 Fragen?
+##  Fragen?
 
 Bei Fragen zur Dokumentation:
 
