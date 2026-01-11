@@ -127,78 +127,79 @@ Bei Fragen zur Dokumentation:
 - 📧 E-Mail: docs@example.com
 - 🐛 Issue: [Documentation Issue erstellen](https://github.com/yourusername/dhbw-automation/issues/new?labels=documentation)
 
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           EXTERNE DIENSTE & APIs                                │
-└─────────────────────────────────────────────────────────────────────────────────┘
+## 🏗️ System-Architektur
 
-┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────┐
-│   🤖 OpenAI      │  │ 🧠 Anthropic    │  │ 🔮 Google       │  │ 🎤 Deepgram  │
-│   GPT-5 Mini     │  │ Claude Sonnet 4.5│  │ Gemini 3 Flash   │  │ Speech-to-   │
-│                  │  │                  │  │                  │  │ Text (Live)  │
-│ • Tag Generation │  │ • Chat/Reasoning │  │ • OCR/Vision     │  │              │
-│ • Embeddings     │  │ • Complex Tasks  │  │ • Multimodal     │  │ • Vorlesung  │
-│ • Summarization  │  │ • Document Anal. │  │ • Image Extract  │  │   Protokoll  │
-└────────┬─────────┘  └────────┬─────────┘  └─────────┬────────┘  └───────┬──────┘
-         │                     │                      │                   │
-         └─────────────────────┼──────────────────────┼───────────────────┘
-                               │                      │
-                          API Calls                   │
-                               │                      │
-┌──────────────────────────────▼──────────────────────▼───────────────────────────┐
-│                                                                                 │
-│                         ┌────────────────────┐                                  │
-│                         │   NGINX Proxy      │ :80, :440 (SSL)                  │
-│                         │   + SSL/TLS        │                                  │
-│                         └─────────┬──────────┘                                  │
-│                                   │                                             │
-│                  ┌────────────────┼─────────────────┐                           │
-│                  │                │                 │                           │
-│          ┌───────▼──────┐   ┌─────▼──────┐   ┌─────▼────────┐                   │
-│          │   Frontend   │   │  Backend   │   │ phpMyAdmin   │                   │
-│          │   Vue.js 3   │   │  .NET 8    │   │              │                   │
-│          └──────────────┘   └─────┬──────┘   └──────────────┘                   │
-│                                   │                                             │
-│         ┌─────────────────────────┼──────────────────────────┐                  │
-│         │                         │                          │                  │
-│    ┌────▼─────┐  ┌───────────────▼──┐  ┌────────────┐  ┌───▼────────┐           │
-│    │ MariaDB  │  │  Background      │  │   Redis    │  │  RabbitMQ  │           │
-│    │          │  │  Workers:        │  │            │  │            │           │
-│    │ • Users  │  │  • EmailSync     │  │  • Cache   │  │ • Queues   │           │
-│    │ • Docs   │  │  • FileProcess   │  │  • Session │  │ • Jobs     │           │
-│    │ • Events │  │  • TodoReminder  │  │            │  │            │           │
-│    │ • Emails │  │  • Review        │  │            │  │            │           │
-│    └──────────┘  └───────────────┬──┘  └────────────┘  └────────────┘           │
-│                                  │                                              │
-│              ┌───────────────────┼─────────────────┐                            │
-│              │                   │                 │                            │
-│         ┌────▼──────┐      ┌────▼─────┐     ┌────▼──────┐                       │
-│         │   MinIO   │      │  Qdrant  │     │  MinIO    │                       │
-│         │  Storage  │      │  Vector  │     │  Setup    │                       │
-│         │           │      │    DB    │     │ (init)    │                       │
-│         │ • Files   │      │          │     └───────────┘                       │
-│         │ • Backups │      │ • Search │                                         │
-│         └───────────┘      └──────────┘                                         │
-│                                                                                 │
-└────────────────────────────────────┬────────────────────────────────────────────┘
-                                     │
-                ┌────────────────────┼────────────────────┐
-                │                    │                    │
-        ┌───────▼───────┐   ┌────────▼────────┐  ┌───────▼──────────┐
-        │  📧 Gmail/    │   │  📅 Google     │  │  🎓 DHBW Moodle  │
-        │  IMAP/SMTP    │   │  Calendar API   │  │  Web Services    │
-        │               │   │                 │  │                  │
-        │ • Email Sync  │   │ • Event Sync    │  │ • Course Files   │
-        │ • Attachments │   │ • Create Events │  │ • Assignments    │
-        │ • AI Analysis │   │ • OAuth 2.0     │  │ • Schedules      │
-        └───────────────┘   └─────────────────┘  └──────────────────┘
-
-        ┌────────────────┐   ┌─────────────────┐
-        │  🚆 HAFAS API  │   │  📆 RAPLA API  │
-        │  (DB Bahn)     │   │  (DHBW)         │
-        │                │   │                 │
-        │ • Travel Info  │   │ • Schedule Sync │
-        │ • Connections  │   │ • Room Plans    │
-        └────────────────┘   └─────────────────┘
+```mermaid
+graph TB
+    subgraph AI["🤖 AI Services Layer"]
+        OpenAI["OpenAI GPT-5 Mini<br/>• Embeddings<br/>• Summarization<br/>• Tag Generation"]
+        Claude["Claude Sonnet 4.5<br/>• Complex Reasoning<br/>• Document Analysis<br/>• Chat"]
+        Gemini["Google Gemini 3 Flash<br/>• OCR/Vision<br/>• Multimodal<br/>• Image Extract"]
+        Deepgram["Deepgram STT<br/>• Live Transcription<br/>• Vorlesung Protokoll"]
+    end
+    
+    subgraph Docker["🐳 Docker Container Stack"]
+        NGINX["NGINX Proxy<br/>:80, :443 SSL/TLS"]
+        
+        subgraph App["Application Layer"]
+            Frontend["Vue.js 3 Frontend"]
+            Backend[".NET 8 Backend"]
+            Admin["phpMyAdmin"]
+        end
+        
+        subgraph Workers["Background Services"]
+            EmailSync["Email Sync Worker"]
+            FileProcess["File Processor"]
+            TodoReminder["Todo Reminder"]
+            Review["Review Scheduler"]
+        end
+        
+        subgraph Data["Data Layer"]
+            MariaDB["MariaDB<br/>• Users<br/>• Documents<br/>• Events<br/>• Emails"]
+            Redis["Redis<br/>• Cache<br/>• Sessions"]
+            RabbitMQ["RabbitMQ<br/>• Message Queue<br/>• Job Queue"]
+        end
+        
+        subgraph Storage["Storage Layer"]
+            MinIO["MinIO Object Storage<br/>• Files<br/>• Backups"]
+            Qdrant["Qdrant Vector DB<br/>• Semantic Search<br/>• Embeddings"]
+        end
+    end
+    
+    subgraph External["🌐 External Integrations"]
+        Gmail["Gmail IMAP/SMTP<br/>• Email Sync<br/>• Attachments<br/>• AI Analysis"]
+        GCal["Google Calendar API<br/>• Event Sync<br/>• OAuth 2.0"]
+        Moodle["DHBW Moodle<br/>• Course Files<br/>• Assignments<br/>• Schedules"]
+        HAFAS["HAFAS API (DB)<br/>• Travel Info<br/>• Connections"]
+        RAPLA["RAPLA API (DHBW)<br/>• Schedule Sync<br/>• Room Plans"]
+    end
+    
+    AI -.API Calls.-> Backend
+    NGINX --> Frontend
+    NGINX --> Backend
+    NGINX --> Admin
+    
+    Backend --> Workers
+    Backend --> MariaDB
+    Backend --> Redis
+    Backend --> RabbitMQ
+    
+    Workers --> MariaDB
+    Workers --> MinIO
+    Workers --> Qdrant
+    
+    Backend --> Gmail
+    Backend --> GCal
+    Backend --> Moodle
+    Backend --> HAFAS
+    Backend --> RAPLA
+    
+    style AI fill:#e1f5ff
+    style Docker fill:#f0f0f0
+    style External fill:#fff4e1
+    style Backend fill:#4CAF50,color:#fff
+    style Frontend fill:#42b983,color:#fff
+```
 ---
 
 **Letzte Aktualisierung:** 2026-01-07
