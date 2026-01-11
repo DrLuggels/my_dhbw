@@ -34,6 +34,18 @@ public class AppDbContext : DbContext
     public DbSet<StagedEntity> StagedEntities { get; set; } = null!;
     public DbSet<AIQuestion> AIQuestions { get; set; } = null!;
 
+    // NEW: Knowledge Network System DbSets
+    public DbSet<NextcloudCredential> NextcloudCredentials { get; set; } = null!;
+    public DbSet<NextcloudFile> NextcloudFiles { get; set; } = null!;
+    public DbSet<MoodleResource> MoodleResources { get; set; } = null!;
+    public DbSet<MoodleAssignment> MoodleAssignments { get; set; } = null!;
+    public DbSet<JavaDocsExercise> JavaDocsExercises { get; set; } = null!;
+    public DbSet<DocumentImage> DocumentImages { get; set; } = null!;
+    public DbSet<KnowledgeLink> KnowledgeLinks { get; set; } = null!;
+    public DbSet<ContentTag> ContentTags { get; set; } = null!;
+    public DbSet<ContentTagAssignment> ContentTagAssignments { get; set; } = null!;
+    public DbSet<QdrantEmbedding> QdrantEmbeddings { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -356,6 +368,176 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.StagedEntity)
                 .WithMany(s => s.Questions)
                 .HasForeignKey(e => e.StagedEntityId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // === Knowledge Network System Configurations ===
+
+        // NextcloudCredential Configuration
+        modelBuilder.Entity<NextcloudCredential>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.IsActive });
+            entity.HasIndex(e => e.LastSyncAt);
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.NextcloudCredentials)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.Files)
+                .WithOne(f => f.Credential)
+                .HasForeignKey(f => f.CredentialId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // NextcloudFile Configuration
+        modelBuilder.Entity<NextcloudFile>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.RemotePath }).IsUnique();
+            entity.HasIndex(e => new { e.CredentialId, e.IsDownloaded });
+            entity.HasIndex(e => e.ETag);
+            entity.HasIndex(e => e.LocalDocumentId);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.LocalDocument)
+                .WithMany()
+                .HasForeignKey(e => e.LocalDocumentId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // MoodleResource Configuration
+        modelBuilder.Entity<MoodleResource>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.CourseId });
+            entity.HasIndex(e => new { e.UserId, e.MoodleResourceId }).IsUnique();
+            entity.HasIndex(e => e.ResourceType);
+            entity.HasIndex(e => e.IsDownloaded);
+            entity.HasIndex(e => e.LocalDocumentId);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.LocalDocument)
+                .WithMany()
+                .HasForeignKey(e => e.LocalDocumentId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // MoodleAssignment Configuration
+        modelBuilder.Entity<MoodleAssignment>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.CourseId });
+            entity.HasIndex(e => new { e.UserId, e.MoodleAssignmentId }).IsUnique();
+            entity.HasIndex(e => e.DueDate);
+            entity.HasIndex(e => new { e.UserId, e.IsSubmitted });
+            entity.HasIndex(e => e.CalendarEventId);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.CalendarEvent)
+                .WithMany()
+                .HasForeignKey(e => e.CalendarEventId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Todo)
+                .WithMany()
+                .HasForeignKey(e => e.TodoId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // JavaDocsExercise Configuration
+        modelBuilder.Entity<JavaDocsExercise>(entity =>
+        {
+            entity.HasIndex(e => e.FilePath).IsUnique();
+            entity.HasIndex(e => e.Topic);
+            entity.HasIndex(e => e.Difficulty);
+            entity.HasIndex(e => e.ExerciseType);
+            entity.HasIndex(e => e.HasEmbedding);
+            entity.HasIndex(e => e.GitCommitHash);
+        });
+
+        // DocumentImage Configuration
+        modelBuilder.Entity<DocumentImage>(entity =>
+        {
+            entity.HasIndex(e => e.DocumentId);
+            entity.HasIndex(e => new { e.DocumentId, e.PageNumber, e.ImageIndex }).IsUnique();
+            entity.HasIndex(e => e.IsProcessed);
+            entity.HasIndex(e => e.ImageType);
+            entity.HasIndex(e => e.HasEmbedding);
+
+            entity.HasOne(e => e.Document)
+                .WithMany(d => d.Images)
+                .HasForeignKey(e => e.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // KnowledgeLink Configuration
+        modelBuilder.Entity<KnowledgeLink>(entity =>
+        {
+            entity.HasIndex(e => new { e.SourceType, e.SourceId });
+            entity.HasIndex(e => new { e.TargetType, e.TargetId });
+            entity.HasIndex(e => new { e.SourceType, e.SourceId, e.TargetType, e.TargetId }).IsUnique();
+            entity.HasIndex(e => e.LinkType);
+            entity.HasIndex(e => e.IsAutoGenerated);
+            entity.HasIndex(e => new { e.UserId, e.IsRejected });
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ContentTag Configuration
+        modelBuilder.Entity<ContentTag>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.Name }).IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.SortOrder });
+            entity.HasIndex(e => e.IsSystem);
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.ContentTags)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.Assignments)
+                .WithOne(a => a.Tag)
+                .HasForeignKey(a => a.TagId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ContentTagAssignment Configuration
+        modelBuilder.Entity<ContentTagAssignment>(entity =>
+        {
+            entity.HasIndex(e => new { e.TagId, e.EntityType, e.EntityId }).IsUnique();
+            entity.HasIndex(e => new { e.EntityType, e.EntityId });
+            entity.HasIndex(e => e.IsAutoAssigned);
+
+            entity.HasOne(e => e.AssignedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.AssignedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // QdrantEmbedding Configuration
+        modelBuilder.Entity<QdrantEmbedding>(entity =>
+        {
+            entity.HasIndex(e => new { e.EntityType, e.EntityId }).IsUnique();
+            entity.HasIndex(e => e.QdrantPointId).IsUnique();
+            entity.HasIndex(e => e.CollectionName);
+            entity.HasIndex(e => e.UserId);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

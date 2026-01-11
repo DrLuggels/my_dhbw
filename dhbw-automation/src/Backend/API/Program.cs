@@ -11,6 +11,7 @@ using DHBWAutomation.Backend.Infrastructure.Storage;
 using DHBWAutomation.Backend.Infrastructure.ExternalAPIs.Rapla;
 using DHBWAutomation.Backend.Shared.Helpers;
 using DHBWAutomation.Backend.API.Filters;
+using DHBWAutomation.Backend.Infrastructure.VectorDb;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -213,6 +214,10 @@ builder.Services.AddScoped<ILearningAnalyticsService, LearningAnalyticsService>(
 builder.Services.AddScoped<IDocumentParsingService, DocumentParsingService>();
 builder.Services.AddScoped<IValidationService, ValidationService>(); // NEW: AI Staging System
 builder.Services.AddScoped<IInteractiveExerciseService, InteractiveExerciseService>(); // NEW: Hybrid Exercise System
+
+// Knowledge Network Services
+builder.Services.AddSingleton<IQdrantService, QdrantService>();
+builder.Services.AddScoped<IEmbeddingService, EmbeddingService>();
 
 // Calendar Services
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();

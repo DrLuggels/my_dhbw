@@ -78,17 +78,49 @@
     <!-- TODOs & Learning Deficits -->
     <v-row class="mt-4">
       <v-col cols="12" md="6">
-        <TodoList />
+        <v-card>
+          <v-card-title class="d-flex align-center">
+            <v-icon class="mr-2">mdi-format-list-checks</v-icon>
+            Aufgaben
+            <v-spacer />
+            <v-chip size="small" :color="todoStats.pending > 0 ? 'warning' : 'success'">
+              {{ todoStats.pending }} offen
+            </v-chip>
+          </v-card-title>
+          <v-card-text>
+            <div v-if="todoStats.overdue > 0" class="mb-3">
+              <v-alert type="warning" density="compact" variant="tonal">
+                {{ todoStats.overdue }} Aufgaben sind ueberfaellig
+              </v-alert>
+            </div>
+            <v-list density="compact" v-if="recentTodos.length > 0">
+              <v-list-item
+                v-for="todo in recentTodos"
+                :key="todo.id"
+                :subtitle="todo.description"
+              >
+                <template v-slot:prepend>
+                  <v-icon :color="getPriorityColor(todo.priority)" size="small">
+                    mdi-circle
+                  </v-icon>
+                </template>
+                <v-list-item-title>{{ todo.title }}</v-list-item-title>
+              </v-list-item>
+            </v-list>
+            <p v-else class="text-grey text-center py-4">
+              Keine offenen Aufgaben
+            </p>
+          </v-card-text>
+          <v-card-actions>
+            <v-btn color="primary" variant="flat" to="/tasks" block>
+              <v-icon left>mdi-arrow-right</v-icon>
+              Alle Aufgaben anzeigen
+            </v-btn>
+          </v-card-actions>
+        </v-card>
       </v-col>
       <v-col cols="12" md="6">
         <LearningDeficitsWidget />
-      </v-col>
-    </v-row>
-
-    <!-- AI Validation Widget -->
-    <v-row class="mt-4">
-      <v-col cols="12">
-        <PendingEntitiesWidget />
       </v-col>
     </v-row>
 
@@ -105,6 +137,10 @@
             <v-btn color="info" class="mr-2" to="/learning">
               <v-icon left>mdi-school</v-icon>
               Lernbereich öffnen
+            </v-btn>
+            <v-btn color="success" class="mr-2" to="/tasks">
+              <v-icon left>mdi-format-list-checks</v-icon>
+              Aufgaben verwalten
             </v-btn>
             <v-btn color="secondary" @click="testRapla" :loading="testing">
               <v-icon left>mdi-calendar</v-icon>
@@ -127,9 +163,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 import InteractionDialog from '@/components/InteractionDialog.vue'
-import TodoList from '@/components/TodoList.vue'
 import LearningDeficitsWidget from '@/components/LearningDeficitsWidget.vue'
-import PendingEntitiesWidget from '@/components/PendingEntitiesWidget.vue'
 
 interface Interaction {
   id: number
@@ -142,6 +176,14 @@ interface Interaction {
   createdAt: string
 }
 
+interface Todo {
+  id: number
+  title: string
+  description?: string
+  priority: string
+  status: string
+}
+
 const router = useRouter()
 const authStore = useAuthStore()
 
@@ -150,6 +192,12 @@ const stats = ref({
   events: 0
 })
 
+const todoStats = ref({
+  pending: 0,
+  overdue: 0
+})
+
+const recentTodos = ref<Todo[]>([])
 const pendingInteractions = ref<Interaction[]>([])
 
 const syncing = ref(false)
@@ -237,12 +285,43 @@ const loadStats = async () => {
   }
 }
 
+const loadTodoStats = async () => {
+  if (!authStore.user?.id) return
+
+  try {
+    // Lade Todo-Statistiken
+    const statsResponse = await api.getTodoStats(authStore.user.id)
+    if (statsResponse.success) {
+      todoStats.value.pending = statsResponse.data.pending || 0
+      todoStats.value.overdue = statsResponse.data.overdue || 0
+    }
+
+    // Lade die ersten 5 offenen Todos
+    const todosResponse = await api.getTodos(authStore.user.id, { status: 'pending' })
+    if (todosResponse.success && Array.isArray(todosResponse.data)) {
+      recentTodos.value = todosResponse.data.slice(0, 5)
+    }
+  } catch (error) {
+    console.error('Error loading todo stats:', error)
+  }
+}
+
+const getPriorityColor = (priority: string): string => {
+  switch (priority) {
+    case 'urgent': return 'error'
+    case 'high': return 'warning'
+    case 'medium': return 'info'
+    default: return 'grey'
+  }
+}
+
 // Poll for new interactions every 30 seconds
 let pollInterval: NodeJS.Timeout | null = null
 
 onMounted(() => {
   loadStats()
   loadInteractions()
+  loadTodoStats()
 
   // Set up polling for interactions
   pollInterval = setInterval(loadInteractions, 30000)

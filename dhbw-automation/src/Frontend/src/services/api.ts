@@ -171,6 +171,124 @@ class ApiService {
     return response.data
   }
 
+  // ==================== TodoList Endpoints ====================
+
+  async getTodoLists(userId: number) {
+    const response = await this.api.get(`/todolist/user/${userId}`)
+    return response.data
+  }
+
+  async getTodoList(listId: number, userId: number) {
+    const response = await this.api.get(`/todolist/${listId}`, { params: { userId } })
+    return response.data
+  }
+
+  async createTodoList(data: { userId: number; name: string; icon?: string; color?: string }) {
+    const response = await this.api.post('/todolist', data)
+    return response.data
+  }
+
+  async updateTodoList(listId: number, data: { userId: number; name?: string; icon?: string; color?: string }) {
+    const response = await this.api.put(`/todolist/${listId}`, data)
+    return response.data
+  }
+
+  async deleteTodoList(listId: number, userId: number) {
+    const response = await this.api.delete(`/todolist/${listId}`, { params: { userId } })
+    return response.data
+  }
+
+  async setDefaultList(listId: number, userId: number) {
+    const response = await this.api.patch(`/todolist/${listId}/default`, { userId })
+    return response.data
+  }
+
+  async reorderLists(userId: number, listIds: number[]) {
+    const response = await this.api.post('/todolist/reorder', { userId, listIds })
+    return response.data
+  }
+
+  async initializeTodoLists(userId: number) {
+    const response = await this.api.post(`/todolist/initialize/${userId}`)
+    return response.data
+  }
+
+  // ==================== Extended Todo Endpoints ====================
+
+  async getTodos(userId: number, options?: { listId?: number; status?: string; includeArchived?: boolean }) {
+    const params: any = {}
+    if (options?.listId) params.listId = options.listId
+    if (options?.status) params.status = options.status
+    if (options?.includeArchived) params.includeArchived = options.includeArchived
+
+    const response = await this.api.get(`/todo/user/${userId}`, { params })
+    return response.data
+  }
+
+  async getTodosByList(listId: number, userId: number) {
+    const response = await this.api.get(`/todo/list/${listId}`, { params: { userId } })
+    return response.data
+  }
+
+  async createTodo(data: {
+    userId: number;
+    listId?: number;
+    title: string;
+    description?: string;
+    priority?: string;
+    dueDate?: string
+  }) {
+    const response = await this.api.post('/todo', data)
+    return response.data
+  }
+
+  async updateTodoStatus(todoId: number, userId: number, status: string) {
+    const response = await this.api.patch(`/todo/${todoId}/status`, { userId, status })
+    return response.data
+  }
+
+  async moveTodo(todoId: number, userId: number, listId?: number) {
+    const response = await this.api.patch(`/todo/${todoId}/move`, { userId, listId })
+    return response.data
+  }
+
+  async archiveTodo(todoId: number, userId: number) {
+    const response = await this.api.post(`/todo/${todoId}/archive`, null, { params: { userId } })
+    return response.data
+  }
+
+  async unarchiveTodo(todoId: number, userId: number, targetListId?: number) {
+    const params: any = { userId }
+    if (targetListId) params.targetListId = targetListId
+    const response = await this.api.post(`/todo/${todoId}/unarchive`, null, { params })
+    return response.data
+  }
+
+  async getArchivedTodos(userId: number) {
+    const response = await this.api.get(`/todo/user/${userId}/archived`)
+    return response.data
+  }
+
+  async getOverdueTodos(userId: number, daysOld: number = 7) {
+    const response = await this.api.get(`/todo/user/${userId}/overdue`, { params: { daysOld } })
+    return response.data
+  }
+
+  async getRelatedTodos(todoId: number, userId: number) {
+    const response = await this.api.get(`/todo/${todoId}/related`, { params: { userId } })
+    return response.data
+  }
+
+  async getTodoStats(userId: number) {
+    const response = await this.api.get(`/todo/user/${userId}/stats`)
+    return response.data
+  }
+
+  async deleteTodo(todoId: number, userId: number) {
+    const response = await this.api.delete(`/todo/${todoId}`, { params: { userId } })
+    return response.data
+  }
+
   // Health Check
   async healthCheck() {
     const response = await this.api.get('/health')

@@ -35,6 +35,22 @@ public class Todo
     public DateTime? DueDate { get; set; }
     public int? EstimatedMinutes { get; set; }
 
+    // Liste-Zuordnung
+    public int? ListId { get; set; }
+
+    // Archivierungs-System
+    public DateTime? ArchivedAt { get; set; }
+    public int AutoDeleteAfterDays { get; set; } = 30;
+
+    // Reminder-Tracking
+    public DateTime? LastReminderSent { get; set; }
+    public int ReminderCount { get; set; } = 0;
+
+    // Zusammenhangs-Erkennung
+    public int? ParentTodoId { get; set; }
+    [Column(TypeName = "TEXT")]
+    public string? RelatedKeywords { get; set; }
+
     // Relations
     public int? RelatedDocumentId { get; set; }
     public int? RelatedEventId { get; set; }
@@ -53,6 +69,12 @@ public class Todo
     // Navigation Properties
     [ForeignKey("UserId")]
     public virtual User User { get; set; } = null!;
+
+    [ForeignKey("ListId")]
+    public virtual TodoList? List { get; set; }
+
+    [ForeignKey("ParentTodoId")]
+    public virtual Todo? ParentTodo { get; set; }
 
     [ForeignKey("RelatedDocumentId")]
     public virtual Document? RelatedDocument { get; set; }
