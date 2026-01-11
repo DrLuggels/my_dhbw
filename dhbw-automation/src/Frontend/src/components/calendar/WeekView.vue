@@ -97,6 +97,25 @@ function getDayEvents(dateStr: string): CalendarEvent[] {
   })
 }
 
+function eventsOverlap(event1: CalendarEvent, event2: CalendarEvent): boolean {
+  const start1 = new Date(event1.startTime).getTime()
+  const end1 = new Date(event1.endTime).getTime()
+  const start2 = new Date(event2.startTime).getTime()
+  const end2 = new Date(event2.endTime).getTime()
+  return start1 < end2 && start2 < end1
+}
+
+function getOverlappingEvents(event: CalendarEvent, dayEvents: CalendarEvent[]): { index: number; total: number } {
+  const overlapping = dayEvents.filter(e => eventsOverlap(event, e))
+  overlapping.sort((a, b) => {
+    const startDiff = new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+    if (startDiff !== 0) return startDiff
+    return a.id - b.id
+  })
+  const index = overlapping.findIndex(e => e.id === event.id)
+  return { index, total: overlapping.length }
+}
+
 function getEventStyle(event: CalendarEvent) {
   const start = new Date(event.startTime)
   const end = new Date(event.endTime)
@@ -109,11 +128,18 @@ function getEventStyle(event: CalendarEvent) {
   const topOffset = ((startHour - 7) * 60 + startMinute) / 60 * 60
   const duration = ((endHour - startHour) * 60 + (endMinute - startMinute)) / 60 * 60
 
+  const dateStr = start.toISOString().split('T')[0]
+  const dayEvents = getDayEvents(dateStr)
+  const { index, total } = getOverlappingEvents(event, dayEvents)
+
+  const widthPercent = total > 1 ? (100 / total) : 100
+  const leftPercent = total > 1 ? (index * widthPercent) : 0
+
   return {
     top: `${topOffset + 40}px`,
     height: `${Math.max(duration, 30)}px`,
-    left: '4px',
-    right: '4px'
+    left: total > 1 ? `calc(${leftPercent}% + 2px)` : '4px',
+    width: total > 1 ? `calc(${widthPercent}% - 4px)` : 'calc(100% - 8px)'
   }
 }
 
@@ -221,6 +247,7 @@ const formatDate = (dateString: string) => {
   cursor: pointer;
   border-left: 3px solid #1565c0;
   box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  box-sizing: border-box;
 }
 
 .event-card:hover {
