@@ -125,8 +125,23 @@ function getEventStyle(event: CalendarEvent) {
   const endHour = end.getHours()
   const endMinute = end.getMinutes()
 
-  const topOffset = ((startHour - 7) * 60 + startMinute) / 60 * 60
-  const duration = ((endHour - startHour) * 60 + (endMinute - startMinute)) / 60 * 60
+  // Calculate position in pixels (60px per hour)
+  const startMinutes = startHour * 60 + startMinute
+  const endMinutes = endHour * 60 + endMinute
+  const gridStartMinutes = 7 * 60  // 7:00
+  const gridEndMinutes = 22 * 60   // 22:00
+  const maxHeight = 15 * 60        // 900px (15 hours * 60px)
+
+  // Clamp to visible area (like mobile app does)
+  const clampedStartMinutes = Math.max(startMinutes, gridStartMinutes)
+  const clampedEndMinutes = Math.min(endMinutes, gridEndMinutes)
+
+  const topOffset = ((clampedStartMinutes - gridStartMinutes) / 60) * 60
+  const duration = ((clampedEndMinutes - clampedStartMinutes) / 60) * 60
+
+  // Clamp final values
+  const clampedTop = Math.max(0, Math.min(topOffset, maxHeight))
+  const clampedHeight = Math.max(30, Math.min(duration, maxHeight - clampedTop))
 
   const dateStr = start.toISOString().split('T')[0]
   const dayEvents = getDayEvents(dateStr)
@@ -136,8 +151,8 @@ function getEventStyle(event: CalendarEvent) {
   const leftPercent = total > 1 ? (index * widthPercent) : 0
 
   return {
-    top: `${topOffset + 40}px`,
-    height: `${Math.max(duration, 30)}px`,
+    top: `${clampedTop + 40}px`,
+    height: `${clampedHeight}px`,
     left: total > 1 ? `calc(${leftPercent}% + 2px)` : '4px',
     width: total > 1 ? `calc(${widthPercent}% - 4px)` : 'calc(100% - 8px)'
   }
