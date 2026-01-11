@@ -459,12 +459,12 @@ public class KnowledgeNetworkService : IKnowledgeNetworkService
                 }
             }
 
-            // Process Exercises (JavaDocsExercises)
+            // Process Exercises (JavaDocsExercises) - global exercises, not user-specific
             var exercises = await _context.JavaDocsExercises
-                .Where(e => e.UserId == userId)
+                .Where(e => !e.HasEmbedding)
                 .ToListAsync();
 
-            _logger.LogInformation("Processing {Count} exercises for user {UserId}", exercises.Count, userId);
+            _logger.LogInformation("Processing {Count} exercises without embeddings", exercises.Count);
 
             foreach (var exercise in exercises)
             {
