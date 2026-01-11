@@ -195,6 +195,27 @@ public class KnowledgeNetworkController : ControllerBase
         var success = await _networkService.RejectLinkAsync(linkId, userId);
         return Ok(new { success });
     }
+
+    /// <summary>
+    /// Get pending auto-generated links for review
+    /// </summary>
+    [HttpGet("links/pending")]
+    public async Task<IActionResult> GetPendingLinks()
+    {
+        var userId = GetUserId();
+        if (userId == 0) return Unauthorized();
+
+        try
+        {
+            var pendingLinks = await _networkService.GetPendingLinksAsync(userId);
+            return Ok(new { success = true, data = pendingLinks });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting pending links");
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
 }
 
 /// <summary>
