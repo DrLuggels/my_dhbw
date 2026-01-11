@@ -80,6 +80,12 @@
     </PackageReference>
     <PackageReference Include="Moq" Version="4.20.70" />
     <PackageReference Include="FluentAssertions" Version="6.12.0" />
+
+    <!-- Knowledge Network System -->
+    <PackageReference Include="Qdrant.Client" Version="1.12.0" />
+    <PackageReference Include="WebDav.Client" Version="2.8.0" />
+    <PackageReference Include="LibGit2Sharp" Version="0.30.0" />
+    <PackageReference Include="Markdig" Version="0.38.0" />
   </ItemGroup>
 
 </Project>

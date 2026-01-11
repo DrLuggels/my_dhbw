@@ -113,9 +113,19 @@ public class User
     [MaxLength(500)]
     public string? GeminiApiKey { get; set; }
 
+    // === Nextcloud Integration Settings ===
+
+    /// <summary>
+    /// Encrypted Moodle token for API access
+    /// </summary>
+    [MaxLength(500)]
+    public string? MoodleToken { get; set; }
+
     // Navigation Properties
     public virtual ICollection<Document> Documents { get; set; } = new List<Document>();
     public virtual ICollection<CalendarEvent> CalendarEvents { get; set; } = new List<CalendarEvent>();
     public virtual ICollection<Reminder> Reminders { get; set; } = new List<Reminder>();
     public virtual ICollection<Email> Emails { get; set; } = new List<Email>();
+    public virtual ICollection<NextcloudCredential> NextcloudCredentials { get; set; } = new List<NextcloudCredential>();
+    public virtual ICollection<ContentTag> ContentTags { get; set; } = new List<ContentTag>();
 }

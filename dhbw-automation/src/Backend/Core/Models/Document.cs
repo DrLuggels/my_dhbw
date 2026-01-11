@@ -75,10 +75,35 @@ public class Document
     // Relations
     public int? RelatedProjectId { get; set; }
 
+    // === Embedding & Knowledge Network ===
+
+    /// <summary>
+    /// Whether this document has a vector embedding
+    /// </summary>
+    public bool HasEmbedding { get; set; } = false;
+
+    /// <summary>
+    /// Qdrant point ID for semantic search
+    /// </summary>
+    [MaxLength(100)]
+    public string? QdrantPointId { get; set; }
+
+    /// <summary>
+    /// Number of images extracted from this document
+    /// </summary>
+    public int ImageCount { get; set; } = 0;
+
+    /// <summary>
+    /// Whether images have been extracted and processed
+    /// </summary>
+    public bool ImagesProcessed { get; set; } = false;
+
     // Navigation Properties
     [ForeignKey("UserId")]
     public virtual User User { get; set; } = null!;
 
     [ForeignKey("RelatedProjectId")]
     public virtual Project? RelatedProject { get; set; }
+
+    public virtual ICollection<DocumentImage> Images { get; set; } = new List<DocumentImage>();
 }

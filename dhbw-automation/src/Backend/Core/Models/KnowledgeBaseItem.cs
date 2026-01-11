@@ -78,6 +78,30 @@ public class KnowledgeBaseItem
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 
+    // === Embedding & Source Tracking ===
+
+    /// <summary>
+    /// Whether this item has a vector embedding
+    /// </summary>
+    public bool HasEmbedding { get; set; } = false;
+
+    /// <summary>
+    /// Qdrant point ID for semantic search
+    /// </summary>
+    [MaxLength(100)]
+    public string? QdrantPointId { get; set; }
+
+    /// <summary>
+    /// Source type if derived from another entity (e.g., "document", "moodle_resource")
+    /// </summary>
+    [MaxLength(50)]
+    public string? SourceType { get; set; }
+
+    /// <summary>
+    /// Source entity ID
+    /// </summary>
+    public int? SourceId { get; set; }
+
     // Navigation property
     public virtual User? User { get; set; }
 }
