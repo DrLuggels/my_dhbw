@@ -128,17 +128,17 @@ Bei Fragen zur Dokumentation:
 - 🐛 Issue: [Documentation Issue erstellen](https://github.com/yourusername/dhbw-automation/issues/new?labels=documentation)
 
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           EXTERNE DIENSTE & APIs                                 │
+│                           EXTERNE DIENSTE & APIs                                │
 └─────────────────────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────┐
-│   🤖 OpenAI      │  │ 🧠 Anthropic     │  │ 🔮 Google       │  │ 🎤 Deepgram  │
+│   🤖 OpenAI      │  │ 🧠 Anthropic    │  │ 🔮 Google       │  │ 🎤 Deepgram  │
 │   GPT-5 Mini     │  │ Claude Sonnet 4.5│  │ Gemini 3 Flash   │  │ Speech-to-   │
 │                  │  │                  │  │                  │  │ Text (Live)  │
 │ • Tag Generation │  │ • Chat/Reasoning │  │ • OCR/Vision     │  │              │
 │ • Embeddings     │  │ • Complex Tasks  │  │ • Multimodal     │  │ • Vorlesung  │
-│ • Summarization  │  │ • Document Anal. │  │ • Image Extract  │  │   Recording  │
-└────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘  └──────┬───────┘
+│ • Summarization  │  │ • Document Anal. │  │ • Image Extract  │  │   Protokoll  │
+└────────┬─────────┘  └────────┬─────────┘  └─────────┬────────┘  └───────┬──────┘
          │                     │                      │                   │
          └─────────────────────┼──────────────────────┼───────────────────┘
                                │                      │
