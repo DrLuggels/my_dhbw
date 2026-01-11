@@ -69,6 +69,8 @@ const getSourceColor = (source: string) => {
     case 'rapla': return 'primary'
     case 'moodle': return 'secondary'
     case 'manual': return 'info'
+    case 'learning': return 'success'
+    case 'ai_generated': return 'success'
     default: return 'grey'
   }
 }

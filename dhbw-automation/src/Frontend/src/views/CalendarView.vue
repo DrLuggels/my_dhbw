@@ -101,7 +101,9 @@ const sourceOptions = [
   { title: 'Alle Quellen', value: 'all' },
   { title: 'Rapla', value: 'rapla' },
   { title: 'Moodle', value: 'moodle' },
-  { title: 'Manuell', value: 'manual' }
+  { title: 'Manuell', value: 'manual' },
+  { title: 'Lernstunden', value: 'learning' },
+  { title: 'KI-generiert', value: 'ai_generated' }
 ]
 
 const snackbar = ref({

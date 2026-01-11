@@ -285,6 +285,11 @@ const formatDate = (dateString: string) => {
   border-left-color: #01579b;
 }
 
+.event-learning, .event-ai_generated {
+  background: #43a047;
+  border-left-color: #2e7d32;
+}
+
 .event-time {
   font-size: 10px;
   opacity: 0.9;
