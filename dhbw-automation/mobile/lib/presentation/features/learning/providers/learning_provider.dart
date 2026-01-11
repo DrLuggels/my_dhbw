@@ -47,7 +47,8 @@ class Learning extends _$Learning {
   @override
   LearningState build() {
     _repository = LearningRepository(DioClient(SecureStorage()));
-    loadDueExercises();
+    // Use Future.microtask to load after state is initialized
+    Future.microtask(() => loadDueExercises());
     return const LearningState();
   }
 

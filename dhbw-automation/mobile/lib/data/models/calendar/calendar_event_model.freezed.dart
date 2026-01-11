@@ -279,13 +279,13 @@ class __$$CalendarEventModelImplCopyWithImpl<$Res>
 class _$CalendarEventModelImpl implements _CalendarEventModel {
   const _$CalendarEventModelImpl(
       {@HiveField(0) required this.id,
-      @HiveField(1) required this.userId,
+      @HiveField(1) this.userId = 1,
       @HiveField(2) required this.title,
       @HiveField(3) required this.startTime,
       @HiveField(4) required this.endTime,
-      @HiveField(5) required this.location,
-      @HiveField(6) required this.subject,
-      @HiveField(7) required this.source,
+      @HiveField(5) this.location = '',
+      @HiveField(6) this.subject = '',
+      @HiveField(7) this.source = 'manual',
       @HiveField(8) this.eventType,
       @HiveField(9) this.description,
       @HiveField(10) this.professor,
@@ -299,6 +299,7 @@ class _$CalendarEventModelImpl implements _CalendarEventModel {
   @HiveField(0)
   final int id;
   @override
+  @JsonKey()
   @HiveField(1)
   final int userId;
   @override
@@ -311,12 +312,15 @@ class _$CalendarEventModelImpl implements _CalendarEventModel {
   @HiveField(4)
   final DateTime endTime;
   @override
+  @JsonKey()
   @HiveField(5)
   final String location;
   @override
+  @JsonKey()
   @HiveField(6)
   final String subject;
   @override
+  @JsonKey()
   @HiveField(7)
   final String source;
 // 'rapla', 'moodle', 'manual'
@@ -405,13 +409,13 @@ class _$CalendarEventModelImpl implements _CalendarEventModel {
 abstract class _CalendarEventModel implements CalendarEventModel {
   const factory _CalendarEventModel(
       {@HiveField(0) required final int id,
-      @HiveField(1) required final int userId,
+      @HiveField(1) final int userId,
       @HiveField(2) required final String title,
       @HiveField(3) required final DateTime startTime,
       @HiveField(4) required final DateTime endTime,
-      @HiveField(5) required final String location,
-      @HiveField(6) required final String subject,
-      @HiveField(7) required final String source,
+      @HiveField(5) final String location,
+      @HiveField(6) final String subject,
+      @HiveField(7) final String source,
       @HiveField(8) final String? eventType,
       @HiveField(9) final String? description,
       @HiveField(10) final String? professor,

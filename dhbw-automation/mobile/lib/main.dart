@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'data/local/hive_boxes.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/features/auth/screens/login_screen.dart';
@@ -10,6 +11,9 @@ import 'presentation/features/home/screens/home_screen.dart';
 void main() async {
   // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize German date formatting for intl package
+  await initializeDateFormatting('de', null);
 
   // Initialize Hive for offline storage
   await HiveBoxes().init();

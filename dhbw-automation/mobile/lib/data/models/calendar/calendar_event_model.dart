@@ -10,13 +10,13 @@ part 'calendar_event_model.g.dart';
 class CalendarEventModel with _$CalendarEventModel {
   const factory CalendarEventModel({
     @HiveField(0) required int id,
-    @HiveField(1) required int userId,
+    @HiveField(1) @Default(1) int userId,
     @HiveField(2) required String title,
     @HiveField(3) required DateTime startTime,
     @HiveField(4) required DateTime endTime,
-    @HiveField(5) required String location,
-    @HiveField(6) required String subject,
-    @HiveField(7) required String source, // 'rapla', 'moodle', 'manual'
+    @HiveField(5) @Default('') String location,
+    @HiveField(6) @Default('') String subject,
+    @HiveField(7) @Default('manual') String source, // 'rapla', 'moodle', 'manual'
     @HiveField(8) String? eventType,
     @HiveField(9) String? description,
     @HiveField(10) String? professor,

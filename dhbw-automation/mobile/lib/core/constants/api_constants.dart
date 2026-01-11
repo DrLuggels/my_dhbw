@@ -1,6 +1,6 @@
 class ApiConstants {
   // Base URL - Server Backend
-  static const String baseUrl = 'http://192.168.178.198:5000/api';
+  static const String baseUrl = 'http://192.168.178.198:5001/api';
 
   // Auth Endpoints
   static const String login = '/auth/login';

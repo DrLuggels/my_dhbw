@@ -84,13 +84,13 @@ _$CalendarEventModelImpl _$$CalendarEventModelImplFromJson(
         Map<String, dynamic> json) =>
     _$CalendarEventModelImpl(
       id: (json['id'] as num).toInt(),
-      userId: (json['userId'] as num).toInt(),
+      userId: (json['userId'] as num?)?.toInt() ?? 1,
       title: json['title'] as String,
       startTime: DateTime.parse(json['startTime'] as String),
       endTime: DateTime.parse(json['endTime'] as String),
-      location: json['location'] as String,
-      subject: json['subject'] as String,
-      source: json['source'] as String,
+      location: json['location'] as String? ?? '',
+      subject: json['subject'] as String? ?? '',
+      source: json['source'] as String? ?? 'manual',
       eventType: json['eventType'] as String?,
       description: json['description'] as String?,
       professor: json['professor'] as String?,

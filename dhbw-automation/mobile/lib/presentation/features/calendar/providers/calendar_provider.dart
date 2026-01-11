@@ -32,7 +32,8 @@ class CalendarState with _$CalendarState {
   /// Get events for the current week
   List<CalendarEventModel> get weekEvents {
     return events.where((event) {
-      return event.startTime.isAfter(weekStart) &&
+      // Use >= weekStart and < weekEnd (inclusive start, exclusive end)
+      return !event.startTime.isBefore(weekStart) &&
           event.startTime.isBefore(weekEnd);
     }).toList();
   }

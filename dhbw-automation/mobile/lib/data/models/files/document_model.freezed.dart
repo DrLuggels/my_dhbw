@@ -43,6 +43,7 @@ mixin _$DocumentModel {
   @HiveField(10)
   String? get extractedText => throw _privateConstructorUsedError;
   @HiveField(11)
+  @JsonKey(name: 'createdAt')
   String? get uploadedAt => throw _privateConstructorUsedError;
   @HiveField(12)
   String? get processedAt => throw _privateConstructorUsedError;
@@ -75,7 +76,7 @@ abstract class $DocumentModelCopyWith<$Res> {
       @HiveField(8) String? summary,
       @HiveField(9) String? tags,
       @HiveField(10) String? extractedText,
-      @HiveField(11) String? uploadedAt,
+      @HiveField(11) @JsonKey(name: 'createdAt') String? uploadedAt,
       @HiveField(12) String? processedAt});
 }
 
@@ -185,7 +186,7 @@ abstract class _$$DocumentModelImplCopyWith<$Res>
       @HiveField(8) String? summary,
       @HiveField(9) String? tags,
       @HiveField(10) String? extractedText,
-      @HiveField(11) String? uploadedAt,
+      @HiveField(11) @JsonKey(name: 'createdAt') String? uploadedAt,
       @HiveField(12) String? processedAt});
 }
 
@@ -278,17 +279,17 @@ class __$$DocumentModelImplCopyWithImpl<$Res>
 class _$DocumentModelImpl implements _DocumentModel {
   const _$DocumentModelImpl(
       {@HiveField(0) required this.id,
-      @HiveField(1) required this.userId,
+      @HiveField(1) this.userId = 1,
       @HiveField(2) required this.fileName,
-      @HiveField(3) required this.filePath,
+      @HiveField(3) this.filePath = '',
       @HiveField(4) required this.fileType,
       @HiveField(5) required this.fileSize,
-      @HiveField(6) required this.category,
+      @HiveField(6) this.category = '',
       @HiveField(7) this.isProcessed = false,
       @HiveField(8) this.summary,
       @HiveField(9) this.tags,
       @HiveField(10) this.extractedText,
-      @HiveField(11) this.uploadedAt,
+      @HiveField(11) @JsonKey(name: 'createdAt') this.uploadedAt,
       @HiveField(12) this.processedAt});
 
   factory _$DocumentModelImpl.fromJson(Map<String, dynamic> json) =>
@@ -298,12 +299,14 @@ class _$DocumentModelImpl implements _DocumentModel {
   @HiveField(0)
   final int id;
   @override
+  @JsonKey()
   @HiveField(1)
   final int userId;
   @override
   @HiveField(2)
   final String fileName;
   @override
+  @JsonKey()
   @HiveField(3)
   final String filePath;
   @override
@@ -313,6 +316,7 @@ class _$DocumentModelImpl implements _DocumentModel {
   @HiveField(5)
   final int fileSize;
   @override
+  @JsonKey()
   @HiveField(6)
   final String category;
   @override
@@ -330,6 +334,7 @@ class _$DocumentModelImpl implements _DocumentModel {
   final String? extractedText;
   @override
   @HiveField(11)
+  @JsonKey(name: 'createdAt')
   final String? uploadedAt;
   @override
   @HiveField(12)
@@ -406,17 +411,17 @@ class _$DocumentModelImpl implements _DocumentModel {
 abstract class _DocumentModel implements DocumentModel {
   const factory _DocumentModel(
       {@HiveField(0) required final int id,
-      @HiveField(1) required final int userId,
+      @HiveField(1) final int userId,
       @HiveField(2) required final String fileName,
-      @HiveField(3) required final String filePath,
+      @HiveField(3) final String filePath,
       @HiveField(4) required final String fileType,
       @HiveField(5) required final int fileSize,
-      @HiveField(6) required final String category,
+      @HiveField(6) final String category,
       @HiveField(7) final bool isProcessed,
       @HiveField(8) final String? summary,
       @HiveField(9) final String? tags,
       @HiveField(10) final String? extractedText,
-      @HiveField(11) final String? uploadedAt,
+      @HiveField(11) @JsonKey(name: 'createdAt') final String? uploadedAt,
       @HiveField(12) final String? processedAt}) = _$DocumentModelImpl;
 
   factory _DocumentModel.fromJson(Map<String, dynamic> json) =
@@ -457,6 +462,7 @@ abstract class _DocumentModel implements DocumentModel {
   String? get extractedText;
   @override
   @HiveField(11)
+  @JsonKey(name: 'createdAt')
   String? get uploadedAt;
   @override
   @HiveField(12)

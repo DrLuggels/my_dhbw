@@ -83,17 +83,17 @@ class DocumentModelAdapter extends TypeAdapter<DocumentModel> {
 _$DocumentModelImpl _$$DocumentModelImplFromJson(Map<String, dynamic> json) =>
     _$DocumentModelImpl(
       id: (json['id'] as num).toInt(),
-      userId: (json['userId'] as num).toInt(),
+      userId: (json['userId'] as num?)?.toInt() ?? 1,
       fileName: json['fileName'] as String,
-      filePath: json['filePath'] as String,
+      filePath: json['filePath'] as String? ?? '',
       fileType: json['fileType'] as String,
       fileSize: (json['fileSize'] as num).toInt(),
-      category: json['category'] as String,
+      category: json['category'] as String? ?? '',
       isProcessed: json['isProcessed'] as bool? ?? false,
       summary: json['summary'] as String?,
       tags: json['tags'] as String?,
       extractedText: json['extractedText'] as String?,
-      uploadedAt: json['uploadedAt'] as String?,
+      uploadedAt: json['createdAt'] as String?,
       processedAt: json['processedAt'] as String?,
     );
 
@@ -110,6 +110,6 @@ Map<String, dynamic> _$$DocumentModelImplToJson(_$DocumentModelImpl instance) =>
       'summary': instance.summary,
       'tags': instance.tags,
       'extractedText': instance.extractedText,
-      'uploadedAt': instance.uploadedAt,
+      'createdAt': instance.uploadedAt,
       'processedAt': instance.processedAt,
     };
