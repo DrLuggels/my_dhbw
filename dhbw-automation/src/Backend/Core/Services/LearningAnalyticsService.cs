@@ -19,7 +19,7 @@ public class LearningAnalyticsService : ILearningAnalyticsService
     private readonly HtmlSanitizer _htmlSanitizer;
     private readonly EncryptionHelper _encryptionHelper;
 
-    private const string AnthropicModel = "claude-sonnet-4.5";
+    private const string AnthropicModel = "claude-sonnet-4-5";
 
     public LearningAnalyticsService(
         AppDbContext context,

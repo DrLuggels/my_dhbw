@@ -17,7 +17,7 @@ public class IntentAnalysisService : IIntentAnalysisService
     private readonly AppDbContext _context;
     private readonly EncryptionHelper _encryptionHelper;
 
-    private const string AnthropicModel = "claude-sonnet-4-5-20250929";
+    private const string AnthropicModel = "claude-sonnet-4-5";
     private const string AnthropicEndpoint = "https://api.anthropic.com/v1/messages";
     private const string AnthropicVersion = "2023-06-01";
 

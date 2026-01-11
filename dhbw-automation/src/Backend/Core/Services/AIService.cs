@@ -72,7 +72,7 @@ public class AIService : IAIService
     private const string OpenAiModel = "gpt-5-mini"; // Cost-effective for standard tasks
 
     private const string AnthropicEndpoint = "https://api.anthropic.com/v1/messages";
-    private const string AnthropicModel = "claude-sonnet-4.5"; // Best for reasoning
+    private const string AnthropicModel = "claude-sonnet-4-5"; // Best for reasoning
     private const string AnthropicVersion = "2023-06-01";
 
     private const string GeminiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models";

@@ -77,7 +77,7 @@ public class AnthropicClient
     /// </summary>
     /// <param name="systemPrompt">System-Prompt (Instruktionen für Claude)</param>
     /// <param name="userMessage">User-Message (eigentliche Anfrage)</param>
-    /// <param name="model">Claude-Modell (Standard: claude-sonnet-4.5)</param>
+    /// <param name="model">Claude-Modell (Standard: claude-sonnet-4-5)</param>
     /// <param name="maxTokens">Maximale Anzahl Tokens für die Antwort</param>
     /// <param name="temperature">Temperature für Kreativität (0.0 - 1.0)</param>
     /// <param name="apiKey">Optional: User-spezifischer API Key (überschreibt den System-Key)</param>
@@ -85,7 +85,7 @@ public class AnthropicClient
     public async Task<string> ChatAsync(
         string systemPrompt,
         string userMessage,
-        string model = "claude-sonnet-4.5",
+        string model = "claude-sonnet-4-5",
         int maxTokens = 1024,
         double temperature = 0.3,
         string? apiKey = null)
@@ -185,7 +185,7 @@ public class AnthropicClient
     public async Task<JsonDocument> ChatJsonAsync(
         string systemPrompt,
         string userMessage,
-        string model = "claude-sonnet-4.5",
+        string model = "claude-sonnet-4-5",
         int maxTokens = 4096,
         string? apiKey = null)
     {
