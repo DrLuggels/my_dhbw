@@ -191,7 +191,7 @@ function removeFromZone(zoneId: string, item: DraggableItem) {
 function onTouchStart(e: TouchEvent, item: DraggableItem) {
   if (props.disabled) return
   draggedItem.value = item
-  touchStartPos.value = {
+  _touchStartPos.value = {
     x: e.touches[0].clientX,
     y: e.touches[0].clientY
   }

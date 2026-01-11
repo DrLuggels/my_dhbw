@@ -467,7 +467,6 @@ const exerciseModeItems = [
 const showExercisePlayer = ref(false)
 const currentInteractiveExercise = ref<InteractiveExerciseData | null>(null)
 const loadingInteractiveExercise = ref(false)
-const _interactiveExercises = ref<InteractiveExerciseData[]>([])
 
 // Interface for interactive exercises
 interface InteractiveExerciseData {
