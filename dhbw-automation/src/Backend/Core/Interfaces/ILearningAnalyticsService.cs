@@ -22,7 +22,9 @@ public interface ILearningAnalyticsService
     /// <summary>
     /// Generates a practice exercise for a specific deficit using Claude Sonnet 4.5
     /// </summary>
-    Task<GeneratedExercise> GenerateExerciseForDeficitAsync(int deficitId);
+    /// <param name="deficitId">The deficit to generate an exercise for</param>
+    /// <param name="difficulty">Optional difficulty override (easy, medium, hard). If null, defaults based on deficit severity.</param>
+    Task<GeneratedExercise> GenerateExerciseForDeficitAsync(int deficitId, string? difficulty = null);
 
     /// <summary>
     /// Plans a complete learning schedule for the user

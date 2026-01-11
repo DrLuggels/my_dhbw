@@ -190,15 +190,19 @@ public class LearningController : ControllerBase
             // Total: 20 exercises for comprehensive practice
             for (int i = 0; i < 20; i++)
             {
-                var exercise = await _learningService.GenerateExerciseForDeficitAsync(deficitId);
+                // Determine difficulty based on progression
+                string difficulty;
+                if (i < 5)
+                    difficulty = "easy";       // First 5: build foundations
+                else if (i < 15)
+                    difficulty = "medium";     // Next 10: practice and reinforce
+                else
+                    difficulty = "hard";       // Last 5: challenge and test mastery
+
+                var exercise = await _learningService.GenerateExerciseForDeficitAsync(deficitId, difficulty);
                 exercises.Add(exercise);
 
-                if (i < 5)
-                    _logger.LogInformation($"Generated easy exercise {i + 1}/20");
-                else if (i < 15)
-                    _logger.LogInformation($"Generated medium exercise {i + 1}/20");
-                else
-                    _logger.LogInformation($"Generated hard exercise {i + 1}/20");
+                _logger.LogInformation($"Generated {difficulty} exercise {i + 1}/20");
             }
 
             // Plan learning sessions (2 hours total for 20 exercises)

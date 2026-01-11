@@ -235,7 +235,7 @@
                       variant="tonal"
                       class="mt-2"
                     >
-                      <strong>Hilfe:</strong> {{ exercise.helpText }}
+                      <strong>Hilfe:</strong> <span v-html="exercise.helpText"></span>
                     </v-alert>
                   </v-expand-transition>
 
@@ -248,7 +248,7 @@
                     >
                       <strong v-if="exercise.isCorrect">Richtig!</strong>
                       <strong v-else>Nicht ganz richtig</strong>
-                      <p class="mt-2">{{ exercise.explanation }}</p>
+                      <div class="mt-2" v-html="exercise.explanation"></div>
                     </v-alert>
                   </v-expand-transition>
                 </v-card-text>

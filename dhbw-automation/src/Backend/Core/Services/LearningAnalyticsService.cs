@@ -175,7 +175,7 @@ public class LearningAnalyticsService : ILearningAnalyticsService
         return highPriorityDeficits > 0;
     }
 
-    public async Task<GeneratedExercise> GenerateExerciseForDeficitAsync(int deficitId)
+    public async Task<GeneratedExercise> GenerateExerciseForDeficitAsync(int deficitId, string? difficultyOverride = null)
     {
         return await _aiMetrics.TrackAsync("GenerateExercise", "Anthropic", AnthropicModel, async () =>
         {
@@ -189,34 +189,71 @@ public class LearningAnalyticsService : ILearningAnalyticsService
 
                 _logger.LogInformation($"Generating exercise for deficit: {deficit.Subject} - {deficit.Topic}");
 
-                // Determine difficulty based on severity (inverse relationship - high severity = easier exercises)
-                var difficulty = deficit.Severity switch
+                // Use provided difficulty or determine based on severity
+                string difficulty;
+                if (!string.IsNullOrEmpty(difficultyOverride))
                 {
-                    "high" => "easy",       // High severity = student struggling = easier exercises
-                    "medium" => "medium",
-                    _ => "medium"
-                };
+                    difficulty = difficultyOverride;
+                    _logger.LogInformation($"Using specified difficulty: {difficulty}");
+                }
+                else
+                {
+                    // Default: determine based on severity
+                    difficulty = deficit.Severity switch
+                    {
+                        "high" => "easy",       // High severity = student struggling = easier exercises
+                        "medium" => "medium",
+                        _ => "medium"
+                    };
+                }
 
                 // Use Claude Sonnet 4.5 to generate exercise
-                var systemPrompt = $@"Du bist ein Experte für die Erstellung von Übungsaufgaben.
+                var difficultyGuidance = difficulty switch
+                {
+                    "easy" => @"EASY Schwierigkeit bedeutet:
+- Grundlegende Konzepte und Definitionen
+- Einfache, direkte Fragen ohne Tricks
+- Keine komplexen Berechnungen
+- Z.B.: 'Was ist 2+3?', 'Was bedeutet der Begriff X?'",
+                    "medium" => @"MEDIUM Schwierigkeit bedeutet:
+- Anwendung von Konzepten auf konkrete Situationen
+- Mehrere Rechenschritte oder Überlegungen nötig
+- Transferwissen erforderlich
+- Z.B.: 'Löse die Gleichung 3x + 5 = 20', 'Erkläre den Zusammenhang zwischen X und Y'",
+                    "hard" => @"HARD Schwierigkeit bedeutet:
+- Komplexe, mehrstufige Probleme
+- Kombination mehrerer Konzepte nötig
+- Kritisches Denken und Analyse erforderlich
+- Textaufgaben mit versteckten Informationen
+- Z.B.: 'Analysiere diesen Code auf Fehler', 'Beweise warum...'",
+                    _ => "Mittlere Schwierigkeit"
+                };
 
-Erstelle eine {difficulty} Übungsaufgabe für einen Studenten mit folgendem Lerndefizit:
+                var systemPrompt = $@"Du bist ein Experte für die Erstellung von abwechslungsreichen Übungsaufgaben.
+
+Erstelle eine EINZIGARTIGE Übungsaufgabe mit Schwierigkeit '{difficulty.ToUpper()}' für:
 
 Fach: {deficit.Subject}
 Thema: {deficit.Topic}
 Fehlertyp: {deficit.ErrorType}
 Beschreibung: {deficit.ErrorDescription}
 
-Die Aufgabe sollte dem Studenten helfen, genau dieses Defizit zu überwinden.
+{difficultyGuidance}
+
+WICHTIG:
+- Erstelle eine NEUE, KREATIVE Aufgabe (keine Standardbeispiele wie '1+1')
+- Verwende realistische Szenarien und Kontexte
+- Bei Mathe: Verwende verschiedene Zahlen und Aufgabentypen
+- Die Frage sollte klar formuliert und eindeutig lösbar sein
 
 Gib deine Antwort als JSON zurück:
 {{
     ""type"": ""multiple_choice"" | ""text_answer"" | ""calculation"" | ""code"",
-    ""question"": ""HTML-formatierte Frage"",
-    ""options"": [""A) Option 1"", ""B) Option 2"", ...] // nur bei multiple_choice,
-    ""correct_answer"": ""Die korrekte Antwort"",
-    ""explanation"": ""Detaillierte Erklärung der Lösung mit Schritt-für-Schritt Anleitung"",
-    ""help_text"": ""Hilfestellung/Tipps wenn der Student nicht weiterkommt""
+    ""question"": ""<p>HTML-formatierte Frage mit konkretem Aufgabentext</p>"",
+    ""options"": [""A) Option 1"", ""B) Option 2"", ""C) Option 3"", ""D) Option 4""], // nur bei multiple_choice
+    ""correct_answer"": ""Die exakte korrekte Antwort"",
+    ""explanation"": ""<p>Detaillierte Erklärung mit Lösungsweg</p>"",
+    ""help_text"": ""<p>Hilfreicher Tipp ohne die Lösung zu verraten</p>""
 }}";
 
                 // Get user-specific API key
