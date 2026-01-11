@@ -129,76 +129,64 @@ Bei Fragen zur Dokumentation:
 
 ## 🏗️ System-Architektur
 
+### High-Level Übersicht
+
+```mermaid
+graph LR
+    User([👤 User]) --> Frontend[Vue.js Frontend]
+    Frontend <--> Backend[.NET 8 Backend]
+    Backend <--> DB[(MariaDB)]
+    Backend <--> Vector[(Qdrant Vector DB)]
+    Backend <--> Storage[MinIO Object Storage]
+    Backend --> AI[Multi-AI Gateway]
+    Backend <--> External[External APIs<br/>Gmail · Moodle · Calendar]
+    
+    style Frontend fill:#42b983,color:#fff
+    style Backend fill:#4CAF50,color:#fff
+    style AI fill:#e1f5ff
+    style External fill:#fff4e1
+```
+
+### Docker Container Stack
+
 ```mermaid
 graph TB
-    subgraph AI["🤖 AI Services Layer"]
-        OpenAI["OpenAI GPT-5 Mini<br/>• Embeddings<br/>• Summarization<br/>• Tag Generation"]
-        Claude["Claude Sonnet 4.5<br/>• Complex Reasoning<br/>• Document Analysis<br/>• Chat"]
-        Gemini["Google Gemini 3 Flash<br/>• OCR/Vision<br/>• Multimodal<br/>• Image Extract"]
-        Deepgram["Deepgram STT<br/>• Live Transcription<br/>• Vorlesung Protokoll"]
-    end
+    NGINX[NGINX Reverse Proxy] --> Frontend[Vue.js 3 Frontend]
+    NGINX --> Backend[.NET 8 Web API]
+    NGINX --> Admin[phpMyAdmin]
     
-    subgraph Docker["🐳 Docker Container Stack"]
-        NGINX["NGINX Proxy<br/>:80, :443 SSL/TLS"]
-        
-        subgraph App["Application Layer"]
-            Frontend["Vue.js 3 Frontend"]
-            Backend[".NET 8 Backend"]
-            Admin["phpMyAdmin"]
-        end
-        
-        subgraph Workers["Background Services"]
-            EmailSync["Email Sync Worker"]
-            FileProcess["File Processor"]
-            TodoReminder["Todo Reminder"]
-            Review["Review Scheduler"]
-        end
-        
-        subgraph Data["Data Layer"]
-            MariaDB["MariaDB<br/>• Users<br/>• Documents<br/>• Events<br/>• Emails"]
-            Redis["Redis<br/>• Cache<br/>• Sessions"]
-            RabbitMQ["RabbitMQ<br/>• Message Queue<br/>• Job Queue"]
-        end
-        
-        subgraph Storage["Storage Layer"]
-            MinIO["MinIO Object Storage<br/>• Files<br/>• Backups"]
-            Qdrant["Qdrant Vector DB<br/>• Semantic Search<br/>• Embeddings"]
-        end
-    end
-    
-    subgraph External["🌐 External Integrations"]
-        Gmail["Gmail IMAP/SMTP<br/>• Email Sync<br/>• Attachments<br/>• AI Analysis"]
-        GCal["Google Calendar API<br/>• Event Sync<br/>• OAuth 2.0"]
-        Moodle["DHBW Moodle<br/>• Course Files<br/>• Assignments<br/>• Schedules"]
-        HAFAS["HAFAS API (DB)<br/>• Travel Info<br/>• Connections"]
-        RAPLA["RAPLA API (DHBW)<br/>• Schedule Sync<br/>• Room Plans"]
-    end
-    
-    AI -.API Calls.-> Backend
-    NGINX --> Frontend
-    NGINX --> Backend
-    NGINX --> Admin
-    
-    Backend --> Workers
-    Backend --> MariaDB
-    Backend --> Redis
-    Backend --> RabbitMQ
+    Backend --> Workers[Background Workers<br/>Email · Files · Reminders]
+    Backend --> MariaDB[(MariaDB)]
+    Backend --> Redis[(Redis Cache)]
+    Backend --> RabbitMQ[RabbitMQ Queue]
+    Backend --> MinIO[MinIO Storage]
+    Backend --> Qdrant[Qdrant Vector DB]
     
     Workers --> MariaDB
     Workers --> MinIO
     Workers --> Qdrant
     
-    Backend --> Gmail
-    Backend --> GCal
-    Backend --> Moodle
-    Backend --> HAFAS
-    Backend --> RAPLA
-    
-    style AI fill:#e1f5ff
-    style Docker fill:#f0f0f0
-    style External fill:#fff4e1
     style Backend fill:#4CAF50,color:#fff
     style Frontend fill:#42b983,color:#fff
+```
+
+### AI & External Services
+
+```mermaid
+graph LR
+    Backend[.NET Backend] --> OpenAI[OpenAI GPT-5<br/>Embeddings · Summary]
+    Backend --> Claude[Claude Sonnet 4.5<br/>Reasoning · Analysis]
+    Backend --> Gemini[Gemini Flash<br/>Vision · OCR]
+    Backend --> Deepgram[Deepgram<br/>Speech-to-Text]
+    Backend --> Gmail[Gmail IMAP/SMTP]
+    Backend --> GCal[Google Calendar]
+    Backend --> Moodle[DHBW Moodle]
+    
+    style Backend fill:#4CAF50,color:#fff
+    style OpenAI fill:#e1f5ff
+    style Claude fill:#e1f5ff
+    style Gemini fill:#e1f5ff
+    style Deepgram fill:#e1f5ff
 ```
 ---
 
