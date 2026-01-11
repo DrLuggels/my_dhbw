@@ -381,14 +381,11 @@ async function quickConfirm(entity: StagedEntity) {
 }
 
 async function quickReject(entity: StagedEntity) {
-  const confirmed = confirm('Möchten Sie diese Entität wirklich ablehnen?')
-  if (confirmed) {
-    const success = await validationStore.rejectEntity(entity.id, 'Schnellablehnung')
-    if (success) {
-      showSnackbar(`${getEntityTypeLabel(entity.entityType)} abgelehnt`, 'info')
-    } else {
-      showSnackbar('Fehler beim Ablehnen', 'error')
-    }
+  const success = await validationStore.rejectEntity(entity.id, 'Schnellablehnung')
+  if (success) {
+    showSnackbar(`${getEntityTypeLabel(entity.entityType)} abgelehnt`, 'info')
+  } else {
+    showSnackbar('Fehler beim Ablehnen', 'error')
   }
 }
 
