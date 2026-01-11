@@ -121,8 +121,21 @@ public class LearningController : ControllerBase
             if (exercise.UserId != request.UserId)
                 return Forbid();
 
+            // Check if answer is correct (compare user answer with stored correct answer)
+            var userAnswer = request.Answer?.Trim().ToLowerInvariant() ?? "";
+            var correctAnswer = exercise.CorrectAnswer?.Trim().ToLowerInvariant() ?? "";
+
+            // Remove JSON quotes if present (CorrectAnswer is stored as JSON string)
+            if (correctAnswer.StartsWith("\"") && correctAnswer.EndsWith("\""))
+                correctAnswer = correctAnswer[1..^1];
+
+            // Simple comparison - check if user answer contains the correct answer or vice versa
+            var isCorrect = userAnswer == correctAnswer ||
+                            correctAnswer.Contains(userAnswer) ||
+                            userAnswer.Contains(correctAnswer);
+
             // Update exercise progress using SM-2 algorithm
-            await _learningService.UpdateExerciseProgressAsync(exerciseId, request.Answer, request.IsCorrect);
+            await _learningService.UpdateExerciseProgressAsync(exerciseId, request.Answer, isCorrect);
 
             // Reload exercise to get updated values
             await _context.Entry(exercise).ReloadAsync();
