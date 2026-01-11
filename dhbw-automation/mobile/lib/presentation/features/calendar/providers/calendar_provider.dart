@@ -44,10 +44,12 @@ class CalendarState with _$CalendarState {
     return ((dayOfYear + DateTime(weekStart.year, 1, 1).weekday) / 7).ceil();
   }
 
-  /// Calculate Monday for given date
+  /// Calculate Monday for given date (at 00:00:00)
   static DateTime _getMonday(DateTime date) {
     final weekday = date.weekday;
-    return date.subtract(Duration(days: weekday - 1));
+    final monday = date.subtract(Duration(days: weekday - 1));
+    // Reset time to 00:00:00 to include all events from that day
+    return DateTime(monday.year, monday.month, monday.day);
   }
 }
 

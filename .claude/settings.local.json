@@ -27,7 +27,10 @@
       "Bash(xcopy:*)",
       "Bash(if not exist C:dev mkdir C:dev)",
       "Bash(flutter build:*)",
-      "WebFetch(domain:jappuccini.github.io)"
+      "WebFetch(domain:jappuccini.github.io)",
+      "WebFetch(domain:rapla-ravensburg.dhbw.de)",
+      "WebSearch",
+      "WebFetch(domain:github.com)"
     ]
   }
 }
