@@ -596,7 +596,7 @@ const router = useRouter()
 // View state
 const viewMode = ref<'graph' | 'list'>('list')
 const listFilter = ref('')
-const networkContainer = ref<HTMLElement | null>(null)
+const _networkContainer = ref<HTMLElement | null>(null)
 
 // Stats
 const stats = ref({

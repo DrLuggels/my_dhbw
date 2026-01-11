@@ -29,7 +29,7 @@
               <v-list-item
                 v-for="p in priorities"
                 :key="p.value"
-                @click="priority = p.value"
+                @click="priority = p.value as 'low' | 'medium' | 'high' | 'urgent'"
               >
                 <template v-slot:prepend>
                   <v-icon :color="p.color" size="small">{{ p.icon }}</v-icon>

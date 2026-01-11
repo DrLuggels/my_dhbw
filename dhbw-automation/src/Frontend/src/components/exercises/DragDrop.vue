@@ -109,8 +109,8 @@ const dragOverZone = ref<string | null>(null)
 const zoneItems = ref<Record<string, DraggableItem[]>>({})
 
 // Touch drag state
-const touchDragElement = ref<HTMLElement | null>(null)
-const touchStartPos = ref({ x: 0, y: 0 })
+const _touchDragElement = ref<HTMLElement | null>(null)
+const _touchStartPos = ref({ x: 0, y: 0 })
 
 const dropZones = computed(() => props.config?.dropZones || [])
 const allItems = computed(() => props.config?.draggables || [])
