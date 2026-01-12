@@ -30,7 +30,9 @@
       "WebFetch(domain:jappuccini.github.io)",
       "WebFetch(domain:rapla-ravensburg.dhbw.de)",
       "WebSearch",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(powershell -Command \"cd ''C:\\\\Projects\\\\dhbw_mobile''; flutter devices\")",
+      "Bash(powershell -Command \"cd ''C:\\\\Projects\\\\dhbw_mobile''; flutter run -d R5CY61L1GER --release\")"
     ]
   }
 }
