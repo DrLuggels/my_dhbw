@@ -25,6 +25,10 @@
       </v-col>
 
       <v-col cols="12">
+        <MoodleIntegrationCard />
+      </v-col>
+
+      <v-col cols="12">
         <v-card>
           <v-card-title>
             <v-icon left>mdi-google</v-icon>
@@ -68,6 +72,7 @@ import ProfileDataCard from '@/components/profile/ProfileDataCard.vue'
 import PasswordChangeCard from '@/components/profile/PasswordChangeCard.vue'
 import ApiKeysCard from '@/components/profile/ApiKeysCard.vue'
 import AccountInfoCard from '@/components/profile/AccountInfoCard.vue'
+import MoodleIntegrationCard from '@/components/profile/MoodleIntegrationCard.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
