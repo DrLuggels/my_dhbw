@@ -718,7 +718,7 @@ public class KnowledgeNetworkService : IKnowledgeNetworkService
             {
                 X = x,
                 Y = y,
-                EntityType = points[i].EntityType,
+                EntityType = MapEntityTypeForFrontend(points[i].EntityType),
                 EntityId = points[i].EntityId,
                 Label = points[i].Topic ?? points[i].Filename ?? $"{points[i].EntityType}:{points[i].EntityId}",
                 Category = DetermineCategory(points[i].EntityType)
@@ -755,6 +755,23 @@ public class KnowledgeNetworkService : IKnowledgeNetworkService
             KnowledgeEntityTypes.KnowledgeItem => "Knowledge",
             KnowledgeEntityTypes.Image => "Images",
             _ => "Other"
+        };
+    }
+
+    /// <summary>
+    /// Map backend entity types to frontend expected values
+    /// </summary>
+    private string MapEntityTypeForFrontend(string entityType)
+    {
+        return entityType switch
+        {
+            KnowledgeEntityTypes.Document => "Document",
+            KnowledgeEntityTypes.DocumentChunk => "Document", // Map chunks to Document for frontend
+            KnowledgeEntityTypes.JavaDocsExercise => "JavaDocsExercise",
+            KnowledgeEntityTypes.KnowledgeItem => "KnowledgeItem",
+            KnowledgeEntityTypes.Image => "Image",
+            KnowledgeEntityTypes.MoodleResource => "MoodleResource",
+            _ => entityType
         };
     }
 }
