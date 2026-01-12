@@ -372,12 +372,13 @@ public class QdrantService : IQdrantService
                 };
             }
 
+            // Use ScrollAsync with vectorsSelector parameter
             var scrollResult = await _client.ScrollAsync(
                 collectionName,
                 filter: filter,
                 limit: (uint)limit,
-                withVectors: true,
-                payloadSelector: new WithPayloadSelector { Enable = true }
+                vectorsSelector: new WithVectorsSelector { Enable = true },
+                payloadSelector: true
             );
 
             var results = new List<PointWithVector>();
