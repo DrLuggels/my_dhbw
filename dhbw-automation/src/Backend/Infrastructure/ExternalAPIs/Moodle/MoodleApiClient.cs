@@ -519,7 +519,7 @@ public class MoodleCourse
     public string? Summary { get; set; }
     public long Startdate { get; set; }
     public long Enddate { get; set; }
-    public bool Visible { get; set; }
+    public int Visible { get; set; }  // Moodle returns 0/1 not true/false
     public string? Format { get; set; }
     public int? Progress { get; set; }
 }

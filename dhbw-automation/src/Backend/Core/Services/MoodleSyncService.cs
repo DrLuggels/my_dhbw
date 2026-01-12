@@ -242,7 +242,7 @@ public class MoodleSyncService : IMoodleSyncService
                     existing.Format = course.Format;
                     existing.StartDate = course.Startdate > 0 ? DateTimeOffset.FromUnixTimeSeconds(course.Startdate).UtcDateTime : null;
                     existing.EndDate = course.Enddate > 0 ? DateTimeOffset.FromUnixTimeSeconds(course.Enddate).UtcDateTime : null;
-                    existing.Visible = course.Visible;
+                    existing.Visible = course.Visible != 0;
                     existing.Progress = course.Progress;
                     existing.LastSynced = DateTime.UtcNow;
                     existing.UpdatedAt = DateTime.UtcNow;
@@ -261,7 +261,7 @@ public class MoodleSyncService : IMoodleSyncService
                         Format = course.Format,
                         StartDate = course.Startdate > 0 ? DateTimeOffset.FromUnixTimeSeconds(course.Startdate).UtcDateTime : null,
                         EndDate = course.Enddate > 0 ? DateTimeOffset.FromUnixTimeSeconds(course.Enddate).UtcDateTime : null,
-                        Visible = course.Visible,
+                        Visible = course.Visible != 0,
                         Progress = course.Progress,
                         LastSynced = DateTime.UtcNow
                     };
