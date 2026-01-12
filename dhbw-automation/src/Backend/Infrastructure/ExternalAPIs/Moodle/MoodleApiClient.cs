@@ -1,5 +1,7 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using DHBWAutomation.Backend.Shared.Helpers;
+using Microsoft.Extensions.Logging;
 
 namespace DHBWAutomation.Backend.Infrastructure.ExternalAPIs.Moodle;
 
@@ -10,12 +12,21 @@ namespace DHBWAutomation.Backend.Infrastructure.ExternalAPIs.Moodle;
 public class MoodleApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly ILogger<MoodleApiClient>? _logger;
     private readonly string _baseUrl;
-    private readonly string _token;
+    private string _token;
 
-    public MoodleApiClient(HttpClient httpClient, IConfiguration configuration)
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        NumberHandling = JsonNumberHandling.AllowReadingFromString
+    };
+
+    public MoodleApiClient(HttpClient httpClient, IConfiguration configuration, ILogger<MoodleApiClient>? logger = null)
     {
         _httpClient = httpClient;
+        _logger = logger;
         _baseUrl = Environment.GetEnvironmentVariable("MOODLE_BASE_URL")
                    ?? configuration["Moodle:BaseUrl"]
                    ?? "https://moodle.dhbw-ravensburg.de";
@@ -25,6 +36,19 @@ public class MoodleApiClient
 
         _httpClient.BaseAddress = new Uri(_baseUrl);
     }
+
+    /// <summary>
+    /// Setzt den Token für API-Anfragen (z.B. nach Login)
+    /// </summary>
+    public void SetToken(string token)
+    {
+        _token = token;
+    }
+
+    /// <summary>
+    /// Prüft ob ein gültiger Token vorhanden ist
+    /// </summary>
+    public bool HasToken => !string.IsNullOrEmpty(_token);
 
     /// <summary>
     /// Erstellt die Moodle-API-URL mit Token
@@ -136,14 +160,334 @@ public class MoodleApiClient
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
-            return JsonSerializer.Deserialize<MoodleSiteInfo>(json);
+            return JsonSerializer.Deserialize<MoodleSiteInfo>(json, JsonOptions);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Fehler beim Abrufen der Moodle-Site-Info: {ex.Message}");
+            _logger?.LogError(ex, "Fehler beim Abrufen der Moodle-Site-Info");
             return null;
         }
     }
+
+    #region Auto-Login
+
+    /// <summary>
+    /// Meldet sich mit Username und Passwort an und holt einen Token
+    /// Endpoint: /login/token.php
+    /// </summary>
+    /// <param name="username">Moodle-Username (z.B. student123)</param>
+    /// <param name="password">Moodle-Passwort</param>
+    /// <param name="service">Service-Name (Standard: moodle_mobile_app)</param>
+    /// <returns>Token wenn erfolgreich, null bei Fehler</returns>
+    public async Task<MoodleLoginResult> LoginAndGetTokenAsync(string username, string password, string service = "moodle_mobile_app")
+    {
+        try
+        {
+            var loginParams = new Dictionary<string, string>
+            {
+                { "username", username },
+                { "password", password },
+                { "service", service }
+            };
+
+            var response = await _httpClient.PostAsync(
+                "/login/token.php",
+                new FormUrlEncodedContent(loginParams));
+
+            var json = await response.Content.ReadAsStringAsync();
+            _logger?.LogDebug("Moodle Login Response: {Json}", json);
+
+            var result = JsonSerializer.Deserialize<MoodleTokenResponse>(json, JsonOptions);
+
+            if (result?.Token != null)
+            {
+                _token = result.Token;
+                return new MoodleLoginResult
+                {
+                    Success = true,
+                    Token = result.Token
+                };
+            }
+
+            return new MoodleLoginResult
+            {
+                Success = false,
+                ErrorMessage = result?.Error ?? "Unbekannter Fehler beim Login"
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Fehler beim Moodle-Login für User {Username}", username);
+            return new MoodleLoginResult
+            {
+                Success = false,
+                ErrorMessage = ex.Message
+            };
+        }
+    }
+
+    #endregion
+
+    #region Kursinhalte
+
+    /// <summary>
+    /// Holt alle Inhalte eines Kurses (Sektionen, Module, Dateien)
+    /// API: core_course_get_contents
+    /// </summary>
+    /// <param name="courseId">Die Moodle-Kurs-ID</param>
+    public async Task<List<MoodleCourseSection>> GetCourseContentsAsync(int courseId)
+    {
+        try
+        {
+            var parameters = new Dictionary<string, string>
+            {
+                { "courseid", courseId.ToString() }
+            };
+
+            var url = BuildApiUrl("core_course_get_contents", parameters);
+            var response = await _httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadAsStringAsync();
+            _logger?.LogDebug("Course contents response for {CourseId}: {Length} chars", courseId, json.Length);
+
+            var sections = JsonSerializer.Deserialize<List<MoodleCourseSection>>(json, JsonOptions);
+            return sections ?? new List<MoodleCourseSection>();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Fehler beim Abrufen der Kursinhalte für Kurs {CourseId}", courseId);
+            return new List<MoodleCourseSection>();
+        }
+    }
+
+    #endregion
+
+    #region Aufgaben (Assignments)
+
+    /// <summary>
+    /// Holt alle Aufgaben für die angegebenen Kurse
+    /// API: mod_assign_get_assignments
+    /// </summary>
+    /// <param name="courseIds">Liste von Kurs-IDs</param>
+    public async Task<MoodleAssignmentsResponse> GetAssignmentsAsync(params int[] courseIds)
+    {
+        try
+        {
+            var parameters = new Dictionary<string, string>();
+            for (int i = 0; i < courseIds.Length; i++)
+            {
+                parameters[$"courseids[{i}]"] = courseIds[i].ToString();
+            }
+
+            var url = BuildApiUrl("mod_assign_get_assignments", parameters);
+            var response = await _httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadAsStringAsync();
+            _logger?.LogDebug("Assignments response: {Length} chars", json.Length);
+
+            var result = JsonSerializer.Deserialize<MoodleAssignmentsResponse>(json, JsonOptions);
+            return result ?? new MoodleAssignmentsResponse();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Fehler beim Abrufen der Aufgaben für Kurse {CourseIds}", string.Join(", ", courseIds));
+            return new MoodleAssignmentsResponse();
+        }
+    }
+
+    /// <summary>
+    /// Holt den Einreichungsstatus für eine Aufgabe
+    /// API: mod_assign_get_submission_status
+    /// </summary>
+    public async Task<MoodleSubmissionStatus?> GetSubmissionStatusAsync(int assignmentId, int userId)
+    {
+        try
+        {
+            var parameters = new Dictionary<string, string>
+            {
+                { "assignid", assignmentId.ToString() },
+                { "userid", userId.ToString() }
+            };
+
+            var url = BuildApiUrl("mod_assign_get_submission_status", parameters);
+            var response = await _httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<MoodleSubmissionStatus>(json, JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Fehler beim Abrufen des Submission-Status für Assignment {AssignmentId}", assignmentId);
+            return null;
+        }
+    }
+
+    #endregion
+
+    #region Kalender-Events
+
+    /// <summary>
+    /// Holt Kalender-Events für einen Zeitraum
+    /// API: core_calendar_get_calendar_events
+    /// </summary>
+    /// <param name="timeStart">Start-Zeitpunkt (Unix-Timestamp)</param>
+    /// <param name="timeEnd">End-Zeitpunkt (Unix-Timestamp)</param>
+    /// <param name="courseIds">Optional: Nur Events dieser Kurse</param>
+    public async Task<MoodleCalendarEventsResponse> GetCalendarEventsAsync(
+        long? timeStart = null,
+        long? timeEnd = null,
+        int[]? courseIds = null)
+    {
+        try
+        {
+            var parameters = new Dictionary<string, string>
+            {
+                { "options[siteevents]", "1" },
+                { "options[userevents]", "1" }
+            };
+
+            if (timeStart.HasValue)
+                parameters["options[timestart]"] = timeStart.Value.ToString();
+            if (timeEnd.HasValue)
+                parameters["options[timeend]"] = timeEnd.Value.ToString();
+
+            if (courseIds != null)
+            {
+                for (int i = 0; i < courseIds.Length; i++)
+                {
+                    parameters[$"events[courseids][{i}]"] = courseIds[i].ToString();
+                }
+            }
+
+            var url = BuildApiUrl("core_calendar_get_calendar_events", parameters);
+            var response = await _httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadAsStringAsync();
+            _logger?.LogDebug("Calendar events response: {Length} chars", json.Length);
+
+            var result = JsonSerializer.Deserialize<MoodleCalendarEventsResponse>(json, JsonOptions);
+            return result ?? new MoodleCalendarEventsResponse();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Fehler beim Abrufen der Kalender-Events");
+            return new MoodleCalendarEventsResponse();
+        }
+    }
+
+    /// <summary>
+    /// Holt anstehende Events für einen Benutzer
+    /// API: core_calendar_get_action_events_by_timesort
+    /// </summary>
+    public async Task<List<MoodleCalendarEvent>> GetUpcomingEventsAsync(int limitNum = 50)
+    {
+        try
+        {
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var parameters = new Dictionary<string, string>
+            {
+                { "timesortfrom", now.ToString() },
+                { "limitnum", limitNum.ToString() }
+            };
+
+            var url = BuildApiUrl("core_calendar_get_action_events_by_timesort", parameters);
+            var response = await _httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadAsStringAsync();
+            var result = JsonSerializer.Deserialize<MoodleActionEventsResponse>(json, JsonOptions);
+            return result?.Events ?? new List<MoodleCalendarEvent>();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Fehler beim Abrufen der anstehenden Events");
+            return new List<MoodleCalendarEvent>();
+        }
+    }
+
+    #endregion
+
+    #region Datei-Download
+
+    /// <summary>
+    /// Lädt eine Datei von Moodle herunter
+    /// Verwendet den Token für authentifizierten Zugriff
+    /// </summary>
+    /// <param name="fileUrl">Die Moodle-Datei-URL (kann relativ oder absolut sein)</param>
+    /// <returns>Datei als Byte-Array oder null bei Fehler</returns>
+    public async Task<MoodleFileDownloadResult> DownloadFileAsync(string fileUrl)
+    {
+        try
+        {
+            // URL mit Token versehen wenn nötig
+            var downloadUrl = fileUrl;
+            if (!fileUrl.Contains("token="))
+            {
+                var separator = fileUrl.Contains("?") ? "&" : "?";
+                downloadUrl = $"{fileUrl}{separator}token={_token}";
+            }
+
+            // Wenn relative URL, BaseUrl hinzufügen
+            if (!downloadUrl.StartsWith("http"))
+            {
+                downloadUrl = $"{_baseUrl.TrimEnd('/')}/{downloadUrl.TrimStart('/')}";
+            }
+
+            _logger?.LogDebug("Downloading file from: {Url}", downloadUrl.Replace(_token, "***TOKEN***"));
+
+            var response = await _httpClient.GetAsync(downloadUrl);
+            response.EnsureSuccessStatusCode();
+
+            var contentType = response.Content.Headers.ContentType?.MediaType ?? "application/octet-stream";
+            var fileName = response.Content.Headers.ContentDisposition?.FileName?.Trim('"')
+                          ?? Path.GetFileName(new Uri(downloadUrl).LocalPath);
+            var content = await response.Content.ReadAsByteArrayAsync();
+
+            return new MoodleFileDownloadResult
+            {
+                Success = true,
+                Content = content,
+                FileName = fileName,
+                ContentType = contentType,
+                FileSize = content.Length
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Fehler beim Herunterladen der Datei von {Url}", fileUrl);
+            return new MoodleFileDownloadResult
+            {
+                Success = false,
+                ErrorMessage = ex.Message
+            };
+        }
+    }
+
+    /// <summary>
+    /// Konstruiert die Download-URL für eine Moodle-Datei
+    /// </summary>
+    public string GetFileDownloadUrl(string fileUrl)
+    {
+        if (string.IsNullOrEmpty(fileUrl))
+            return string.Empty;
+
+        // pluginfile.php URLs benötigen Token
+        if (fileUrl.Contains("pluginfile.php") && !fileUrl.Contains("token="))
+        {
+            // Ersetze /pluginfile.php durch /webservice/pluginfile.php für Token-Auth
+            var tokenUrl = fileUrl.Replace("/pluginfile.php", "/webservice/pluginfile.php");
+            var separator = tokenUrl.Contains("?") ? "&" : "?";
+            return $"{tokenUrl}{separator}token={_token}";
+        }
+
+        return fileUrl;
+    }
+
+    #endregion
 }
 
 // DTOs für Moodle-API-Responses

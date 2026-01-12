@@ -39,7 +39,9 @@
       "Bash(done)",
       "Bash(powershell -Command \"cd ''C:\\\\Projects\\\\dhbw_mobile''; dart run build_runner build --delete-conflicting-outputs\")",
       "Bash(powershell -Command \"flutter devices\")",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(cd:*)",
+      "WebFetch(domain:docs.moodle.org)"
     ]
   }
 }

@@ -84,4 +84,5 @@ public static class QdrantCollections
     public const string Exercises = "dhbw_exercises";
     public const string KnowledgeItems = "dhbw_knowledge";
     public const string Images = "dhbw_images";
+    public const string Chunks = "dhbw_chunks";
 }

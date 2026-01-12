@@ -98,6 +98,23 @@ public class Document
     /// </summary>
     public bool ImagesProcessed { get; set; } = false;
 
+    // === Chunking ===
+
+    /// <summary>
+    /// Number of semantic chunks extracted from this document
+    /// </summary>
+    public int ChunkCount { get; set; } = 0;
+
+    /// <summary>
+    /// Whether this document has been chunked
+    /// </summary>
+    public bool IsChunked { get; set; } = false;
+
+    /// <summary>
+    /// When the document was chunked
+    /// </summary>
+    public DateTime? ChunkedAt { get; set; }
+
     // Navigation Properties
     [ForeignKey("UserId")]
     public virtual User User { get; set; } = null!;
@@ -106,4 +123,6 @@ public class Document
     public virtual Project? RelatedProject { get; set; }
 
     public virtual ICollection<DocumentImage> Images { get; set; } = new List<DocumentImage>();
+
+    public virtual ICollection<DocumentChunk> Chunks { get; set; } = new List<DocumentChunk>();
 }

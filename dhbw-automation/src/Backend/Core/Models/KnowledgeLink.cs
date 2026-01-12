@@ -121,6 +121,7 @@ public static class KnowledgeLinkTypes
 public static class KnowledgeEntityTypes
 {
     public const string Document = "document";
+    public const string DocumentChunk = "document_chunk";
     public const string Exercise = "exercise";
     public const string JavaDocsExercise = "java_docs_exercise";
     public const string KnowledgeItem = "knowledge_item";
