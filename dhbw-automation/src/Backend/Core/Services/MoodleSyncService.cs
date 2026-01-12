@@ -5,6 +5,11 @@ using DHBWAutomation.Backend.Shared.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
+// Type aliases to resolve ambiguous references between Models and API DTOs
+using MoodleCourseModel = DHBWAutomation.Backend.Core.Models.MoodleCourse;
+using MoodleCalendarEventModel = DHBWAutomation.Backend.Core.Models.MoodleCalendarEvent;
+using MoodleApiCalendarEvent = DHBWAutomation.Backend.Infrastructure.ExternalAPIs.Moodle.MoodleCalendarEvent;
+
 namespace DHBWAutomation.Backend.Core.Services;
 
 /// <summary>
@@ -239,7 +244,7 @@ public class MoodleSyncService : IMoodleSyncService
                 else
                 {
                     // Insert
-                    var newCourse = new MoodleCourse
+                    var newCourse = new MoodleCourseModel
                     {
                         UserId = userId,
                         MoodleCourseId = course.Id,
@@ -520,7 +525,7 @@ public class MoodleSyncService : IMoodleSyncService
             var timeEnd = now.AddDays(90).ToUnixTimeSeconds();
 
             var eventsResponse = await _moodleClient.GetCalendarEventsAsync(timeStart, timeEnd);
-            var events = eventsResponse.Events ?? new List<MoodleCalendarEvent>();
+            var events = eventsResponse.Events ?? new List<MoodleApiCalendarEvent>();
 
             // Auch anstehende Events holen
             var upcomingEvents = await _moodleClient.GetUpcomingEventsAsync(100);
