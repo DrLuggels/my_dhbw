@@ -1,0 +1,181 @@
+﻿2026-01-08 12:44:15 +0100|first commit
+2026-01-08 12:56:07 +0100|F├╝ge Unterst├╝tzung f├╝r SQLite-Datenbank hinzu und verbessere die Datenbankinitialisierung
+2026-01-08 13:05:14 +0100|F├╝ge Registrierungskomponente hinzu und aktualisiere Authentifizierungslogik
+2026-01-08 14:12:11 +0100|F├╝ge Moodle-API-Client und Authentifizierungshelfer hinzu
+2026-01-08 15:03:51 +0100|F├╝ge CalendarController hinzu mit CRUD-Operationen f├╝r Events und Rapla-Integration
+2026-01-08 15:56:48 +0100|F├╝ge Rapla-Integration hinzu mit Synchronisation und Verbindungstest f├╝r Kalenderereignisse
+2026-01-08 20:19:16 +0100|Update: Implement Calendar and Profile views, update API controllers and routing
+2026-01-08 20:40:40 +0100|Add Docker production setup and deployment documentation
+2026-01-08 20:44:49 +0100|Disable backend/frontend in docker-compose.prod - infrastructure only
+2026-01-08 20:47:00 +0100|Change ports to avoid conflicts with existing containers
+2026-01-08 20:50:33 +0100|Fix phpMyAdmin port and add complete server deployment documentation
+2026-01-08 20:54:23 +0100|Add rebuild and deployment scripts
+2026-01-08 21:00:15 +0100|Add Frontend to production deployment
+2026-01-08 21:17:47 +0100|Fix TypeScript errors in Frontend
+2026-01-08 21:21:57 +0100|Fix remaining TypeScript errors
+2026-01-08 21:24:11 +0100|Remove unused formatDate function
+2026-01-08 21:28:19 +0100|Change Frontend port to 8091
+2026-01-08 21:29:00 +0100|Update docker-compose port to 8091
+2026-01-08 21:34:33 +0100|Add initial database schema migration
+2026-01-08 21:38:13 +0100|Configure CORS and enable Backend deployment
+2026-01-08 21:41:48 +0100|Add Model classes that were missing from git
+2026-01-08 21:43:09 +0100|Fix Program.cs using statement
+2026-01-08 21:49:50 +0100|Add missing using DHBWAutomation.Infrastructure.Storage
+2026-01-08 21:52:11 +0100|Add MinIOStorageService to Git repository
+2026-01-08 21:57:44 +0100|Fix backend port mapping from 80 to 8080
+2026-01-08 22:00:37 +0100|Add deployment success documentation
+2026-01-08 22:01:59 +0100|Add .env.production for frontend server deployment
+2026-01-08 22:22:53 +0100|Fix Login/Registration: Update API URLs, enable Nginx proxy, fix Swagger
+2026-01-08 22:25:00 +0100|Fix SwaggerFileOperationFilter namespace
+2026-01-08 23:09:23 +0100|Fix: Add SslMode=None to MariaDB connection string
+2026-01-08 23:11:54 +0100|Fix: Use correct DB environment variables and add SslMode=None
+2026-01-08 23:17:53 +0100|Fix: Use correct environment variable names (DB_HOST, REDIS_HOST) instead of ConnectionString format
+2026-01-08 23:36:07 +0100|Fix: Remove URL encoding for Rapla file parameter (use + instead of %2B)
+2026-01-08 23:36:49 +0100|Fix: Add API keys and endpoints to AIService; create fix_users_table.sql for database schema updates
+2026-01-09 10:02:02 +0100|feat: Implement Learning Analytics and Scheduling Services
+2026-01-09 10:49:47 +0100|feat: Add calendar event details dialog and list view components
+2026-01-09 12:39:26 +0100|feat: Add Profile and Todo screens with functionality for user management and task handling
+2026-01-09 13:50:33 +0100|feat: Implement rate limiting and bulk processing for document uploads
+2026-01-09 14:20:06 +0100|feat: Implement Knowledge Base System and Travel Feature
+2026-01-09 14:22:13 +0100|feat: Update exercise generation logic in LearningAnalyticsService to use ChatJsonAsync and enhance error handling
+2026-01-09 16:06:03 +0100|feat: Implement Travel feature with service and UI for train connections
+2026-01-09 16:12:41 +0100|Fix .gitignore and add Backend Core Models
+2026-01-09 16:17:19 +0100|Add Storage folder to Infrastructure
+2026-01-09 16:22:04 +0100|chore: add pubspec.lock file with updated dependencies
+2026-01-09 16:34:30 +0100|feat: Implement user-specific API keys with encryption - Add encrypted API key fields to User model - Create UserController for API key management - Update AIService to prioritize user keys over global env keys - Add EncryptionHelper for secure key storage - Create database migration for API key columns - Update frontend to send/receive keys from backend
+2026-01-09 17:14:05 +0100|feat: Add health check to backend Dockerfile and update gradle.properties for path check
+2026-01-09 17:48:57 +0100|Fix CORS: Allow multiple frontend origins
+2026-01-09 17:52:18 +0100|Fix JWT authentication configuration
+2026-01-09 18:12:23 +0100|Fix JWT validation: Add logging and relax token validation
+2026-01-09 18:20:14 +0100|Fix: Use MariaDB instead of SQLite for production
+2026-01-09 18:58:12 +0100|Fix: Use relative API URLs in production for Nginx proxy
+2026-01-09 19:04:04 +0100|Fix: Forward Authorization header in Nginx proxy
+2026-01-09 19:14:36 +0100|Fix: Use API service with JWT token instead of raw axios in Dashboard components
+2026-01-09 19:30:04 +0100|Add missing patch method to API service
+2026-01-09 19:37:39 +0100|Fix: Remove duplicate /api/ prefix from API calls
+2026-01-09 19:44:07 +0100|Fix: Add JWT_SECRET environment variable to backend
+2026-01-09 19:47:36 +0100|Add migration for core tables (todos, user_interactions, learning_deficits)
+2026-01-09 19:48:41 +0100|Fix: Use api service in GoogleCalendarConnect and remove /api/ duplication
+2026-01-09 19:53:19 +0100|Fix: Add Google Calendar env vars and fix calendar_events UpdatedAt default
+2026-01-09 19:56:29 +0100|Fix: Set UpdatedAt when creating CalendarEvent in RaplaClient
+2026-01-09 20:01:42 +0100|Fix: Sync JWT_SECRET default value between AuthService and Program.cs
+2026-01-09 20:05:29 +0100|Fix: Read JWT_SECRET at runtime inside AddJwtBearer lambda
+2026-01-09 20:14:23 +0100|Fix: Create SymmetricSecurityKey once and reuse it for token validation
+2026-01-09 20:18:37 +0100|Fix: Use IssuerSigningKeyResolver to ensure key is available during validation
+2026-01-09 20:25:57 +0100|Fix: Ersetze axios durch api-Service f├╝r JWT-Token-Authentifizierung
+2026-01-09 20:32:16 +0100|Fix: JWT Security Key direkt setzen statt Resolver verwenden
+2026-01-09 20:35:16 +0100|Neu: Dokumentation f├╝r Git Push zum Server hinzuf├╝gen
+2026-01-09 20:50:35 +0100|Fix calendar_events Subject column length for Rapla sync
+2026-01-09 21:15:02 +0100|Frontend: Kategorie-Auswahl optional - AI erkennt automatisch
+2026-01-09 21:27:44 +0100|Fix TypeScript: Verwende leeren String statt null f├╝r optionale Kategorie
+2026-01-09 21:34:25 +0100|Fix: F├╝ge Port-Mapping 8091:80 f├╝r Frontend hinzu
+2026-01-09 21:51:31 +0100|Kategorie-Dropdown komplett entfernt - KI macht alles automatisch
+2026-01-09 21:53:51 +0100|Fix: Korrigiere Upload-Funktion nach Kategorie-Entfernung
+2026-01-09 21:59:26 +0100|Fix: Sende category nur wenn vorhanden
+2026-01-09 22:36:44 +0100|Fix file upload: Remove explicit Content-Type header for FormData
+2026-01-09 22:41:57 +0100|Fix nginx file upload: Add client_max_body_size and proxy buffering settings
+2026-01-09 22:46:11 +0100|Add ModelState logging to debug file upload
+2026-01-09 22:56:15 +0100|Add ModelState logging to debug file upload
+2026-01-09 22:57:45 +0100|Add ModelState logging to debug file upload
+2026-01-09 23:06:24 +0100|Add extensive logging throughout file upload pipeline
+2026-01-10 00:09:38 +0100|Fix file upload: Set correct Content-Type for multipart/form-data
+2026-01-10 00:26:25 +0100|Fix file upload: Let browser set Content-Type with boundary automatically
+2026-01-10 00:31:57 +0100|Fix file upload: Remove Content-Type header for FormData in interceptor
+2026-01-10 00:52:46 +0100|Add debug logging for file upload
+2026-01-10 00:57:17 +0100|Fix file upload: Use File instead of File[] for v-file-input
+2026-01-10 01:08:24 +0100|Fix file upload: Let browser set Content-Type with boundary automatically
+2026-01-10 01:19:39 +0100|Add extensive logging to debug text extraction issue
+2026-01-10 01:24:04 +0100|Fix MinIO download: Use async CopyToAsync and add extensive logging
+2026-01-10 09:15:28 +0100|Fix MinIO download: Use synchronous callback instead of async
+2026-01-10 09:36:39 +0100|Fix MinIO download: Add extensive debug logging (force-add)
+2026-01-10 09:42:34 +0100|Fix MinIO download: Add StatObject + keep synchronous callback
+2026-01-10 09:48:05 +0100|Fix MinIO upload: Reset stream position to 0 before upload (from official docs)
+2026-01-10 09:53:58 +0100|Fix file upload: Copy IFormFile to MemoryStream for seekability
+2026-01-10 10:02:57 +0100|Fix MinIO configuration: Use IConfiguration instead of env vars
+2026-01-10 10:16:31 +0100|Fix: Pass userId to all AI services + Tags JSON constraint
+2026-01-10 10:18:50 +0100|Fix IIntentAnalysisService interface signature
+2026-01-10 10:20:57 +0100|Fix ChatCompletionAsync parameter order
+2026-01-10 10:35:56 +0100|CRITICAL FIX: Use user-specific API keys in OpenAI HTTP requests
+2026-01-10 10:40:47 +0100|DEBUG: Log OpenAI key prefix for troubleshooting
+2026-01-10 10:49:17 +0100|DEBUG: Log encrypted and decrypted API key for troubleshooting
+2026-01-10 11:02:02 +0100|Add comprehensive debug logging to GetApiKeyAsync to diagnose encryption issue
+2026-01-10 11:35:02 +0100|Fix Intent Analysis: Use user-specific Anthropic API keys from database
+2026-01-10 11:43:44 +0100|Fix: Use correct Claude model ID from official docs
+2026-01-10 11:53:31 +0100|Add debug logging for Anthropic response parsing
+2026-01-10 12:01:32 +0100|Fix: Remove markdown code blocks from Anthropic JSON response
+2026-01-10 12:09:35 +0100|Fix: Parse 'meetings' array from Claude response
+2026-01-10 12:21:30 +0100|Fix three critical issues with Intent Analysis
+2026-01-10 12:30:06 +0100|Fix 500 error in /api/validation/pending endpoint
+2026-01-10 12:41:26 +0100|Fix circular reference: Add [JsonIgnore] to AIQuestion.StagedEntity
+2026-01-10 13:23:14 +0100|Fix infinite loop in QuestionsList causing frontend freeze
+2026-01-10 13:31:15 +0100|Implement bulk delete functionality for documents in FilesController and IFileService; add corresponding API service method and UI support in FilesView
+2026-01-10 13:38:30 +0100|Fix: Improve markdown code block removal to handle trailing whitespace
+2026-01-10 13:39:14 +0100|Fehlerbehebung: Hinzuf├╝gen von Schaltfl├ñchen zum Schlie├ƒen von Dialogen und Verbesserung der Benutzeroberfl├ñche in mehreren Komponenten
+2026-01-10 13:54:18 +0100|Fix validation system: field mapping, text inputs, auto-reject
+2026-01-10 14:16:37 +0100|Fix tutoring system: Add user-specific API key support to AnthropicClient and set tutoring threshold to 1 error
+2026-01-10 14:31:54 +0100|Fehlerbehebung: Entfernen von Abh├ñngigkeiten zu connectivity_plus und dbus; Anpassung der Meeting-Verarbeitung auf eine Liste von Meetings
+2026-01-10 14:32:27 +0100|Fix meeting handling: Support multiple meetings as separate entities + Prevent empty TODOs and meta-tasks
+2026-01-10 15:15:39 +0100|feat: Implement file management and validation features
+2026-01-10 15:36:43 +0100|feat: Implement Learning Module with Repository, Provider, and UI
+2026-01-11 13:39:53 +0100|fix: Correct Claude model ID from claude-sonnet-4.5 to claude-sonnet-4-5
+2026-01-11 13:50:14 +0100|fix: Update build mode to release in local.properties and streamline quickReject function in ValidationView.vue
+2026-01-11 14:15:37 +0100|fix: Correct JSON parsing in ParseExerciseJson
+2026-01-11 14:29:54 +0100|fix: Backend validates answers instead of trusting frontend
+2026-01-11 14:49:58 +0100|feat: Improve exercise difficulty distribution and HTML rendering
+2026-01-11 15:00:10 +0100|feat: Add hybrid exercise system (Brilliant + KA-Prep)
+2026-01-11 15:05:11 +0100|feat: Add interactive exercise Vue components (mobile-friendly)
+2026-01-11 15:12:24 +0100|feat: Integrate interactive exercises into LearningView
+2026-01-11 15:17:23 +0100|feat: Implement intelligent multi-list todo system
+2026-01-11 15:20:34 +0100|fix: Complete hybrid exercise system integration
+2026-01-11 15:21:52 +0100|feat: Add Knowledge Network System models and services
+2026-01-11 16:55:04 +0100|Add new features: Images, JavaDocs, KnowledgeNetwork, and IntegrationsCard
+2026-01-11 18:16:40 +0100|feat: Add Knowledge Network frontend with graph visualization
+2026-01-11 18:17:56 +0100|feat: Add architecture diagram for NGINX proxy and system components
+2026-01-11 18:18:22 +0100|fix: Correct property name in TagsController (AssignedAt instead of CreatedAt)
+2026-01-11 18:21:24 +0100|fix: Korrigiere Formatierung in der README.md f├╝r Anthropic
+2026-01-11 18:38:00 +0100|fix: Resolve all backend build errors
+2026-01-11 18:49:26 +0100|fix: Resolve TypeScript build errors in frontend
+2026-01-11 18:51:55 +0100|fix: Complete TypeScript error resolution
+2026-01-11 18:53:13 +0100|fix: Remove unused _touchDragElement variable
+2026-01-11 19:05:34 +0100|Update project paths, API constants, and calendar event model defaults
+2026-01-11 19:10:16 +0100|fix: Prevent deletion of past calendar events during Rapla sync
+2026-01-11 19:11:11 +0100|docs: Update system architecture diagram and enhance AI services section
+2026-01-11 19:13:18 +0100|docs: Update system architecture diagrams for clarity and detail
+2026-01-11 19:16:01 +0100|docs: Entferne Diagrammsektion aus der README.md
+2026-01-11 19:54:15 +0100|fix: Disable broken healthchecks for qdrant and backend (no curl), fix nginx healthcheck
+2026-01-11 19:54:33 +0100|docs: F├╝ge neue Datei deletme.md hinzu
+2026-01-11 20:11:02 +0100|fix: Add missing Knowledge Network functionality
+2026-01-11 20:20:55 +0100|feat: Add endpoint to index all existing content for Knowledge Network
+2026-01-11 20:23:25 +0100|feat: Hybrid-Ansatz f├╝r Rapla Sync - R├ñume aus HTML extrahieren
+2026-01-11 20:25:58 +0100|fix: KnowledgeNetworkService - JavaDocsExercise hat kein UserId
+2026-01-11 20:34:48 +0100|fix: WeekView overlapping events - display side by side
+2026-01-11 20:36:09 +0100|feat: Erweiterung der WebFetch-Funktionalit├ñt und Anpassung der Datumsberechnung in CalendarState
+2026-01-11 20:41:11 +0100|fix: WeekView - clamp events to visible time range (7:00-22:00)
+2026-01-11 20:42:25 +0100|fix: Add support for learning/ai_generated event sources
+2026-01-11 20:49:20 +0100|fix: WeekView timezone bug - use local dates instead of UTC
+2026-01-12 08:11:38 +0100|feat: Erweiterung der WebFetch-Funktionalit├ñt und Hinzuf├╝gen von Flutter-Befehlen
+2026-01-12 11:30:42 +0100|Add temporal reference parsing and contextual linking services
+2026-01-12 14:48:41 +0100|feat: Hinzuf├╝gen von Chunking- und Dokumentenmodellen sowie Moodle API-Client-Verbesserungen
+2026-01-12 15:06:38 +0100|Add ChunkingService and MoodleSyncService for document processing and Moodle data synchronization
+2026-01-12 15:19:29 +0100|feat: Verwendung von Typaliasen zur Aufl├Âsung von Mehrdeutigkeiten zwischen Modellen und API DTOs in MoodleSyncService
+2026-01-12 15:39:25 +0100|feat: Add 2D cluster visualization to Knowledge Network
+2026-01-12 16:09:59 +0100|feat: Verbesserung der Zeitformatierung zur Vermeidung von Zeitzonenproblemen in Kalenderkomponenten
+2026-01-12 16:11:08 +0100|feat: Hinzuf├╝gen einer neuen Datei mit dem Projektpfad f├╝r die Datenwissenschafts├╝bungen
+2026-01-12 19:10:57 +0100|fix: Fix undefined 'start' variable in WeekView.vue
+2026-01-12 19:13:53 +0100|fix: Correct toLocalDateString call with proper Date object
+2026-01-12 19:14:10 +0100|feat: Neue Datei mit dem Projektpfad f├╝r die Datenwissenschafts├╝bungen hinzugef├╝gt
+2026-01-12 19:35:08 +0100|fix: Change Qdrant port from 6333 (REST) to 6334 (gRPC)
+2026-01-12 20:49:51 +0100|fix: Entfernen von tempor├ñren Dateien und Wiederherstellung des Projektpfads
+2026-01-12 21:01:14 +0100|feat: Implement vector retrieval and cluster visualization
+2026-01-12 21:05:23 +0100|fix: Fix build errors in cluster visualization
+2026-01-12 21:10:38 +0100|fix: Use correct Qdrant ScrollAsync API
+2026-01-12 21:16:59 +0100|fix: Map backend entity types to frontend expected format
+2026-01-12 21:23:43 +0100|fix: Lower search threshold from 0.7 to 0.5 and add logging
+2026-01-12 21:33:21 +0100|feat: Add SQL migration script for missing database tables
+2026-01-12 21:37:15 +0100|feat: Add detailed logging to semantic search for debugging
+2026-01-12 21:44:41 +0100|fix: Entferne tempor├ñre Dateien aus dem Projektverzeichnis
+2026-01-12 21:47:40 +0100|debug: Add threshold debugging to Qdrant search
+2026-01-12 21:54:31 +0100|fix: Lower semantic search threshold from 0.5 to 0.15
+2026-01-12 22:06:09 +0100|debug: Log API key preview to verify which key is used
+2026-01-12 22:14:54 +0100|debug: Log full OpenAI response and set threshold to 0
+2026-01-12 22:21:58 +0100|debug: Add logging to SearchAsync to find why results are lost
