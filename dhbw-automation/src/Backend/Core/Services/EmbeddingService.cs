@@ -124,10 +124,20 @@ public class EmbeddingService : IEmbeddingService
             var json = JsonSerializer.Serialize(requestBody);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+            _logger.LogWarning(">>> SENDING REQUEST TO OPENAI: {Endpoint}, model={Model}, inputLength={Length}",
+                OpenAiEmbeddingEndpoint, OpenAiEmbeddingModel, inputText.Length);
+
             var response = await client.PostAsync(OpenAiEmbeddingEndpoint, content);
-            response.EnsureSuccessStatusCode();
+
+            _logger.LogWarning(">>> OPENAI RESPONSE STATUS: {StatusCode}", response.StatusCode);
 
             var responseJson = await response.Content.ReadAsStringAsync();
+
+            _logger.LogWarning(">>> OPENAI RESPONSE (first 500 chars): {Response}",
+                responseJson.Length > 500 ? responseJson.Substring(0, 500) : responseJson);
+
+            response.EnsureSuccessStatusCode();
+
             var result = JsonDocument.Parse(responseJson);
 
             var embeddingArray = result.RootElement
@@ -137,7 +147,9 @@ public class EmbeddingService : IEmbeddingService
                 .Select(e => e.GetSingle())
                 .ToArray();
 
-            _logger.LogDebug("Generated embedding with {Dimensions} dimensions", embeddingArray.Length);
+            _logger.LogWarning(">>> EMBEDDING GENERATED: {Dimensions} dimensions, first 5 values: [{Values}]",
+                embeddingArray.Length,
+                string.Join(", ", embeddingArray.Take(5).Select(v => v.ToString("F6"))));
             return embeddingArray;
         }
         catch (Exception ex)
@@ -588,7 +600,7 @@ public class EmbeddingService : IEmbeddingService
         string query,
         int? userId = null,
         int topK = 10,
-        double threshold = 0.7)
+        double threshold = 0.0)
     {
         try
         {
@@ -633,7 +645,7 @@ public class EmbeddingService : IEmbeddingService
         int entityId,
         int? userId = null,
         int topK = 10,
-        double threshold = 0.7)
+        double threshold = 0.0)
     {
         try
         {
@@ -773,6 +785,6 @@ public interface IEmbeddingService
     Task<bool> ProcessKnowledgeItemEmbeddingAsync(int itemId, int? userId = null);
     Task<bool> ProcessExerciseEmbeddingAsync(int exerciseId);
     Task<bool> ProcessImageEmbeddingAsync(int imageId, int? userId = null);
-    Task<List<SemanticSearchResult>> SemanticSearchAsync(string query, int? userId = null, int topK = 10, double threshold = 0.7);
-    Task<List<SemanticSearchResult>> FindSimilarAsync(string entityType, int entityId, int? userId = null, int topK = 10, double threshold = 0.7);
+    Task<List<SemanticSearchResult>> SemanticSearchAsync(string query, int? userId = null, int topK = 10, double threshold = 0.0);
+    Task<List<SemanticSearchResult>> FindSimilarAsync(string entityType, int entityId, int? userId = null, int topK = 10, double threshold = 0.0);
 }
