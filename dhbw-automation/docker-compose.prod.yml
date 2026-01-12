@@ -161,7 +161,7 @@ services:
       - MinIO__AccessKey=${MINIO_ROOT_USER:-minioadmin}
       - MinIO__SecretKey=${MINIO_ROOT_PASSWORD:-minioadmin}
       - Qdrant__Host=qdrant
-      - Qdrant__Port=6333
+      - Qdrant__Port=6334
       - APP_URL=http://192.168.178.198:8091
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production-min-32-chars}
       - JWT_ISSUER=DHBWAutomation
