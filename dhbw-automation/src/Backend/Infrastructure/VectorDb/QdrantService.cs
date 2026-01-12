@@ -338,6 +338,107 @@ public class QdrantService : IQdrantService
             return null;
         }
     }
+
+    /// <summary>
+    /// Get points with their vectors for visualization
+    /// </summary>
+    public async Task<List<PointWithVector>> GetPointsWithVectorsAsync(
+        string collectionName,
+        int? userId = null,
+        int limit = 200)
+    {
+        try
+        {
+            Filter? filter = null;
+            if (userId.HasValue)
+            {
+                filter = new Filter
+                {
+                    Should =
+                    {
+                        new Condition
+                        {
+                            Field = new FieldCondition
+                            {
+                                Key = "user_id",
+                                Match = new Match { Integer = userId.Value }
+                            }
+                        },
+                        new Condition
+                        {
+                            IsEmpty = new IsEmptyCondition { Key = "user_id" }
+                        }
+                    }
+                };
+            }
+
+            var scrollResult = await _client.ScrollAsync(
+                collectionName,
+                filter: filter,
+                limit: (uint)limit,
+                withVector: true,
+                withPayload: true
+            );
+
+            var results = new List<PointWithVector>();
+            foreach (var point in scrollResult.Result)
+            {
+                var vector = point.Vectors?.Vector?.Data?.ToArray();
+                if (vector == null || vector.Length == 0) continue;
+
+                results.Add(new PointWithVector
+                {
+                    PointId = point.Id.Uuid,
+                    Vector = vector,
+                    EntityType = point.Payload.TryGetValue("entity_type", out var et) ? et.StringValue : "unknown",
+                    EntityId = point.Payload.TryGetValue("entity_id", out var eid) ? (int)eid.IntegerValue : 0,
+                    UserId = point.Payload.TryGetValue("user_id", out var uid) ? (int?)uid.IntegerValue : null,
+                    Topic = point.Payload.TryGetValue("topic", out var topic) ? topic.StringValue : null,
+                    Filename = point.Payload.TryGetValue("filename", out var fn) ? fn.StringValue : null
+                });
+            }
+
+            _logger.LogInformation("Retrieved {Count} points with vectors from {Collection}", results.Count, collectionName);
+            return results;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting points with vectors from {Collection}", collectionName);
+            return new List<PointWithVector>();
+        }
+    }
+
+    /// <summary>
+    /// Get points from all collections for visualization
+    /// </summary>
+    public async Task<List<PointWithVector>> GetAllPointsWithVectorsAsync(int? userId = null, int limitPerCollection = 50)
+    {
+        var allPoints = new List<PointWithVector>();
+
+        var collections = new[]
+        {
+            QdrantCollections.Documents,
+            QdrantCollections.Chunks,
+            QdrantCollections.Exercises,
+            QdrantCollections.KnowledgeItems,
+            QdrantCollections.Images
+        };
+
+        foreach (var collection in collections)
+        {
+            try
+            {
+                var points = await GetPointsWithVectorsAsync(collection, userId, limitPerCollection);
+                allPoints.AddRange(points);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error getting points from {Collection}, skipping", collection);
+            }
+        }
+
+        return allPoints;
+    }
 }
 
 /// <summary>
@@ -350,6 +451,20 @@ public class SimilarityResult
     public string EntityType { get; set; } = string.Empty;
     public int EntityId { get; set; }
     public int? UserId { get; set; }
+}
+
+/// <summary>
+/// Point with its vector for visualization
+/// </summary>
+public class PointWithVector
+{
+    public string PointId { get; set; } = string.Empty;
+    public float[] Vector { get; set; } = Array.Empty<float>();
+    public string EntityType { get; set; } = string.Empty;
+    public int EntityId { get; set; }
+    public int? UserId { get; set; }
+    public string? Topic { get; set; }
+    public string? Filename { get; set; }
 }
 
 /// <summary>
@@ -375,4 +490,6 @@ public interface IQdrantService
     Task DeletePointAsync(string collectionName, string pointId);
     Task DeleteEntityPointsAsync(string collectionName, string entityType, int entityId);
     Task<CollectionInfo?> GetCollectionInfoAsync(string collectionName);
+    Task<List<PointWithVector>> GetPointsWithVectorsAsync(string collectionName, int? userId = null, int limit = 200);
+    Task<List<PointWithVector>> GetAllPointsWithVectorsAsync(int? userId = null, int limitPerCollection = 50);
 }

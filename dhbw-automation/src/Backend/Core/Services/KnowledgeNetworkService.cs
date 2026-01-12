@@ -1,5 +1,6 @@
 using DHBWAutomation.Backend.Core.Models;
 using DHBWAutomation.Backend.Infrastructure.Database;
+using DHBWAutomation.Backend.Infrastructure.VectorDb;
 using Microsoft.EntityFrameworkCore;
 
 namespace DHBWAutomation.Backend.Core.Services;
@@ -11,6 +12,7 @@ public class KnowledgeNetworkService : IKnowledgeNetworkService
 {
     private readonly AppDbContext _context;
     private readonly IEmbeddingService _embeddingService;
+    private readonly IQdrantService _qdrantService;
     private readonly ILogger<KnowledgeNetworkService> _logger;
 
     private const double AutoLinkThreshold = 0.8;
@@ -18,10 +20,12 @@ public class KnowledgeNetworkService : IKnowledgeNetworkService
     public KnowledgeNetworkService(
         AppDbContext context,
         IEmbeddingService embeddingService,
+        IQdrantService qdrantService,
         ILogger<KnowledgeNetworkService> logger)
     {
         _context = context;
         _embeddingService = embeddingService;
+        _qdrantService = qdrantService;
         _logger = logger;
     }
 
@@ -607,38 +611,39 @@ public class KnowledgeNetworkService : IKnowledgeNetworkService
     {
         try
         {
-            // Get all embeddings for user
-            var embeddings = await _context.QdrantEmbeddings
-                .Where(e => e.UserId == userId || e.UserId == null)
-                .Take(maxNodes)
-                .ToListAsync();
+            // Get points with vectors from Qdrant
+            var points = await _qdrantService.GetAllPointsWithVectorsAsync(userId, maxNodes / 5);
 
-            if (embeddings.Count < 3)
+            if (points.Count < 3)
             {
                 return new ClusterVisualizationData
                 {
                     Success = false,
-                    Message = "Not enough data for clustering (minimum 3 nodes required)"
+                    Message = $"Not enough data for clustering (found {points.Count}, minimum 3 required)"
                 };
             }
 
-            // Fetch vectors from Qdrant via QdrantService
-            var vectorData = new List<ClusterPoint>();
-            foreach (var emb in embeddings)
+            _logger.LogInformation("Processing {Count} points for cluster visualization", points.Count);
+
+            // Simple PCA-like projection to 2D
+            var clusterPoints = ProjectTo2D(points);
+
+            // Get entity info for each point
+            foreach (var point in clusterPoints)
             {
-                // For now, we'll need to store vectors in a way we can retrieve them
-                // This is a simplified approach - in production you'd fetch from Qdrant
-                _logger.LogWarning("Vector retrieval from Qdrant not yet implemented for clustering");
+                var info = await GetEntityInfoAsync(point.EntityType, point.EntityId);
+                if (info != null)
+                {
+                    point.Label = info.Title;
+                }
             }
 
-            // For now, return a mock response
-            // TODO: Implement actual dimensionality reduction via Python service
             return new ClusterVisualizationData
             {
                 Success = true,
                 Method = method,
-                Points = new List<ClusterPoint>(),
-                Message = "Clustering feature coming soon - requires Python service integration"
+                Points = clusterPoints,
+                Message = $"Successfully generated {clusterPoints.Count} cluster points"
             };
         }
         catch (Exception ex)
@@ -650,6 +655,108 @@ public class KnowledgeNetworkService : IKnowledgeNetworkService
                 Message = ex.Message
             };
         }
+    }
+
+    /// <summary>
+    /// Project high-dimensional vectors to 2D using simple PCA approximation
+    /// </summary>
+    private List<ClusterPoint> ProjectTo2D(List<PointWithVector> points)
+    {
+        if (points.Count == 0) return new List<ClusterPoint>();
+
+        var vectorDim = points[0].Vector.Length;
+        var n = points.Count;
+
+        // Calculate mean vector
+        var mean = new float[vectorDim];
+        foreach (var point in points)
+        {
+            for (int i = 0; i < vectorDim; i++)
+            {
+                mean[i] += point.Vector[i] / n;
+            }
+        }
+
+        // Center the vectors
+        var centered = points.Select(p =>
+        {
+            var c = new float[vectorDim];
+            for (int i = 0; i < vectorDim; i++)
+            {
+                c[i] = p.Vector[i] - mean[i];
+            }
+            return c;
+        }).ToArray();
+
+        // Use random projection for dimensionality reduction (simpler than full PCA)
+        // This is a fast approximation that preserves distances reasonably well
+        var random = new Random(42); // Fixed seed for reproducibility
+        var projMatrix1 = Enumerable.Range(0, vectorDim).Select(_ => (float)(random.NextDouble() * 2 - 1)).ToArray();
+        var projMatrix2 = Enumerable.Range(0, vectorDim).Select(_ => (float)(random.NextDouble() * 2 - 1)).ToArray();
+
+        // Normalize projection vectors
+        var norm1 = (float)Math.Sqrt(projMatrix1.Sum(x => x * x));
+        var norm2 = (float)Math.Sqrt(projMatrix2.Sum(x => x * x));
+        for (int i = 0; i < vectorDim; i++)
+        {
+            projMatrix1[i] /= norm1;
+            projMatrix2[i] /= norm2;
+        }
+
+        var result = new List<ClusterPoint>();
+        for (int i = 0; i < n; i++)
+        {
+            // Project to 2D
+            float x = 0, y = 0;
+            for (int j = 0; j < vectorDim; j++)
+            {
+                x += centered[i][j] * projMatrix1[j];
+                y += centered[i][j] * projMatrix2[j];
+            }
+
+            result.Add(new ClusterPoint
+            {
+                Id = points[i].PointId,
+                X = x,
+                Y = y,
+                EntityType = points[i].EntityType,
+                EntityId = points[i].EntityId,
+                Label = points[i].Topic ?? points[i].Filename ?? $"{points[i].EntityType}:{points[i].EntityId}",
+                Cluster = DetermineCluster(points[i].EntityType)
+            });
+        }
+
+        // Normalize to [-1, 1] range
+        if (result.Count > 0)
+        {
+            var minX = result.Min(p => p.X);
+            var maxX = result.Max(p => p.X);
+            var minY = result.Min(p => p.Y);
+            var maxY = result.Max(p => p.Y);
+            var rangeX = maxX - minX;
+            var rangeY = maxY - minY;
+
+            foreach (var point in result)
+            {
+                point.X = rangeX > 0 ? 2 * (point.X - minX) / rangeX - 1 : 0;
+                point.Y = rangeY > 0 ? 2 * (point.Y - minY) / rangeY - 1 : 0;
+            }
+        }
+
+        return result;
+    }
+
+    private int DetermineCluster(string entityType)
+    {
+        return entityType switch
+        {
+            KnowledgeEntityTypes.Document => 0,
+            KnowledgeEntityTypes.DocumentChunk => 1,
+            KnowledgeEntityTypes.JavaDocsExercise => 2,
+            KnowledgeEntityTypes.KnowledgeItem => 3,
+            KnowledgeEntityTypes.DocumentImage => 4,
+            _ => 5
+        };
     }
 }
 
