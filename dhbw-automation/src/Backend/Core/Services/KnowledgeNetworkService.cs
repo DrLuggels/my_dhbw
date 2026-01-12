@@ -553,6 +553,7 @@ public class KnowledgeNetworkService : IKnowledgeNetworkService
         return entityType switch
         {
             KnowledgeEntityTypes.Document => await GetDocumentInfoAsync(entityId),
+            KnowledgeEntityTypes.DocumentChunk => await GetDocumentChunkInfoAsync(entityId),
             KnowledgeEntityTypes.KnowledgeItem => await GetKnowledgeItemInfoAsync(entityId),
             KnowledgeEntityTypes.JavaDocsExercise => await GetExerciseInfoAsync(entityId),
             KnowledgeEntityTypes.Image => await GetImageInfoAsync(entityId),
@@ -568,6 +569,24 @@ public class KnowledgeNetworkService : IKnowledgeNetworkService
         {
             Title = doc.FileName,
             Description = doc.Summary ?? doc.Subject
+        };
+    }
+
+    private async Task<EntityInfo?> GetDocumentChunkInfoAsync(int id)
+    {
+        var chunk = await _context.DocumentChunks
+            .Include(c => c.Document)
+            .FirstOrDefaultAsync(c => c.Id == id);
+
+        if (chunk == null) return null;
+
+        var title = chunk.TopicLabel ?? chunk.SectionHeading ?? $"Chunk {chunk.ChunkIndex + 1} von {chunk.Document?.FileName ?? "Dokument"}";
+        var description = chunk.Summary ?? (chunk.Content.Length > 200 ? chunk.Content.Substring(0, 200) + "..." : chunk.Content);
+
+        return new EntityInfo
+        {
+            Title = title,
+            Description = description
         };
     }
 
