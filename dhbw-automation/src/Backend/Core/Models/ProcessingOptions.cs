@@ -49,6 +49,13 @@ public class ProcessingOptions
     public bool AutoPromoteHighConfidence { get; set; } = false;
 
     /// <summary>
+    /// Enable semantic chunking for long documents.
+    /// Creates granular vector embeddings for better search precision.
+    /// Default: true (improves search quality significantly)
+    /// </summary>
+    public bool EnableSemanticChunking { get; set; } = true;
+
+    /// <summary>
     /// Default options - balanced between features and API usage
     /// </summary>
     public static ProcessingOptions Default => new()
@@ -59,7 +66,8 @@ public class ProcessingOptions
         EnableIntentAnalysis = true,
         EnableLearningAnalytics = true,
         GenerateInteractions = true,
-        AutoPromoteHighConfidence = false // Require user confirmation
+        AutoPromoteHighConfidence = false, // Require user confirmation
+        EnableSemanticChunking = true // Enable for better search
     };
 
     /// <summary>
@@ -74,7 +82,8 @@ public class ProcessingOptions
         EnableIntentAnalysis = true, // Keep intent (core feature)
         EnableLearningAnalytics = false, // Skip learning analytics
         GenerateInteractions = false, // Skip interactions
-        AutoPromoteHighConfidence = true // Auto-promote to save time
+        AutoPromoteHighConfidence = true, // Auto-promote to save time
+        EnableSemanticChunking = false // Skip chunking (uses Claude API)
     };
 
     /// <summary>
@@ -89,7 +98,8 @@ public class ProcessingOptions
         EnableIntentAnalysis = true,
         EnableLearningAnalytics = true,
         GenerateInteractions = true,
-        AutoPromoteHighConfidence = false // Manual review for important docs
+        AutoPromoteHighConfidence = false, // Manual review for important docs
+        EnableSemanticChunking = true // Full chunking enabled
     };
 
     /// <summary>
@@ -104,6 +114,7 @@ public class ProcessingOptions
         EnableIntentAnalysis = false,
         EnableLearningAnalytics = false,
         GenerateInteractions = false,
-        AutoPromoteHighConfidence = false
+        AutoPromoteHighConfidence = false,
+        EnableSemanticChunking = false // No chunking for minimal
     };
 }

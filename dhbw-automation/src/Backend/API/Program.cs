@@ -13,6 +13,7 @@ using DHBWAutomation.Backend.Shared.Helpers;
 using DHBWAutomation.Backend.API.Filters;
 using DHBWAutomation.Backend.Infrastructure.VectorDb;
 using DHBWAutomation.Backend.Infrastructure.ExternalAPIs.Nextcloud;
+using DHBWAutomation.Backend.Infrastructure.ExternalAPIs.Moodle;
 using DHBWAutomation.Backend.Core.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -207,11 +208,16 @@ builder.Services.AddScoped<IInteractiveExerciseService, InteractiveExerciseServi
 // Knowledge Network Services
 builder.Services.AddSingleton<IQdrantService, QdrantService>();
 builder.Services.AddScoped<IEmbeddingService, EmbeddingService>();
+builder.Services.AddScoped<IChunkingService, ChunkingService>();
 
 // Nextcloud Integration
 builder.Services.AddScoped<INextcloudWebDavClient, NextcloudWebDavClient>();
 builder.Services.AddScoped<INextcloudSyncService, NextcloudSyncService>();
 builder.Services.AddHttpClient("Nextcloud");
+
+// Moodle Integration
+builder.Services.AddHttpClient<MoodleApiClient>();
+builder.Services.AddScoped<IMoodleSyncService, MoodleSyncService>();
 
 // Java-Docs Scraper
 builder.Services.AddScoped<IJavaDocsScraperService, JavaDocsScraperService>();
@@ -258,8 +264,8 @@ builder.Services.Configure<JavaDocsSyncOptions>(
 builder.Services.AddSingleton<JavaDocsSyncBackgroundService>();
 builder.Services.AddHostedService(provider => provider.GetRequiredService<JavaDocsSyncBackgroundService>());
 
-// TODO: Weitere Background Workers implementieren
-// builder.Services.AddHostedService<MoodleSyncWorker>();
+// Moodle Sync Background Worker
+builder.Services.AddHostedService<MoodleSyncWorker>();
 
 // HTTP Clients
 builder.Services.AddHttpClient("OpenAI", client =>

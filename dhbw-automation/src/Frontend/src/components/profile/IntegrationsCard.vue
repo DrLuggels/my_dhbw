@@ -119,34 +119,142 @@
               <div>
                 <div class="font-weight-medium">Moodle (E-Learning)</div>
                 <div class="text-caption text-grey">
-                  {{ moodleStatus.isConfigured ? 'Verbunden' : 'Nicht konfiguriert' }}
+                  {{ moodleStatus.isConfigured ? (moodleStatus.isSyncEnabled ? 'Verbunden & Sync aktiv' : 'Verbunden') : 'Nicht konfiguriert' }}
                 </div>
               </div>
+              <v-spacer />
+              <v-chip v-if="moodleStatus.isConfigured" size="small" color="success" variant="tonal">
+                {{ moodleStatus.coursesCount }} Kurse
+              </v-chip>
             </div>
           </v-expansion-panel-title>
           <v-expansion-panel-text>
-            <v-alert type="info" density="compact" class="mb-3">
-              Um Moodle zu verbinden, benötigst du einen API-Token.
-              Diesen findest du in Moodle unter: Einstellungen > Sicherheitsschlüssel.
-            </v-alert>
-            <v-text-field
-              v-model="moodleForm.token"
-              label="Moodle API Token"
-              placeholder="Dein Moodle Web Service Token"
-              prepend-icon="mdi-key"
-              variant="outlined"
-              density="compact"
-              class="mb-3"
-            />
-            <v-btn
-              color="primary"
-              :loading="savingMoodle"
-              :disabled="!moodleForm.token"
-              @click="saveMoodleToken"
-            >
-              <v-icon left>mdi-content-save</v-icon>
-              Token speichern
-            </v-btn>
+            <v-form @submit.prevent="loginMoodle">
+              <v-alert type="info" density="compact" class="mb-3">
+                Melde dich mit deinen DHBW-Zugangsdaten an, um Kurse, Aufgaben und Materialien zu synchronisieren.
+              </v-alert>
+
+              <v-text-field
+                v-model="moodleForm.username"
+                label="DHBW-Benutzername"
+                placeholder="z.B. mustermann"
+                prepend-icon="mdi-account"
+                variant="outlined"
+                density="compact"
+                class="mb-2"
+                :disabled="moodleStatus.isConfigured"
+              />
+              <v-text-field
+                v-model="moodleForm.password"
+                :type="showMoodlePassword ? 'text' : 'password'"
+                label="DHBW-Passwort"
+                placeholder="Dein DHBW-Passwort"
+                prepend-icon="mdi-lock"
+                :append-icon="showMoodlePassword ? 'mdi-eye-off' : 'mdi-eye'"
+                @click:append="showMoodlePassword = !showMoodlePassword"
+                variant="outlined"
+                density="compact"
+                class="mb-3"
+                :disabled="moodleStatus.isConfigured"
+              />
+
+              <div class="d-flex gap-2 flex-wrap">
+                <v-btn
+                  v-if="!moodleStatus.isConfigured"
+                  color="primary"
+                  type="submit"
+                  :loading="loggingInMoodle"
+                  :disabled="!moodleForm.username || !moodleForm.password"
+                >
+                  <v-icon left>mdi-login</v-icon>
+                  Anmelden
+                </v-btn>
+                <v-btn
+                  v-if="moodleStatus.isConfigured"
+                  color="primary"
+                  variant="tonal"
+                  :loading="testingMoodle"
+                  @click="testMoodleConnection"
+                >
+                  <v-icon left>mdi-connection</v-icon>
+                  Verbindung testen
+                </v-btn>
+                <v-btn
+                  v-if="moodleStatus.isConfigured"
+                  color="primary"
+                  :loading="syncingMoodle"
+                  @click="syncMoodle"
+                >
+                  <v-icon left>mdi-sync</v-icon>
+                  Jetzt synchronisieren
+                </v-btn>
+                <v-btn
+                  v-if="moodleStatus.isConfigured && moodleStatus.isSyncEnabled"
+                  color="warning"
+                  variant="tonal"
+                  @click="disableMoodleSync"
+                >
+                  <v-icon left>mdi-pause</v-icon>
+                  Sync deaktivieren
+                </v-btn>
+                <v-btn
+                  v-if="moodleStatus.isConfigured && !moodleStatus.isSyncEnabled"
+                  color="success"
+                  variant="tonal"
+                  @click="enableMoodleSync"
+                >
+                  <v-icon left>mdi-play</v-icon>
+                  Sync aktivieren
+                </v-btn>
+              </div>
+
+              <v-alert
+                v-if="moodleMessage"
+                :type="moodleMessageType"
+                class="mt-3"
+                density="compact"
+                closable
+                @click:close="moodleMessage = ''"
+              >
+                {{ moodleMessage }}
+              </v-alert>
+
+              <div v-if="moodleStatus.isConfigured" class="mt-3 text-caption text-grey">
+                <div>Moodle-User: {{ moodleStatus.moodleUsername }}</div>
+                <div>Letzte Synchronisation: {{ formatDate(moodleStatus.lastSync) }}</div>
+                <div v-if="moodleStatus.lastSyncError" class="text-error">
+                  Letzter Fehler: {{ moodleStatus.lastSyncError }}
+                </div>
+              </div>
+
+              <!-- Moodle Statistics -->
+              <v-row v-if="moodleStatus.isConfigured" class="mt-3">
+                <v-col cols="6" sm="3">
+                  <v-card variant="tonal" color="primary" class="pa-2 text-center">
+                    <div class="text-h6">{{ moodleStatus.coursesCount }}</div>
+                    <div class="text-caption">Kurse</div>
+                  </v-card>
+                </v-col>
+                <v-col cols="6" sm="3">
+                  <v-card variant="tonal" color="orange" class="pa-2 text-center">
+                    <div class="text-h6">{{ moodleStatus.assignmentsCount }}</div>
+                    <div class="text-caption">Aufgaben</div>
+                  </v-card>
+                </v-col>
+                <v-col cols="6" sm="3">
+                  <v-card variant="tonal" color="green" class="pa-2 text-center">
+                    <div class="text-h6">{{ moodleStatus.resourcesCount }}</div>
+                    <div class="text-caption">Materialien</div>
+                  </v-card>
+                </v-col>
+                <v-col cols="6" sm="3">
+                  <v-card variant="tonal" color="red" class="pa-2 text-center">
+                    <div class="text-h6">{{ moodleStatus.pendingAssignmentsCount }}</div>
+                    <div class="text-caption">Offen</div>
+                  </v-card>
+                </v-col>
+              </v-row>
+            </v-form>
           </v-expansion-panel-text>
         </v-expansion-panel>
 
@@ -254,12 +362,28 @@ const nextcloudMessageType = ref<'success' | 'error' | 'info'>('info')
 
 // Moodle State
 const moodleForm = ref({
-  token: ''
+  username: '',
+  password: ''
 })
 const moodleStatus = ref({
-  isConfigured: false
+  isConfigured: false,
+  isSyncEnabled: false,
+  moodleUserId: null as number | null,
+  moodleUsername: '',
+  lastSync: null as Date | null,
+  lastSyncError: null as string | null,
+  coursesCount: 0,
+  assignmentsCount: 0,
+  resourcesCount: 0,
+  calendarEventsCount: 0,
+  pendingAssignmentsCount: 0
 })
-const savingMoodle = ref(false)
+const showMoodlePassword = ref(false)
+const loggingInMoodle = ref(false)
+const testingMoodle = ref(false)
+const syncingMoodle = ref(false)
+const moodleMessage = ref('')
+const moodleMessageType = ref<'success' | 'error' | 'info'>('info')
 
 // Java-Docs State
 const javaDocsStatus = ref({
@@ -371,17 +495,127 @@ const syncNextcloud = async () => {
   }
 }
 
-const saveMoodleToken = async () => {
-  savingMoodle.value = true
+const loadMoodleStatus = async () => {
+  try {
+    const response = await api.get('/moodle/status')
+    if (response.data.success) {
+      const data = response.data.data
+      moodleStatus.value = {
+        isConfigured: data.isConfigured,
+        isSyncEnabled: data.isSyncEnabled,
+        moodleUserId: data.moodleUserId,
+        moodleUsername: data.moodleUsername,
+        lastSync: data.lastSync,
+        lastSyncError: data.lastSyncError,
+        coursesCount: data.coursesCount,
+        assignmentsCount: data.assignmentsCount,
+        resourcesCount: data.resourcesCount,
+        calendarEventsCount: data.calendarEventsCount,
+        pendingAssignmentsCount: data.pendingAssignmentsCount
+      }
+    }
+  } catch (error) {
+    console.log('Moodle not configured')
+  }
+}
+
+const loginMoodle = async () => {
+  loggingInMoodle.value = true
+  moodleMessage.value = ''
 
   try {
-    await api.put('/user/moodle-token', { token: moodleForm.value.token })
-    moodleStatus.value.isConfigured = true
-    moodleForm.value.token = ''
-  } catch (error) {
-    console.error('Error saving Moodle token:', error)
+    const response = await api.post('/moodle/login', {
+      username: moodleForm.value.username,
+      password: moodleForm.value.password
+    })
+
+    if (response.data.success) {
+      moodleMessage.value = `Anmeldung erfolgreich! Willkommen ${response.data.moodleFullname}`
+      moodleMessageType.value = 'success'
+      moodleForm.value.password = ''
+      await loadMoodleStatus()
+    } else {
+      moodleMessage.value = response.data.message || 'Anmeldung fehlgeschlagen'
+      moodleMessageType.value = 'error'
+    }
+  } catch (error: any) {
+    moodleMessage.value = error.response?.data?.message || 'Anmeldefehler'
+    moodleMessageType.value = 'error'
   } finally {
-    savingMoodle.value = false
+    loggingInMoodle.value = false
+  }
+}
+
+const testMoodleConnection = async () => {
+  testingMoodle.value = true
+  moodleMessage.value = ''
+
+  try {
+    const response = await api.post('/moodle/test')
+
+    if (response.data.success) {
+      moodleMessage.value = `Verbindung erfolgreich! Site: ${response.data.data?.siteName}`
+      moodleMessageType.value = 'success'
+    } else {
+      moodleMessage.value = response.data.message || 'Verbindung fehlgeschlagen'
+      moodleMessageType.value = 'error'
+    }
+  } catch (error: any) {
+    moodleMessage.value = error.response?.data?.message || 'Verbindungsfehler'
+    moodleMessageType.value = 'error'
+  } finally {
+    testingMoodle.value = false
+  }
+}
+
+const syncMoodle = async () => {
+  syncingMoodle.value = true
+  moodleMessage.value = ''
+
+  try {
+    const response = await api.post('/moodle/sync')
+
+    if (response.data.success) {
+      const data = response.data.data
+      moodleMessage.value = `Synchronisation erfolgreich! ` +
+        `Kurse: +${data.courses?.added || 0}, ` +
+        `Aufgaben: +${data.assignments?.added || 0}, ` +
+        `Materialien: +${data.resources?.added || 0}`
+      moodleMessageType.value = 'success'
+      await loadMoodleStatus()
+    } else {
+      moodleMessage.value = response.data.message || 'Synchronisation fehlgeschlagen'
+      moodleMessageType.value = 'error'
+    }
+  } catch (error: any) {
+    moodleMessage.value = error.response?.data?.message || 'Synchronisationsfehler'
+    moodleMessageType.value = 'error'
+  } finally {
+    syncingMoodle.value = false
+  }
+}
+
+const enableMoodleSync = async () => {
+  try {
+    await api.post('/moodle/enable')
+    moodleMessage.value = 'Automatische Synchronisation aktiviert'
+    moodleMessageType.value = 'success'
+    await loadMoodleStatus()
+  } catch (error: any) {
+    moodleMessage.value = error.response?.data?.message || 'Fehler'
+    moodleMessageType.value = 'error'
+  }
+}
+
+const disableMoodleSync = async () => {
+  try {
+    await api.post('/moodle/disable')
+    moodleMessage.value = 'Automatische Synchronisation deaktiviert'
+    moodleMessageType.value = 'info'
+    await loadMoodleStatus()
+  } catch (error: any) {
+    moodleMessage.value = error.response?.data?.message || 'Fehler'
+    moodleMessageType.value = 'error'
   }
 }
 
@@ -423,6 +657,7 @@ const syncJavaDocs = async () => {
 onMounted(async () => {
   await Promise.all([
     loadNextcloudStatus(),
+    loadMoodleStatus(),
     loadJavaDocsStatus()
   ])
 })

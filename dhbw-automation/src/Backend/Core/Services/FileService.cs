@@ -17,6 +17,7 @@ public class FileService : IFileService
     private readonly ILearningAnalyticsService _learningService;
     private readonly ISchedulingService _schedulingService;
     private readonly IValidationService _validationService;
+    private readonly IChunkingService _chunkingService;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<FileService> _logger;
     private const string DefaultBucket = "dhbw-files";
@@ -30,6 +31,7 @@ public class FileService : IFileService
         ILearningAnalyticsService learningService,
         ISchedulingService schedulingService,
         IValidationService validationService,
+        IChunkingService chunkingService,
         IServiceScopeFactory scopeFactory,
         ILogger<FileService> logger)
     {
@@ -41,6 +43,7 @@ public class FileService : IFileService
         _learningService = learningService;
         _schedulingService = schedulingService;
         _validationService = validationService;
+        _chunkingService = chunkingService;
         _scopeFactory = scopeFactory;
         _logger = logger;
     }
@@ -432,7 +435,29 @@ public class FileService : IFileService
                     }
                 }
 
-                // 11. Mark as processed
+                // 11. Semantic Chunking for granular vector search
+                if (options.EnableSemanticChunking && extractedText.Length > 500)
+                {
+                    try
+                    {
+                        var chunkIds = await _chunkingService.ChunkDocumentAsync(documentId, new ChunkingOptions
+                        {
+                            UseSemanticChunking = true,
+                            GenerateEmbeddings = true,
+                            TargetChunkSize = 1000,
+                            MaxChunkSize = 2000,
+                            MinChunkSize = 200
+                        });
+                        _logger.LogInformation($"Created {chunkIds.Count} semantic chunks for document {documentId}");
+                    }
+                    catch (Exception chunkEx)
+                    {
+                        _logger.LogWarning(chunkEx, $"Chunking failed for document {documentId}, continuing without chunks");
+                        // Continue processing even if chunking fails
+                    }
+                }
+
+                // 12. Mark as processed
                 document.IsProcessed = true;
                 document.ProcessedAt = DateTime.UtcNow;
 

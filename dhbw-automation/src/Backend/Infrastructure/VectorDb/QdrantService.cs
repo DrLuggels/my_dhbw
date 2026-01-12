@@ -69,6 +69,7 @@ public class QdrantService : IQdrantService
         await EnsureCollectionExistsAsync(QdrantCollections.Exercises);
         await EnsureCollectionExistsAsync(QdrantCollections.KnowledgeItems);
         await EnsureCollectionExistsAsync(QdrantCollections.Images);
+        await EnsureCollectionExistsAsync(QdrantCollections.Chunks);
 
         _logger.LogInformation("All Qdrant collections initialized");
     }
@@ -203,6 +204,7 @@ public class QdrantService : IQdrantService
         var collections = new[]
         {
             QdrantCollections.Documents,
+            QdrantCollections.Chunks,
             QdrantCollections.Exercises,
             QdrantCollections.KnowledgeItems,
             QdrantCollections.Images

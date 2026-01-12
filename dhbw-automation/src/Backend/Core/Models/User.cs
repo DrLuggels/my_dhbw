@@ -113,13 +113,46 @@ public class User
     [MaxLength(500)]
     public string? GeminiApiKey { get; set; }
 
-    // === Nextcloud Integration Settings ===
+    // === Moodle Integration Settings ===
+
+    /// <summary>
+    /// Moodle-Sync aktiviert?
+    /// </summary>
+    public bool MoodleSyncEnabled { get; set; } = false;
+
+    /// <summary>
+    /// Moodle User-ID
+    /// </summary>
+    public int? MoodleUserId { get; set; }
+
+    /// <summary>
+    /// Moodle-Username (z.B. student123)
+    /// </summary>
+    [MaxLength(100)]
+    public string? MoodleUsername { get; set; }
+
+    /// <summary>
+    /// Verschlüsseltes Moodle-Passwort für Auto-Login
+    /// </summary>
+    [MaxLength(500)]
+    public string? MoodlePassword { get; set; }
 
     /// <summary>
     /// Encrypted Moodle token for API access
     /// </summary>
     [MaxLength(500)]
     public string? MoodleToken { get; set; }
+
+    /// <summary>
+    /// Letzte erfolgreiche Moodle-Synchronisation
+    /// </summary>
+    public DateTime? MoodleLastSync { get; set; }
+
+    /// <summary>
+    /// Letzter Sync-Fehler
+    /// </summary>
+    [MaxLength(1000)]
+    public string? MoodleLastSyncError { get; set; }
 
     // Navigation Properties
     public virtual ICollection<Document> Documents { get; set; } = new List<Document>();

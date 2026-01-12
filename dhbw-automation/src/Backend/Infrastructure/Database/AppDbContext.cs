@@ -39,12 +39,15 @@ public class AppDbContext : DbContext
     public DbSet<NextcloudFile> NextcloudFiles { get; set; } = null!;
     public DbSet<MoodleResource> MoodleResources { get; set; } = null!;
     public DbSet<MoodleAssignment> MoodleAssignments { get; set; } = null!;
+    public DbSet<MoodleCourse> MoodleCourses { get; set; } = null!;
+    public DbSet<MoodleCalendarEvent> MoodleCalendarEvents { get; set; } = null!;
     public DbSet<JavaDocsExercise> JavaDocsExercises { get; set; } = null!;
     public DbSet<DocumentImage> DocumentImages { get; set; } = null!;
     public DbSet<KnowledgeLink> KnowledgeLinks { get; set; } = null!;
     public DbSet<ContentTag> ContentTags { get; set; } = null!;
     public DbSet<ContentTagAssignment> ContentTagAssignments { get; set; } = null!;
     public DbSet<QdrantEmbedding> QdrantEmbeddings { get; set; } = null!;
+    public DbSet<DocumentChunk> DocumentChunks { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -454,6 +457,38 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
+        // MoodleCourse Configuration
+        modelBuilder.Entity<MoodleCourse>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.MoodleCourseId }).IsUnique();
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.LastSynced);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // MoodleCalendarEvent Configuration
+        modelBuilder.Entity<MoodleCalendarEvent>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.MoodleEventId }).IsUnique();
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.TimeStart);
+            entity.HasIndex(e => e.EventType);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.CalendarEvent)
+                .WithMany()
+                .HasForeignKey(e => e.CalendarEventId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
         // JavaDocsExercise Configuration
         modelBuilder.Entity<JavaDocsExercise>(entity =>
         {
@@ -477,6 +512,29 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.Document)
                 .WithMany(d => d.Images)
                 .HasForeignKey(e => e.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // DocumentChunk Configuration
+        modelBuilder.Entity<DocumentChunk>(entity =>
+        {
+            entity.HasIndex(e => e.DocumentId);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => new { e.DocumentId, e.ChunkIndex }).IsUnique();
+            entity.HasIndex(e => e.TopicLabel);
+            entity.HasIndex(e => e.HasEmbedding);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => new { e.HasBeenLinked, e.HasEmbedding });
+            entity.HasIndex(e => new { e.HasEventLinks, e.HasKnowledgeLinks, e.HasExerciseLinks });
+
+            entity.HasOne(e => e.Document)
+                .WithMany(d => d.Chunks)
+                .HasForeignKey(e => e.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

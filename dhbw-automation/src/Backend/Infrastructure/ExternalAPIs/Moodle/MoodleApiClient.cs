@@ -492,6 +492,8 @@ public class MoodleApiClient
 
 // DTOs für Moodle-API-Responses
 
+#region Basic DTOs
+
 public class MoodleUsersResponse
 {
     public List<MoodleUser>? Users { get; set; }
@@ -514,9 +516,11 @@ public class MoodleCourse
     public string Shortname { get; set; } = string.Empty;
     public string Fullname { get; set; } = string.Empty;
     public string? Summary { get; set; }
-    public long StartDate { get; set; }
-    public long EndDate { get; set; }
+    public long Startdate { get; set; }
+    public long Enddate { get; set; }
     public bool Visible { get; set; }
+    public string? Format { get; set; }
+    public int? Progress { get; set; }
 }
 
 public class MoodleSiteInfo
@@ -529,3 +533,209 @@ public class MoodleSiteInfo
     public int Userid { get; set; }
     public string Siteurl { get; set; } = string.Empty;
 }
+
+#endregion
+
+#region Login DTOs
+
+public class MoodleTokenResponse
+{
+    public string? Token { get; set; }
+    public string? Error { get; set; }
+    public string? Errorcode { get; set; }
+}
+
+public class MoodleLoginResult
+{
+    public bool Success { get; set; }
+    public string? Token { get; set; }
+    public string? ErrorMessage { get; set; }
+}
+
+#endregion
+
+#region Kursinhalte DTOs
+
+public class MoodleCourseSection
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Summary { get; set; }
+    public int Section { get; set; }
+    public bool Visible { get; set; }
+    public List<MoodleModule>? Modules { get; set; }
+}
+
+public class MoodleModule
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string Modname { get; set; } = string.Empty;  // resource, assign, folder, url, page, etc.
+    public string? Url { get; set; }
+    public int? Instance { get; set; }
+    public bool Visible { get; set; }
+    public List<MoodleModuleContent>? Contents { get; set; }
+}
+
+public class MoodleModuleContent
+{
+    public string Type { get; set; } = string.Empty;  // file, url, etc.
+    public string Filename { get; set; } = string.Empty;
+    public string? Filepath { get; set; }
+    public long Filesize { get; set; }
+    public string? Fileurl { get; set; }
+    public long Timecreated { get; set; }
+    public long Timemodified { get; set; }
+    public string? Mimetype { get; set; }
+    public string? Author { get; set; }
+}
+
+#endregion
+
+#region Assignment DTOs
+
+public class MoodleAssignmentsResponse
+{
+    public List<MoodleAssignmentCourse>? Courses { get; set; }
+    public List<MoodleWarning>? Warnings { get; set; }
+}
+
+public class MoodleAssignmentCourse
+{
+    public int Id { get; set; }
+    public string Fullname { get; set; } = string.Empty;
+    public string Shortname { get; set; } = string.Empty;
+    public List<MoodleAssignmentData>? Assignments { get; set; }
+}
+
+public class MoodleAssignmentData
+{
+    public int Id { get; set; }
+    public int Cmid { get; set; }  // Course module ID
+    public int Course { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Intro { get; set; }  // Description HTML
+    public long Duedate { get; set; }  // Unix timestamp
+    public long Cutoffdate { get; set; }  // Unix timestamp
+    public long Allowsubmissionsfromdate { get; set; }
+    public int Grade { get; set; }  // Max grade
+    public string? Submissiondrafts { get; set; }
+    public bool Teamsubmission { get; set; }
+}
+
+public class MoodleSubmissionStatus
+{
+    public MoodleLastAttempt? Lastattempt { get; set; }
+    public MoodleFeedback? Feedback { get; set; }
+    public List<MoodleWarning>? Warnings { get; set; }
+}
+
+public class MoodleLastAttempt
+{
+    public MoodleSubmission? Submission { get; set; }
+    public bool Submissionsenabled { get; set; }
+    public bool Locked { get; set; }
+    public bool Graded { get; set; }
+    public bool Canedit { get; set; }
+    public bool Cansubmit { get; set; }
+}
+
+public class MoodleSubmission
+{
+    public int Id { get; set; }
+    public int Userid { get; set; }
+    public string Status { get; set; } = string.Empty;  // new, draft, submitted
+    public long Timecreated { get; set; }
+    public long Timemodified { get; set; }
+}
+
+public class MoodleFeedback
+{
+    public MoodleGrade? Grade { get; set; }
+    public string? Gradefordisplay { get; set; }
+}
+
+public class MoodleGrade
+{
+    public int Id { get; set; }
+    public string? Grade { get; set; }
+    public long Timecreated { get; set; }
+    public long Timemodified { get; set; }
+}
+
+public class MoodleWarning
+{
+    public string? Item { get; set; }
+    public int? Itemid { get; set; }
+    public string? Warningcode { get; set; }
+    public string? Message { get; set; }
+}
+
+#endregion
+
+#region Calendar DTOs
+
+public class MoodleCalendarEventsResponse
+{
+    public List<MoodleCalendarEvent>? Events { get; set; }
+    public List<MoodleWarning>? Warnings { get; set; }
+}
+
+public class MoodleActionEventsResponse
+{
+    public List<MoodleCalendarEvent>? Events { get; set; }
+    public bool Firstid { get; set; }
+    public bool Lastid { get; set; }
+}
+
+public class MoodleCalendarEvent
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? Format { get; set; }
+    public int Courseid { get; set; }
+    public string? Categoryid { get; set; }
+    public int? Groupid { get; set; }
+    public int? Userid { get; set; }
+    public int? Instance { get; set; }
+    public string? Modulename { get; set; }  // assign, quiz, etc.
+    public long Timestart { get; set; }  // Unix timestamp
+    public int Timeduration { get; set; }  // Duration in seconds
+    public bool Visible { get; set; }
+    public string? Eventtype { get; set; }  // due, course, user, etc.
+    public MoodleEventAction? Action { get; set; }
+    public MoodleEventCourse? Course { get; set; }
+}
+
+public class MoodleEventAction
+{
+    public string Name { get; set; } = string.Empty;
+    public string Url { get; set; } = string.Empty;
+    public int Itemcount { get; set; }
+    public bool Actionable { get; set; }
+}
+
+public class MoodleEventCourse
+{
+    public int Id { get; set; }
+    public string Fullname { get; set; } = string.Empty;
+    public string Shortname { get; set; } = string.Empty;
+}
+
+#endregion
+
+#region File Download DTOs
+
+public class MoodleFileDownloadResult
+{
+    public bool Success { get; set; }
+    public byte[]? Content { get; set; }
+    public string? FileName { get; set; }
+    public string? ContentType { get; set; }
+    public long FileSize { get; set; }
+    public string? ErrorMessage { get; set; }
+}
+
+#endregion
