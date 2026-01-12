@@ -1,6 +1,13 @@
 import type { EmailResponse } from '@/types/email'
 
 export function formatDate(dateString: string): string {
+  // Parse ISO string directly to avoid timezone conversion issues
+  const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+  if (match) {
+    const [, year, month, day, hour, minute] = match
+    return `${day}.${month}.${year}, ${hour}:${minute}`
+  }
+  // Fallback to Date parsing
   const date = new Date(dateString)
   return date.toLocaleString('de-DE', {
     day: '2-digit',
@@ -12,6 +19,16 @@ export function formatDate(dateString: string): string {
 }
 
 export function formatDateTime(dateString: string): string {
+  // Parse ISO string directly to avoid timezone conversion issues
+  const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+  if (match) {
+    const [, year, month, day, hour, minute] = match
+    // Get weekday from Date object (this is safe since we only need the day name)
+    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+    const weekday = date.toLocaleDateString('de-DE', { weekday: 'short' })
+    return `${weekday}, ${day}.${month}.${year}, ${hour}:${minute}`
+  }
+  // Fallback to Date parsing
   const date = new Date(dateString)
   return date.toLocaleString('de-DE', {
     weekday: 'short',

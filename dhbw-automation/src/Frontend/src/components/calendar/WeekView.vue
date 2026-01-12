@@ -124,14 +124,27 @@ function getOverlappingEvents(event: CalendarEvent, dayEvents: CalendarEvent[]):
   return { index, total: overlapping.length }
 }
 
-function getEventStyle(event: CalendarEvent) {
-  const start = new Date(event.startTime)
-  const end = new Date(event.endTime)
+// Extract hours and minutes directly from ISO string to avoid timezone issues
+function parseTimeFromISO(isoString: string): { hours: number, minutes: number } {
+  // Match time portion: "2026-01-12T12:00:00" or "2026-01-12T12:00:00Z" or "2026-01-12T12:00:00+01:00"
+  const match = isoString.match(/T(\d{2}):(\d{2})/)
+  if (match) {
+    return { hours: parseInt(match[1], 10), minutes: parseInt(match[2], 10) }
+  }
+  // Fallback: use Date parsing
+  const date = new Date(isoString)
+  return { hours: date.getHours(), minutes: date.getMinutes() }
+}
 
-  const startHour = start.getHours()
-  const startMinute = start.getMinutes()
-  const endHour = end.getHours()
-  const endMinute = end.getMinutes()
+function getEventStyle(event: CalendarEvent) {
+  // Parse times directly from ISO string to avoid timezone conversion issues
+  const startTime = parseTimeFromISO(event.startTime)
+  const endTime = parseTimeFromISO(event.endTime)
+
+  const startHour = startTime.hours
+  const startMinute = startTime.minutes
+  const endHour = endTime.hours
+  const endMinute = endTime.minutes
 
   // Calculate position in pixels (60px per hour)
   const startMinutes = startHour * 60 + startMinute
@@ -167,11 +180,9 @@ function getEventStyle(event: CalendarEvent) {
 }
 
 const formatTime = (dateString: string) => {
-  const date = new Date(dateString)
-  return date.toLocaleTimeString('de-DE', {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  // Use parseTimeFromISO for consistent time display (matches position calculation)
+  const time = parseTimeFromISO(dateString)
+  return `${time.hours.toString().padStart(2, '0')}:${time.minutes.toString().padStart(2, '0')}`
 }
 
 const formatDate = (dateString: string) => {

@@ -188,6 +188,14 @@ watch(() => props.event, (newEvent) => {
 })
 
 const formatDateTime = (dateString: string) => {
+  // Parse ISO string directly to avoid timezone conversion issues
+  // The backend stores times in local timezone (Europe/Berlin) but without timezone info
+  const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+  if (match) {
+    const [, year, month, day, hour, minute] = match
+    return `${day}.${month}.${year}, ${hour}:${minute}`
+  }
+  // Fallback to Date parsing
   const date = new Date(dateString)
   return date.toLocaleString('de-DE', {
     day: '2-digit',
