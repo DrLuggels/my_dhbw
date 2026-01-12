@@ -120,7 +120,8 @@ public class MoodleApiClient
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
-            var courses = JsonSerializer.Deserialize<List<MoodleCourse>>(json);
+            _logger?.LogDebug("Moodle courses response: {Json}", json.Length > 500 ? json.Substring(0, 500) : json);
+            var courses = JsonSerializer.Deserialize<List<MoodleCourse>>(json, JsonOptions);
 
             return courses ?? new List<MoodleCourse>();
         }
