@@ -52,10 +52,35 @@ public class EmbeddingService : IEmbeddingService
             var user = await _context.Users.FindAsync(userId.Value);
             if (user != null && !string.IsNullOrEmpty(user.OpenAiApiKey))
             {
-                return _encryptionHelper.Decrypt(user.OpenAiApiKey);
+                try
+                {
+                    var decrypted = _encryptionHelper.Decrypt(user.OpenAiApiKey);
+                    if (!string.IsNullOrEmpty(decrypted))
+                    {
+                        _logger.LogDebug("Using user {UserId}'s OpenAI API key", userId);
+                        return decrypted;
+                    }
+                    _logger.LogWarning("User {UserId} has encrypted API key but decryption returned empty", userId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to decrypt OpenAI API key for user {UserId}", userId);
+                }
+            }
+            else
+            {
+                _logger.LogDebug("User {UserId} has no OpenAI API key configured", userId);
             }
         }
-        return _openAiApiKey;
+
+        if (!string.IsNullOrEmpty(_openAiApiKey))
+        {
+            _logger.LogDebug("Using system OpenAI API key");
+            return _openAiApiKey;
+        }
+
+        _logger.LogWarning("No OpenAI API key available (neither user nor system)");
+        return null;
     }
 
     /// <summary>
@@ -563,13 +588,23 @@ public class EmbeddingService : IEmbeddingService
     {
         try
         {
+            _logger.LogInformation("SemanticSearch starting: query='{Query}', userId={UserId}, topK={TopK}, threshold={Threshold}",
+                query, userId, topK, threshold);
+
             var queryEmbedding = await GenerateEmbeddingAsync(query, userId);
             if (queryEmbedding == null)
             {
+                _logger.LogWarning("SemanticSearch: Failed to generate query embedding for '{Query}'", query);
                 return new List<SemanticSearchResult>();
             }
 
+            _logger.LogInformation("SemanticSearch: Generated embedding with {Dimensions} dimensions, searching Qdrant...",
+                queryEmbedding.Length);
+
             var results = await _qdrantService.SearchAllCollectionsAsync(queryEmbedding, topK, threshold, userId);
+
+            _logger.LogInformation("SemanticSearch: Qdrant returned {Count} results for query '{Query}'",
+                results.Count, query);
 
             return results.Select(r => new SemanticSearchResult
             {

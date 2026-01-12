@@ -168,6 +168,7 @@ services:
       - Google__ClientId=${GOOGLE_CLIENT_ID:-}
       - Google__ClientSecret=${GOOGLE_CLIENT_SECRET:-}
       - Google__RedirectUri=${GOOGLE_REDIRECT_URI:-http://192.168.178.198:5001/api/calendar/google/callback}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     depends_on:
       mariadb:
         condition: service_healthy
