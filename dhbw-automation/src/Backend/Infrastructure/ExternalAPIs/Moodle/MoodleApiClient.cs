@@ -29,7 +29,7 @@ public class MoodleApiClient
         _logger = logger;
         _baseUrl = Environment.GetEnvironmentVariable("MOODLE_BASE_URL")
                    ?? configuration["Moodle:BaseUrl"]
-                   ?? "https://moodle.dhbw-ravensburg.de";
+                   ?? "https://elearning.dhbw-ravensburg.de";
         _token = Environment.GetEnvironmentVariable("MOODLE_TOKEN")
                  ?? configuration["Moodle:Token"]
                  ?? "";
