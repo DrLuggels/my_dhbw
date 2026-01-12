@@ -226,6 +226,13 @@ public class MoodleSyncService : IMoodleSyncService
 
             foreach (var course in courses)
             {
+                // Skip invalid courses (Id must be > 0)
+                if (course.Id <= 0)
+                {
+                    _logger.LogWarning("Skipping course with invalid ID: {CourseId}, Name: {CourseName}", course.Id, course.Fullname);
+                    continue;
+                }
+
                 if (existingCourses.TryGetValue(course.Id, out var existing))
                 {
                     // Update
@@ -318,6 +325,9 @@ public class MoodleSyncService : IMoodleSyncService
 
                 foreach (var assignment in courseDta.Assignments ?? Enumerable.Empty<MoodleAssignmentData>())
                 {
+                    // Skip invalid assignments
+                    if (assignment.Id <= 0) continue;
+
                     if (existingAssignments.TryGetValue(assignment.Id, out var existing))
                     {
                         // Update
