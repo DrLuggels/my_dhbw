@@ -57,7 +57,9 @@ public class EmbeddingService : IEmbeddingService
                     var decrypted = _encryptionHelper.Decrypt(user.OpenAiApiKey);
                     if (!string.IsNullOrEmpty(decrypted))
                     {
-                        _logger.LogDebug("Using user {UserId}'s OpenAI API key", userId);
+                        var keyPreview = decrypted.Length > 12 ? decrypted.Substring(0, 12) + "..." : "***";
+                        _logger.LogWarning(">>> USING USER {UserId}'s API KEY: {KeyPreview} (length={Length})",
+                            userId, keyPreview, decrypted.Length);
                         return decrypted;
                     }
                     _logger.LogWarning("User {UserId} has encrypted API key but decryption returned empty", userId);
@@ -75,7 +77,9 @@ public class EmbeddingService : IEmbeddingService
 
         if (!string.IsNullOrEmpty(_openAiApiKey))
         {
-            _logger.LogDebug("Using system OpenAI API key");
+            var keyPreview = _openAiApiKey.Length > 12 ? _openAiApiKey.Substring(0, 12) + "..." : "***";
+            _logger.LogWarning(">>> USING SYSTEM API KEY: {KeyPreview} (length={Length})",
+                keyPreview, _openAiApiKey.Length);
             return _openAiApiKey;
         }
 
@@ -584,7 +588,7 @@ public class EmbeddingService : IEmbeddingService
         string query,
         int? userId = null,
         int topK = 10,
-        double threshold = 0.15)
+        double threshold = 0.7)
     {
         try
         {
@@ -629,7 +633,7 @@ public class EmbeddingService : IEmbeddingService
         int entityId,
         int? userId = null,
         int topK = 10,
-        double threshold = 0.15)
+        double threshold = 0.7)
     {
         try
         {
@@ -769,6 +773,6 @@ public interface IEmbeddingService
     Task<bool> ProcessKnowledgeItemEmbeddingAsync(int itemId, int? userId = null);
     Task<bool> ProcessExerciseEmbeddingAsync(int exerciseId);
     Task<bool> ProcessImageEmbeddingAsync(int imageId, int? userId = null);
-    Task<List<SemanticSearchResult>> SemanticSearchAsync(string query, int? userId = null, int topK = 10, double threshold = 0.15);
-    Task<List<SemanticSearchResult>> FindSimilarAsync(string entityType, int entityId, int? userId = null, int topK = 10, double threshold = 0.15);
+    Task<List<SemanticSearchResult>> SemanticSearchAsync(string query, int? userId = null, int topK = 10, double threshold = 0.7);
+    Task<List<SemanticSearchResult>> FindSimilarAsync(string entityType, int entityId, int? userId = null, int topK = 10, double threshold = 0.7);
 }
