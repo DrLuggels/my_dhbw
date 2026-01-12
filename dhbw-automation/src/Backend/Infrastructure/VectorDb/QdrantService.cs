@@ -376,8 +376,8 @@ public class QdrantService : IQdrantService
                 collectionName,
                 filter: filter,
                 limit: (uint)limit,
-                withVector: true,
-                withPayload: true
+                withVectors: true,
+                payloadSelector: new WithPayloadSelector { Enable = true }
             );
 
             var results = new List<PointWithVector>();

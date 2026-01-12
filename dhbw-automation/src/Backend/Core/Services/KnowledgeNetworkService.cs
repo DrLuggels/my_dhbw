@@ -716,13 +716,12 @@ public class KnowledgeNetworkService : IKnowledgeNetworkService
 
             result.Add(new ClusterPoint
             {
-                Id = points[i].PointId,
                 X = x,
                 Y = y,
                 EntityType = points[i].EntityType,
                 EntityId = points[i].EntityId,
                 Label = points[i].Topic ?? points[i].Filename ?? $"{points[i].EntityType}:{points[i].EntityId}",
-                Cluster = DetermineCluster(points[i].EntityType)
+                Category = DetermineCategory(points[i].EntityType)
             });
         }
 
@@ -746,16 +745,16 @@ public class KnowledgeNetworkService : IKnowledgeNetworkService
         return result;
     }
 
-    private int DetermineCluster(string entityType)
+    private string DetermineCategory(string entityType)
     {
         return entityType switch
         {
-            KnowledgeEntityTypes.Document => 0,
-            KnowledgeEntityTypes.DocumentChunk => 1,
-            KnowledgeEntityTypes.JavaDocsExercise => 2,
-            KnowledgeEntityTypes.KnowledgeItem => 3,
-            KnowledgeEntityTypes.DocumentImage => 4,
-            _ => 5
+            KnowledgeEntityTypes.Document => "Documents",
+            KnowledgeEntityTypes.DocumentChunk => "Chunks",
+            KnowledgeEntityTypes.JavaDocsExercise => "Exercises",
+            KnowledgeEntityTypes.KnowledgeItem => "Knowledge",
+            KnowledgeEntityTypes.Image => "Images",
+            _ => "Other"
         };
     }
 }
