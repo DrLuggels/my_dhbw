@@ -164,7 +164,7 @@ function getEventStyle(event: CalendarEvent) {
   const clampedTop = Math.max(0, Math.min(topOffset, maxHeight))
   const clampedHeight = Math.max(30, Math.min(duration, maxHeight - clampedTop))
 
-  const dateStr = toLocalDateString(event.startTime)
+  const dateStr = toLocalDateString(new Date(event.startTime))
   const dayEvents = getDayEvents(dateStr)
   const { index, total } = getOverlappingEvents(event, dayEvents)
 
