@@ -559,7 +559,7 @@ public class EmbeddingService : IEmbeddingService
         string query,
         int? userId = null,
         int topK = 10,
-        double threshold = 0.7)
+        double threshold = 0.5)
     {
         try
         {
@@ -594,7 +594,7 @@ public class EmbeddingService : IEmbeddingService
         int entityId,
         int? userId = null,
         int topK = 10,
-        double threshold = 0.7)
+        double threshold = 0.5)
     {
         try
         {
@@ -734,6 +734,6 @@ public interface IEmbeddingService
     Task<bool> ProcessKnowledgeItemEmbeddingAsync(int itemId, int? userId = null);
     Task<bool> ProcessExerciseEmbeddingAsync(int exerciseId);
     Task<bool> ProcessImageEmbeddingAsync(int imageId, int? userId = null);
-    Task<List<SemanticSearchResult>> SemanticSearchAsync(string query, int? userId = null, int topK = 10, double threshold = 0.7);
-    Task<List<SemanticSearchResult>> FindSimilarAsync(string entityType, int entityId, int? userId = null, int topK = 10, double threshold = 0.7);
+    Task<List<SemanticSearchResult>> SemanticSearchAsync(string query, int? userId = null, int topK = 10, double threshold = 0.5);
+    Task<List<SemanticSearchResult>> FindSimilarAsync(string entityType, int entityId, int? userId = null, int topK = 10, double threshold = 0.5);
 }

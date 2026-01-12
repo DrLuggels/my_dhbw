@@ -137,7 +137,7 @@ public class QdrantService : IQdrantService
         string collectionName,
         float[] queryVector,
         int topK = 10,
-        double threshold = 0.7,
+        double threshold = 0.5,
         int? userId = null)
     {
         try
@@ -166,6 +166,9 @@ public class QdrantService : IQdrantService
                 };
             }
 
+            _logger.LogInformation("Searching {Collection} with threshold {Threshold}, topK={TopK}, userId={UserId}",
+                collectionName, threshold, topK, userId);
+
             var results = await _client.SearchAsync(
                 collectionName,
                 queryVector,
@@ -173,6 +176,8 @@ public class QdrantService : IQdrantService
                 scoreThreshold: (float)threshold,
                 filter: filter
             );
+
+            _logger.LogInformation("Found {Count} results in {Collection}", results.Count, collectionName);
 
             return results.Select(r => new SimilarityResult
             {
@@ -196,7 +201,7 @@ public class QdrantService : IQdrantService
     public async Task<List<SimilarityResult>> SearchAllCollectionsAsync(
         float[] queryVector,
         int topK = 10,
-        double threshold = 0.7,
+        double threshold = 0.5,
         int? userId = null)
     {
         var allResults = new List<SimilarityResult>();
@@ -486,8 +491,8 @@ public interface IQdrantService
     Task EnsureCollectionExistsAsync(string collectionName, int vectorSize = 1536);
     Task InitializeCollectionsAsync();
     Task<string> UpsertEmbeddingAsync(string collectionName, float[] vector, string entityType, int entityId, int? userId = null, Dictionary<string, string>? additionalPayload = null);
-    Task<List<SimilarityResult>> SearchSimilarAsync(string collectionName, float[] queryVector, int topK = 10, double threshold = 0.7, int? userId = null);
-    Task<List<SimilarityResult>> SearchAllCollectionsAsync(float[] queryVector, int topK = 10, double threshold = 0.7, int? userId = null);
+    Task<List<SimilarityResult>> SearchSimilarAsync(string collectionName, float[] queryVector, int topK = 10, double threshold = 0.5, int? userId = null);
+    Task<List<SimilarityResult>> SearchAllCollectionsAsync(float[] queryVector, int topK = 10, double threshold = 0.5, int? userId = null);
     Task DeletePointAsync(string collectionName, string pointId);
     Task DeleteEntityPointsAsync(string collectionName, string entityType, int entityId);
     Task<CollectionInfo?> GetCollectionInfoAsync(string collectionName);
