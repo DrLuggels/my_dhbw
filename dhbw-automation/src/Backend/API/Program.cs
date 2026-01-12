@@ -13,6 +13,7 @@ using DHBWAutomation.Backend.Shared.Helpers;
 using DHBWAutomation.Backend.API.Filters;
 using DHBWAutomation.Backend.Infrastructure.VectorDb;
 using DHBWAutomation.Backend.Infrastructure.ExternalAPIs.Nextcloud;
+using DHBWAutomation.Backend.Core.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -112,40 +113,27 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Database Context
-var dbProvider = Environment.GetEnvironmentVariable("DB_PROVIDER") ?? "sqlite";
-
+// Database Context (MariaDB)
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    if (dbProvider.ToLower() == "sqlite")
-    {
-        // SQLite für lokale Entwicklung
-        var dbPath = Environment.GetEnvironmentVariable("SQLITE_DB_PATH") ?? "dhbw_automation.db";
-        options.UseSqlite($"Data Source={dbPath}");
-        Console.WriteLine($"📦 Using SQLite Database: {dbPath}");
-    }
-    else
-    {
-        // MariaDB/MySQL für Docker/Production
-        var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost";
-        var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "3306";
-        var dbDatabase = Environment.GetEnvironmentVariable("DB_DATABASE") ?? "dhbw_automation";
-        var dbUsername = Environment.GetEnvironmentVariable("DB_USERNAME") ?? "dhbw_user";
-        var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "dhbw_password";
+    var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost";
+    var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "3306";
+    var dbDatabase = Environment.GetEnvironmentVariable("DB_DATABASE") ?? "dhbw_automation";
+    var dbUsername = Environment.GetEnvironmentVariable("DB_USERNAME") ?? "dhbw_user";
+    var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "dhbw_password";
 
-        var connectionString = $"Server={dbHost};Port={dbPort};Database={dbDatabase};User={dbUsername};Password={dbPassword};";
+    var connectionString = $"Server={dbHost};Port={dbPort};Database={dbDatabase};User={dbUsername};Password={dbPassword};";
 
-        options.UseMySql(
-            connectionString,
-            ServerVersion.AutoDetect(connectionString),
-            mySqlOptions => mySqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 5,
-                maxRetryDelay: TimeSpan.FromSeconds(10),
-                errorNumbersToAdd: null
-            )
-        );
-        Console.WriteLine($"📦 Using MariaDB Database: {dbHost}:{dbPort}/{dbDatabase}");
-    }
+    options.UseMySql(
+        connectionString,
+        ServerVersion.AutoDetect(connectionString),
+        mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorNumbersToAdd: null
+        )
+    );
+    Console.WriteLine($"📦 Using MariaDB Database: {dbHost}:{dbPort}/{dbDatabase}");
 });
 
 // Redis Cache
@@ -231,6 +219,10 @@ builder.Services.AddScoped<IJavaDocsScraperService, JavaDocsScraperService>();
 // Knowledge Network ("Spinnennetz")
 builder.Services.AddScoped<IKnowledgeNetworkService, KnowledgeNetworkService>();
 
+// Smart Reference System (Notes <-> Calendar Events linking)
+builder.Services.AddScoped<ITemporalReferenceService, TemporalReferenceService>();
+builder.Services.AddScoped<IContextualLinkService, ContextualLinkService>();
+
 // PDF Image Extraction
 builder.Services.AddScoped<IPdfImageExtractionService, PdfImageExtractionService>();
 
@@ -259,6 +251,13 @@ builder.Services.AddHostedService(provider => provider.GetRequiredService<Docume
 builder.Services.AddHostedService<PeriodicReviewBackgroundService>(); // Daily fundamental knowledge review
 builder.Services.AddHostedService<TodoArchivingBackgroundService>(); // Auto-archive and cleanup completed todos
 builder.Services.AddHostedService<TodoReminderBackgroundService>(); // Reminders for overdue todos
+
+// JavaDocs Sync Background Service - Automatic sync from GitHub
+builder.Services.Configure<JavaDocsSyncOptions>(
+    builder.Configuration.GetSection(JavaDocsSyncOptions.SectionName));
+builder.Services.AddSingleton<JavaDocsSyncBackgroundService>();
+builder.Services.AddHostedService(provider => provider.GetRequiredService<JavaDocsSyncBackgroundService>());
+
 // TODO: Weitere Background Workers implementieren
 // builder.Services.AddHostedService<MoodleSyncWorker>();
 
@@ -343,10 +342,9 @@ using (var scope = app.Services.CreateScope())
 
     try
     {
-        // EnsureCreated für beide Datenbank-Typen (keine Migrationen nötig)
-        // Erstellt neue Tabellen automatisch, ändert keine existierenden
+        // EnsureCreated erstellt neue Tabellen automatisch, ändert keine existierenden
         dbContext.Database.EnsureCreated();
-        Console.WriteLine($"✅ {(dbProvider.ToLower() == "sqlite" ? "SQLite" : "MariaDB")} Database tables ensured");
+        Console.WriteLine("✅ MariaDB Database tables ensured");
     }
     catch (Exception ex)
     {

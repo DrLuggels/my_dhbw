@@ -39,6 +39,16 @@ class ApiConstants {
   static const String resolveDeficit = '/learning/deficits'; // + /{deficitId}/resolve
   static const String learningStats = '/learning/stats'; // + /{userId}
 
+  // Smart Reference Endpoints
+  static const String smartReferenceResolve = '/smartreference/resolve';
+  static const String smartReferenceAutoLink = '/smartreference/auto-link';
+  static const String smartReferenceSuggestions = '/smartreference/suggestions';
+  static const String smartReferenceConfirm = '/smartreference/confirm';
+  static const String smartReferenceParseTemporal = '/smartreference/parse-temporal';
+  static const String smartReferenceProfessors = '/smartreference/professors';
+  static const String smartReferenceSubjects = '/smartreference/subjects';
+  static const String smartReferenceEventLinks = '/smartreference/event'; // + /{eventId}/links
+
   // Request timeouts
   static const int connectTimeout = 30000; // 30 seconds
   static const int receiveTimeout = 30000; // 30 seconds

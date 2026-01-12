@@ -127,4 +127,32 @@ public static class KnowledgeEntityTypes
     public const string Image = "image";
     public const string MoodleResource = "moodle_resource";
     public const string NextcloudFile = "nextcloud_file";
+    public const string CalendarEvent = "calendar_event";
+    public const string Note = "note";
+}
+
+/// <summary>
+/// Constants for link types specific to smart references
+/// </summary>
+public static class SmartReferenceLinkTypes
+{
+    /// <summary>
+    /// Link created from professor reference (e.g., "Prof. Mueller")
+    /// </summary>
+    public const string ProfessorReference = "professor_reference";
+
+    /// <summary>
+    /// Link created from subject/course reference
+    /// </summary>
+    public const string SubjectReference = "subject_reference";
+
+    /// <summary>
+    /// Link created from temporal reference (e.g., "heute morgen")
+    /// </summary>
+    public const string TemporalReference = "temporal_reference";
+
+    /// <summary>
+    /// Link created from combined professor + temporal reference
+    /// </summary>
+    public const string ProfessorTemporalReference = "professor_temporal_reference";
 }

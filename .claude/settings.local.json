@@ -32,7 +32,14 @@
       "WebSearch",
       "WebFetch(domain:github.com)",
       "Bash(powershell -Command \"cd ''C:\\\\Projects\\\\dhbw_mobile''; flutter devices\")",
-      "Bash(powershell -Command \"cd ''C:\\\\Projects\\\\dhbw_mobile''; flutter run -d R5CY61L1GER --release\")"
+      "Bash(powershell -Command \"cd ''C:\\\\Projects\\\\dhbw_mobile''; flutter run -d R5CY61L1GER --release\")",
+      "Bash(while read line)",
+      "Bash(do)",
+      "Bash(echo:*)",
+      "Bash(done)",
+      "Bash(powershell -Command \"cd ''C:\\\\Projects\\\\dhbw_mobile''; dart run build_runner build --delete-conflicting-outputs\")",
+      "Bash(powershell -Command \"flutter devices\")",
+      "Bash(powershell:*)"
     ]
   }
 }
