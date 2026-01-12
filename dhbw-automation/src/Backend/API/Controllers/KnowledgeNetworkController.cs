@@ -245,6 +245,29 @@ public class KnowledgeNetworkController : ControllerBase
             return BadRequest(new { success = false, message = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Get cluster visualization data (2D dimensionality reduction)
+    /// </summary>
+    [HttpGet("clusters")]
+    public async Task<IActionResult> GetClusters(
+        [FromQuery] string method = "umap",
+        [FromQuery] int maxNodes = 200)
+    {
+        var userId = GetUserId();
+        if (userId == 0) return Unauthorized();
+
+        try
+        {
+            var clusterData = await _networkService.GetClusterVisualizationAsync(userId, method, maxNodes);
+            return Ok(clusterData);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating cluster visualization");
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
 }
 
 /// <summary>

@@ -596,6 +596,61 @@ public class KnowledgeNetworkService : IKnowledgeNetworkService
             Description = resource.CourseName
         };
     }
+
+    /// <summary>
+    /// Get cluster visualization data using dimensionality reduction
+    /// </summary>
+    public async Task<ClusterVisualizationData> GetClusterVisualizationAsync(
+        int userId,
+        string method = "umap",
+        int maxNodes = 200)
+    {
+        try
+        {
+            // Get all embeddings for user
+            var embeddings = await _context.QdrantEmbeddings
+                .Where(e => e.UserId == userId || e.UserId == null)
+                .Take(maxNodes)
+                .ToListAsync();
+
+            if (embeddings.Count < 3)
+            {
+                return new ClusterVisualizationData
+                {
+                    Success = false,
+                    Message = "Not enough data for clustering (minimum 3 nodes required)"
+                };
+            }
+
+            // Fetch vectors from Qdrant via QdrantService
+            var vectorData = new List<ClusterPoint>();
+            foreach (var emb in embeddings)
+            {
+                // For now, we'll need to store vectors in a way we can retrieve them
+                // This is a simplified approach - in production you'd fetch from Qdrant
+                _logger.LogWarning("Vector retrieval from Qdrant not yet implemented for clustering");
+            }
+
+            // For now, return a mock response
+            // TODO: Implement actual dimensionality reduction via Python service
+            return new ClusterVisualizationData
+            {
+                Success = true,
+                Method = method,
+                Points = new List<ClusterPoint>(),
+                Message = "Clustering feature coming soon - requires Python service integration"
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating cluster visualization");
+            return new ClusterVisualizationData
+            {
+                Success = false,
+                Message = ex.Message
+            };
+        }
+    }
 }
 
 /// <summary>
@@ -682,6 +737,7 @@ public interface IKnowledgeNetworkService
     Task<bool> RejectLinkAsync(int linkId, int userId);
     Task<List<KnowledgeLink>> GetPendingLinksAsync(int userId);
     Task<IndexingResult> IndexAllUserContentAsync(int userId);
+    Task<ClusterVisualizationData> GetClusterVisualizationAsync(int userId, string method = "umap", int maxNodes = 200);
 }
 
 /// <summary>
@@ -694,4 +750,28 @@ public class IndexingResult
     public int KnowledgeItemsProcessed { get; set; }
     public int TotalProcessed { get; set; }
     public List<string> Errors { get; set; } = new();
+}
+
+/// <summary>
+/// Cluster visualization data
+/// </summary>
+public class ClusterVisualizationData
+{
+    public bool Success { get; set; }
+    public string? Message { get; set; }
+    public string Method { get; set; } = "umap";
+    public List<ClusterPoint> Points { get; set; } = new();
+}
+
+/// <summary>
+/// Single point in cluster visualization
+/// </summary>
+public class ClusterPoint
+{
+    public string EntityType { get; set; } = string.Empty;
+    public int EntityId { get; set; }
+    public string Label { get; set; } = string.Empty;
+    public double X { get; set; }
+    public double Y { get; set; }
+    public string Category { get; set; } = string.Empty;
 }

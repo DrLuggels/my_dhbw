@@ -90,6 +90,9 @@
               <v-btn value="graph" size="small">
                 <v-icon>mdi-graph</v-icon>
               </v-btn>
+              <v-btn value="cluster" size="small">
+                <v-icon>mdi-chart-scatter-plot</v-icon>
+              </v-btn>
               <v-btn value="list" size="small">
                 <v-icon>mdi-format-list-bulleted</v-icon>
               </v-btn>
@@ -126,6 +129,16 @@
                 :edges="graphEdges"
                 @node-click="selectNode"
                 @node-double-click="navigateToNodeEntity"
+              />
+            </div>
+
+            <!-- Cluster View -->
+            <div v-else-if="viewMode === 'cluster'">
+              <ClusterVisualization
+                :points="clusterPoints"
+                :method="clusterMethod"
+                @method-change="handleClusterMethodChange"
+                @point-click="handleClusterPointClick"
               />
             </div>
 
@@ -588,13 +601,14 @@ import { useDisplay } from 'vuetify'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
 import NetworkGraph from '@/components/network/NetworkGraph.vue'
+import ClusterVisualization from '@/components/network/ClusterVisualization.vue'
 
 const { mobile } = useDisplay()
 const isMobile = computed(() => mobile.value)
 const router = useRouter()
 
 // View state
-const viewMode = ref<'graph' | 'list'>('list')
+const viewMode = ref<'graph' | 'cluster' | 'list'>('list')
 const listFilter = ref('')
 
 // Stats
@@ -609,6 +623,11 @@ const stats = ref({
 const graphNodes = ref<GraphNode[]>([])
 const graphEdges = ref<GraphEdge[]>([])
 const loadingGraph = ref(false)
+
+// Cluster data
+const clusterPoints = ref<ClusterPoint[]>([])
+const clusterMethod = ref('umap')
+const loadingClusters = ref(false)
 
 // Selected node
 const selectedNode = ref<GraphNode | null>(null)
@@ -667,6 +686,15 @@ interface GraphEdge {
   from: string
   to: string
   linkType: string
+}
+
+interface ClusterPoint {
+  entityType: string
+  entityId: number
+  label: string
+  x: number
+  y: number
+  category: string
 }
 
 interface Tag {
@@ -1051,6 +1079,48 @@ const formatScore = (score: number) => {
 const showMessage = (message: string, color: string = 'success') => {
   snackbar.value = { show: true, message, color }
 }
+
+// Cluster methods
+const loadClusterData = async () => {
+  loadingClusters.value = true
+  try {
+    const response = await api.get(`/knowledgenetwork/clusters?method=${clusterMethod.value}`)
+    if (response.data && response.data.success) {
+      clusterPoints.value = response.data.points || []
+    } else {
+      showMessage(response.data?.message || 'Cluster-Daten nicht verfügbar', 'info')
+    }
+  } catch (error) {
+    console.error('Error loading cluster data:', error)
+    showMessage('Fehler beim Laden der Cluster-Visualisierung', 'error')
+  } finally {
+    loadingClusters.value = false
+  }
+}
+
+const handleClusterMethodChange = async (method: string) => {
+  clusterMethod.value = method
+  await loadClusterData()
+}
+
+const handleClusterPointClick = (point: ClusterPoint) => {
+  const node: GraphNode = {
+    id: `${point.entityType}-${point.entityId}`,
+    entityType: point.entityType,
+    entityId: point.entityId,
+    label: point.label,
+    type: point.entityType,
+    linkCount: 0
+  }
+  selectNode(node)
+}
+
+// Watch for view mode changes to load cluster data
+watch(viewMode, async (newMode) => {
+  if (newMode === 'cluster' && clusterPoints.value.length === 0) {
+    await loadClusterData()
+  }
+})
 
 // Initialize
 onMounted(async () => {
