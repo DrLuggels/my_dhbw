@@ -166,8 +166,8 @@ public class QdrantService : IQdrantService
                 };
             }
 
-            _logger.LogInformation("Searching {Collection} with threshold {Threshold}, topK={TopK}, userId={UserId}",
-                collectionName, threshold, topK, userId);
+            _logger.LogInformation("Searching {Collection} with threshold {Threshold}, topK={TopK}, userId={UserId}, filterApplied={FilterApplied}",
+                collectionName, threshold, topK, userId, filter != null);
 
             var results = await _client.SearchAsync(
                 collectionName,
@@ -177,7 +177,25 @@ public class QdrantService : IQdrantService
                 filter: filter
             );
 
-            _logger.LogInformation("Found {Count} results in {Collection}", results.Count, collectionName);
+            _logger.LogInformation("Found {Count} results in {Collection} (threshold={Threshold})",
+                results.Count, collectionName, threshold);
+
+            if (results.Count == 0)
+            {
+                // Try without threshold to debug
+                var debugResults = await _client.SearchAsync(
+                    collectionName,
+                    queryVector,
+                    limit: 3,
+                    filter: filter
+                );
+                if (debugResults.Count > 0)
+                {
+                    _logger.LogWarning("Found {Count} results WITHOUT threshold. Top scores: {Scores}",
+                        debugResults.Count,
+                        string.Join(", ", debugResults.Select(r => r.Score.ToString("F3"))));
+                }
+            }
 
             return results.Select(r => new SimilarityResult
             {
