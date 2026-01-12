@@ -283,11 +283,17 @@ public class KnowledgeNetworkService : IKnowledgeNetworkService
         // Semantic search
         var semanticResults = await _embeddingService.SemanticSearchAsync(query, userId, maxResults);
 
+        _logger.LogWarning(">>> SearchAsync got {Count} semantic results", semanticResults.Count);
+
         foreach (var result in semanticResults)
         {
+            _logger.LogWarning(">>> Processing result: EntityType={EntityType}, EntityId={EntityId}, Score={Score}",
+                result.EntityType, result.EntityId, result.Score);
+
             var entityInfo = await GetEntityInfoAsync(result.EntityType, result.EntityId);
             if (entityInfo != null)
             {
+                _logger.LogWarning(">>> Found entity info: Title={Title}", entityInfo.Title);
                 results.Add(new SearchResultItem
                 {
                     EntityType = result.EntityType,
@@ -297,7 +303,14 @@ public class KnowledgeNetworkService : IKnowledgeNetworkService
                     Score = result.Score
                 });
             }
+            else
+            {
+                _logger.LogWarning(">>> GetEntityInfoAsync returned NULL for {EntityType}:{EntityId}",
+                    result.EntityType, result.EntityId);
+            }
         }
+
+        _logger.LogWarning(">>> SearchAsync returning {Count} results", results.Count);
 
         return results;
     }
