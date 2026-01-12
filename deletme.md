@@ -1,37 +1,39 @@
-index-B0I9Kl1D.js:26   GET http://192.168.178.198:8091/api/tags 400 (Bad Request)
-(anonymous) @ index-B0I9Kl1D.js:26
-xhr @ index-B0I9Kl1D.js:26
-ym @ index-B0I9Kl1D.js:28
+index-ALh0snKA.js:26   GET http://134.3.38.30:8091/api/tags 400 (Bad Request)
+(anonymous) @ index-ALh0snKA.js:26
+xhr @ index-ALh0snKA.js:26
+ym @ index-ALh0snKA.js:28
 Promise.then
-_request @ index-B0I9Kl1D.js:29
-request @ index-B0I9Kl1D.js:28
-xl.<computed> @ index-B0I9Kl1D.js:29
-(anonymous) @ index-B0I9Kl1D.js:24
-get @ index-B0I9Kl1D.js:29
-Re @ KnowledgeNetworkView-CQ67xf2b.js:1
-(anonymous) @ KnowledgeNetworkView-CQ67xf2b.js:1
-(anonymous) @ index-B0I9Kl1D.js:16
-Ui @ index-B0I9Kl1D.js:14
-zn @ index-B0I9Kl1D.js:14
-Ns.t.__weh.t.__weh @ index-B0I9Kl1D.js:16
-Jo @ index-B0I9Kl1D.js:14
-Tg @ index-B0I9Kl1D.js:14
+_request @ index-ALh0snKA.js:29
+request @ index-ALh0snKA.js:28
+xl.<computed> @ index-ALh0snKA.js:29
+(anonymous) @ index-ALh0snKA.js:24
+get @ index-ALh0snKA.js:29
+Y @ KnowledgeNetworkView-CSwsHN_h.js:4030
+(anonymous) @ KnowledgeNetworkView-CSwsHN_h.js:4030
+(anonymous) @ index-ALh0snKA.js:16
+Ui @ index-ALh0snKA.js:14
+zn @ index-ALh0snKA.js:14
+Ns.t.__weh.t.__weh @ index-ALh0snKA.js:16
+Jo @ index-ALh0snKA.js:14
+Tg @ index-ALh0snKA.js:14
 Promise.then
-Eg @ index-B0I9Kl1D.js:14
-Bd @ index-B0I9Kl1D.js:14
-o.scheduler @ index-B0I9Kl1D.js:14
-c.scheduler @ index-B0I9Kl1D.js:10
-trigger @ index-B0I9Kl1D.js:10
-Rd @ index-B0I9Kl1D.js:10
-notify @ index-B0I9Kl1D.js:10
-trigger @ index-B0I9Kl1D.js:10
-set value @ index-B0I9Kl1D.js:10
-E @ index-B0I9Kl1D.js:37
-(anonymous) @ index-B0I9Kl1D.js:37
+Eg @ index-ALh0snKA.js:14
+Bd @ index-ALh0snKA.js:14
+o.scheduler @ index-ALh0snKA.js:14
+c.scheduler @ index-ALh0snKA.js:10
+trigger @ index-ALh0snKA.js:10
+Rd @ index-ALh0snKA.js:10
+notify @ index-ALh0snKA.js:10
+trigger @ index-ALh0snKA.js:10
+set value @ index-ALh0snKA.js:10
+E @ index-ALh0snKA.js:37
+(anonymous) @ index-ALh0snKA.js:37
 Promise.then
-x @ index-B0I9Kl1D.js:37
-g @ index-B0I9Kl1D.js:37
-install @ index-B0I9Kl1D.js:37
-use @ index-B0I9Kl1D.js:16
-(anonymous) @ index-B0I9Kl1D.js:53
-KnowledgeNetworkView-CQ67xf2b.js:1  Error loading tags: $e {message: 'Request failed with status code 400', name: 'AxiosError', code: 'ERR_BAD_REQUEST', config: {…}, request: XMLHttpRequest, …}
+x @ index-ALh0snKA.js:37
+g @ index-ALh0snKA.js:37
+o @ index-ALh0snKA.js:37
+I @ index-ALh0snKA.js:51
+Ui @ index-ALh0snKA.js:14
+zn @ index-ALh0snKA.js:14
+n @ index-ALh0snKA.js:20
+KnowledgeNetworkView-CSwsHN_h.js:4030  Error loading tags: $e {message: 'Request failed with status code 400', name: 'AxiosError', code: 'ERR_BAD_REQUEST', config: {…}, request: XMLHttpRequest, …}
