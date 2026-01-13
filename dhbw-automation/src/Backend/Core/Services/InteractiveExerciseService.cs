@@ -13,23 +13,23 @@ public class InteractiveExerciseService : IInteractiveExerciseService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<InteractiveExerciseService> _logger;
-    private readonly AnthropicClient _anthropicClient;
+    private readonly IAIService _aiService;
     private readonly AiMetrics _aiMetrics;
     private readonly HtmlSanitizer _htmlSanitizer;
     private readonly EncryptionHelper _encryptionHelper;
 
-    private const string AnthropicModel = "claude-sonnet-4-5";
+    private const string GeminiModel = "gemini-3-flash";
 
     public InteractiveExerciseService(
         AppDbContext context,
         ILogger<InteractiveExerciseService> logger,
-        AnthropicClient anthropicClient,
+        IAIService aiService,
         AiMetrics aiMetrics,
         EncryptionHelper encryptionHelper)
     {
         _context = context;
         _logger = logger;
-        _anthropicClient = anthropicClient;
+        _aiService = aiService;
         _aiMetrics = aiMetrics;
         _encryptionHelper = encryptionHelper;
 
@@ -78,20 +78,22 @@ public class InteractiveExerciseService : IInteractiveExerciseService
         int? deficitId = null,
         string[]? preferredComponentTypes = null)
     {
-        return await _aiMetrics.TrackAsync("GenerateInteractiveExercise", "Anthropic", AnthropicModel, async () =>
+        return await _aiMetrics.TrackAsync("GenerateInteractiveExercise", "Gemini", GeminiModel, async () =>
         {
             _logger.LogInformation($"Generating interactive exercise: {subject}/{topic} ({difficulty})");
 
             var systemPrompt = BuildInteractiveSystemPrompt();
             var userPrompt = BuildInteractiveUserPrompt(subject, topic, difficulty, preferredComponentTypes);
 
-            var apiKey = await GetApiKeyAsync(userId);
-            var responseDoc = await _anthropicClient.ChatJsonAsync(
+            var responseDoc = await _aiService.GenerateJsonWithGeminiAsync(
                 systemPrompt,
                 userPrompt,
-                AnthropicModel,
-                maxTokens: 4096,
-                apiKey: apiKey);
+                userId);
+
+            if (responseDoc == null)
+            {
+                throw new InvalidOperationException("Failed to generate exercise with Gemini");
+            }
 
             var content = ParseInteractiveExerciseContent(responseDoc);
             var totalSteps = content.Steps.Count;
@@ -430,20 +432,22 @@ SICHERHEIT:
         int? deficitId = null,
         int? timeLimitSeconds = null)
     {
-        return await _aiMetrics.TrackAsync("GenerateExamPrepExercise", "Anthropic", AnthropicModel, async () =>
+        return await _aiMetrics.TrackAsync("GenerateExamPrepExercise", "Gemini", GeminiModel, async () =>
         {
             _logger.LogInformation($"Generating exam prep exercise: {subject}/{topic} ({exerciseMode}, {difficulty})");
 
             var systemPrompt = BuildExamPrepSystemPrompt(exerciseMode);
             var userPrompt = BuildExamPrepUserPrompt(subject, topic, difficulty, exerciseMode);
 
-            var apiKey = await GetApiKeyAsync(userId);
-            var responseDoc = await _anthropicClient.ChatJsonAsync(
+            var responseDoc = await _aiService.GenerateJsonWithGeminiAsync(
                 systemPrompt,
                 userPrompt,
-                AnthropicModel,
-                maxTokens: 2048,
-                apiKey: apiKey);
+                userId);
+
+            if (responseDoc == null)
+            {
+                throw new InvalidOperationException("Failed to generate exam prep exercise with Gemini");
+            }
 
             var (question, correctAnswer, explanation, helpText, subQuestions) = ParseExamPrepResponse(responseDoc);
 
@@ -834,19 +838,6 @@ EXAM SIMULATION MODUS:
     #endregion
 
     #region Helpers
-
-    private async Task<string?> GetApiKeyAsync(int? userId)
-    {
-        if (userId.HasValue)
-        {
-            var user = await _context.Users.FindAsync(userId.Value);
-            if (user != null && !string.IsNullOrEmpty(user.AnthropicApiKey))
-            {
-                return _encryptionHelper.Decrypt(user.AnthropicApiKey);
-            }
-        }
-        return null;
-    }
 
     private void ConfigureHtmlSanitizer()
     {

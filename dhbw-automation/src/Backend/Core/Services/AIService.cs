@@ -526,4 +526,66 @@ Dokument ({fileType}):
             return "Fehler beim Chat";
         }
     }
+
+    public async Task<JsonDocument?> GenerateJsonWithGeminiAsync(string systemPrompt, string userPrompt, int? userId = null)
+    {
+        try
+        {
+            var geminiKey = await GetApiKeyAsync("gemini", userId);
+            if (string.IsNullOrEmpty(geminiKey))
+            {
+                _logger.LogWarning("Gemini API Key missing for JSON generation");
+                return null;
+            }
+
+            var client = _httpClientFactory.CreateClient();
+            // Gemini 3 Flash / 1.5 Flash supports "response_mime_type": "application/json"
+            var requestUrl = $"{GeminiEndpoint}/{GeminiModel}:generateContent?key={geminiKey}";
+
+            var requestBody = new
+            {
+                contents = new[]
+                {
+                    new
+                    {
+                        role = "user",
+                        parts = new[]
+                        {
+                            new { text = systemPrompt + "\n\n" + userPrompt }
+                        }
+                    }
+                },
+                generationConfig = new
+                {
+                    temperature = 0.4,
+                    response_mime_type = "application/json" 
+                }
+            };
+
+            var json = JsonSerializer.Serialize(requestBody);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await client.PostAsync(requestUrl, content);
+            response.EnsureSuccessStatusCode();
+
+            var responseJson = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(responseJson);
+            
+            var text = doc.RootElement
+                .GetProperty("candidates")[0]
+                .GetProperty("content")
+                .GetProperty("parts")[0]
+                .GetProperty("text")
+                .GetString();
+
+            if (string.IsNullOrEmpty(text)) return null;
+
+            return JsonDocument.Parse(text);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating JSON with Gemini");
+            return null;
+        }
+    }
 }

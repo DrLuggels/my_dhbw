@@ -49,6 +49,15 @@ public class AppDbContext : DbContext
     public DbSet<QdrantEmbedding> QdrantEmbeddings { get; set; } = null!;
     public DbSet<DocumentChunk> DocumentChunks { get; set; } = null!;
 
+    // AKGLS (Adaptive Knowledge Graph Learning System) DbSets
+    public DbSet<UserKnowledgeNode> UserKnowledgeNodes { get; set; } = null!;
+    public DbSet<UserKnowledgeEdge> UserKnowledgeEdges { get; set; } = null!;
+    public DbSet<LearningPriority> LearningPriorities { get; set; } = null!;
+    public DbSet<UserDecayProfile> UserDecayProfiles { get; set; } = null!;
+    public DbSet<LearningStreak> LearningStreaks { get; set; } = null!;
+    public DbSet<ExamSimulation> ExamSimulations { get; set; } = null!;
+    public DbSet<PrerequisiteChain> PrerequisiteChains { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -596,6 +605,124 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.User)
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // === AKGLS (Adaptive Knowledge Graph Learning System) Configurations ===
+
+        // UserKnowledgeNode Configuration
+        modelBuilder.Entity<UserKnowledgeNode>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.Subject, e.Topic }).IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.Subject });
+            entity.HasIndex(e => e.MasteryLevel);
+            entity.HasIndex(e => e.LastInteraction);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // UserKnowledgeEdge Configuration
+        modelBuilder.Entity<UserKnowledgeEdge>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.SourceNodeId, e.TargetNodeId }).IsUnique();
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.EdgeType);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.SourceNode)
+                .WithMany()
+                .HasForeignKey(e => e.SourceNodeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.TargetNode)
+                .WithMany()
+                .HasForeignKey(e => e.TargetNodeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // LearningPriority Configuration
+        modelBuilder.Entity<LearningPriority>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.CompositeScore });
+            entity.HasIndex(e => e.Deadline);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.KnowledgeNode)
+                .WithMany()
+                .HasForeignKey(e => e.UserKnowledgeNodeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.MoodleAssignment)
+                .WithMany()
+                .HasForeignKey(e => e.MoodleAssignmentId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // UserDecayProfile Configuration
+        modelBuilder.Entity<UserDecayProfile>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.Subject }).IsUnique();
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // LearningStreak Configuration
+        modelBuilder.Entity<LearningStreak>(entity =>
+        {
+            entity.HasIndex(e => e.UserId).IsUnique();
+            entity.HasIndex(e => e.LastActivityDate);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ExamSimulation Configuration
+        modelBuilder.Entity<ExamSimulation>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.Subject });
+            entity.HasIndex(e => e.StartedAt);
+            entity.HasIndex(e => e.CompletedAt);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.MoodleAssignment)
+                .WithMany()
+                .HasForeignKey(e => e.MoodleAssignmentId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // PrerequisiteChain Configuration
+        modelBuilder.Entity<PrerequisiteChain>(entity =>
+        {
+            entity.HasIndex(e => new { e.PrerequisiteNodeId, e.DependentNodeId }).IsUnique();
+
+            entity.HasOne(e => e.PrerequisiteNode)
+                .WithMany()
+                .HasForeignKey(e => e.PrerequisiteNodeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.DependentNode)
+                .WithMany()
+                .HasForeignKey(e => e.DependentNodeId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

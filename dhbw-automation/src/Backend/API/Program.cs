@@ -6,6 +6,7 @@ using System.Text;
 using DHBWAutomation.Backend.Infrastructure.Database;
 using DHBWAutomation.Backend.Core.Interfaces;
 using DHBWAutomation.Backend.Core.Services;
+using DHBWAutomation.Backend.Core.Services.MoodleSync;
 using DHBWAutomation.Backend.Core.BackgroundServices;
 using DHBWAutomation.Backend.Infrastructure.Storage;
 using DHBWAutomation.Backend.Infrastructure.ExternalAPIs.Rapla;
@@ -236,6 +237,15 @@ builder.Services.AddScoped<IPdfImageExtractionService, PdfImageExtractionService
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();
 builder.Services.AddScoped<IGoogleCalendarService, GoogleCalendarService>();
 
+// Adaptive Knowledge Graph Learning System (AKGLS)
+builder.Services.AddScoped<IPersonalKnowledgeGraphService, PersonalKnowledgeGraphService>();
+builder.Services.AddScoped<IAdaptiveDifficultyService, AdaptiveDifficultyService>();
+builder.Services.AddScoped<IDeadlinePriorityService, DeadlinePriorityService>();
+builder.Services.AddScoped<IRagExerciseService, RagExerciseService>();
+builder.Services.AddScoped<IPrerequisiteService, PrerequisiteService>();
+builder.Services.AddScoped<ILearningStreakService, LearningStreakService>();
+builder.Services.AddScoped<IExamSimulationService, ExamSimulationService>();
+
 // Helper Services
 builder.Services.AddSingleton<AnthropicClient>();
 builder.Services.AddSingleton<AiMetrics>();
@@ -267,6 +277,10 @@ builder.Services.AddHostedService(provider => provider.GetRequiredService<JavaDo
 // Moodle Sync Background Worker
 builder.Services.AddHostedService<MoodleSyncWorker>();
 
+// AKGLS Background Services
+builder.Services.AddHostedService<KnowledgeDecayBackgroundService>();
+builder.Services.AddHostedService<PriorityCalculationBackgroundService>();
+
 // HTTP Clients
 builder.Services.AddHttpClient("OpenAI", client =>
 {
@@ -293,6 +307,22 @@ builder.Logging.AddDebug();
 // =============================================================================
 
 var app = builder.Build();
+
+// Auto-create database tables (for new tables)
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    try
+    {
+        // This will create any missing tables based on the DbContext model
+        context.Database.EnsureCreated();
+        Console.WriteLine("Database schema ensured.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Database initialization warning: {ex.Message}");
+    }
+}
 
 // Development Environment
 if (app.Environment.IsDevelopment())
