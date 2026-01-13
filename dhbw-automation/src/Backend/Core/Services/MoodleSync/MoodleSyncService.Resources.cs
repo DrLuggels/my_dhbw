@@ -43,7 +43,10 @@ public partial class MoodleSyncService
             var existingResources = await _context.MoodleResources
                 .Where(r => r.UserId == userId)
                 .ToListAsync();
-            var existingDict = existingResources.ToDictionary(r => $"{r.ResourceType}_{r.MoodleResourceId}_{r.FilePath ?? ""}");
+            // Key format: {ResourceType}_{MoodleResourceId}_{FilePath}{Title}
+            // This matches the unique index: UserId + ResourceType + MoodleResourceId + FilePath + Title
+            var existingDict = existingResources.ToDictionary(
+                r => $"{r.ResourceType}_{r.MoodleResourceId}_{r.FilePath ?? ""}{r.Title ?? ""}");
 
             _logger.LogInformation("Starting comprehensive resource sync for {CourseCount} courses", courses.Count);
 
@@ -160,7 +163,9 @@ public partial class MoodleSyncService
         Dictionary<string, MoodleResource> existingDict,
         MoodleSyncResult result)
     {
-        var resourceKey = $"{module.Modname}_{module.Instance ?? module.Id}_";
+        // Key format: {ResourceType}_{MoodleResourceId}_{FilePath}{Title}
+        // For non-file resources: no FilePath, Title is module.Name
+        var resourceKey = $"{module.Modname}_{module.Instance ?? module.Id}_{module.Name ?? ""}";
 
         if (existingDict.ContainsKey(resourceKey))
             return;

@@ -425,7 +425,10 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<MoodleResource>(entity =>
         {
             entity.HasIndex(e => new { e.UserId, e.CourseId });
-            entity.HasIndex(e => new { e.UserId, e.MoodleResourceId }).IsUnique();
+            // Unique per user + resource type + module ID + file path + title (for multiple files per module)
+            entity.HasIndex(e => new { e.UserId, e.ResourceType, e.MoodleResourceId, e.FilePath, e.Title })
+                .HasDatabaseName("IX_moodle_res_unique")
+                .IsUnique();
             entity.HasIndex(e => e.ResourceType);
             entity.HasIndex(e => e.IsDownloaded);
             entity.HasIndex(e => e.LocalDocumentId);
