@@ -72,4 +72,24 @@ public class MoodleSyncStatus
     public int PendingAssignmentsCount { get; set; }
 }
 
+public class MoodleDownloadResult
+{
+    public bool Success { get; set; }
+    public string? ErrorMessage { get; set; }
+    public int? DocumentId { get; set; }
+    public string? FileName { get; set; }
+    public long? FileSize { get; set; }
+}
+
+public class MoodleBatchDownloadResult
+{
+    public bool Success { get; set; }
+    public int TotalResources { get; set; }
+    public int DownloadedCount { get; set; }
+    public int FailedCount { get; set; }
+    public int SkippedCount { get; set; }
+    public List<string> Errors { get; set; } = new();
+    public List<int> CreatedDocumentIds { get; set; } = new();
+}
+
 #endregion

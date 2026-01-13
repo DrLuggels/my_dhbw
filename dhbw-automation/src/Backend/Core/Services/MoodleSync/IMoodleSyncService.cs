@@ -46,4 +46,14 @@ public interface IMoodleSyncService
     /// Holt den Sync-Status für einen User
     /// </summary>
     Task<MoodleSyncStatus> GetSyncStatusAsync(int userId);
+
+    /// <summary>
+    /// Lädt eine einzelne Moodle-Ressource herunter und erstellt ein Dokument
+    /// </summary>
+    Task<MoodleDownloadResult> DownloadResourceAsync(int resourceId, int userId);
+
+    /// <summary>
+    /// Lädt alle nicht heruntergeladenen Datei-Ressourcen herunter
+    /// </summary>
+    Task<MoodleBatchDownloadResult> DownloadAllResourcesAsync(int userId, bool processAfterDownload = true);
 }

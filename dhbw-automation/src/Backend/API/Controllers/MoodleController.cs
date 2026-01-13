@@ -498,6 +498,73 @@ public class MoodleController : ControllerBase
     }
 
     /// <summary>
+    /// Download a single resource
+    /// </summary>
+    [HttpPost("resources/{resourceId}/download")]
+    public async Task<IActionResult> DownloadResource(int resourceId)
+    {
+        var userId = GetUserId();
+        if (userId == 0) return Unauthorized();
+
+        try
+        {
+            var result = await _syncService.DownloadResourceAsync(resourceId, userId);
+
+            return Ok(new
+            {
+                success = result.Success,
+                message = result.Success ? "Download erfolgreich" : result.ErrorMessage,
+                data = result.Success ? new
+                {
+                    documentId = result.DocumentId,
+                    fileName = result.FileName,
+                    fileSize = result.FileSize
+                } : null
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error downloading resource {ResourceId}", resourceId);
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Download all undownloaded file resources
+    /// </summary>
+    [HttpPost("resources/download-all")]
+    public async Task<IActionResult> DownloadAllResources([FromQuery] bool processAfterDownload = true)
+    {
+        var userId = GetUserId();
+        if (userId == 0) return Unauthorized();
+
+        try
+        {
+            var result = await _syncService.DownloadAllResourcesAsync(userId, processAfterDownload);
+
+            return Ok(new
+            {
+                success = result.Success,
+                message = $"{result.DownloadedCount} von {result.TotalResources} heruntergeladen",
+                data = new
+                {
+                    totalResources = result.TotalResources,
+                    downloadedCount = result.DownloadedCount,
+                    failedCount = result.FailedCount,
+                    skippedCount = result.SkippedCount,
+                    createdDocumentIds = result.CreatedDocumentIds,
+                    errors = result.Errors
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error downloading all resources");
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Enable Moodle sync
     /// </summary>
     [HttpPost("enable")]
