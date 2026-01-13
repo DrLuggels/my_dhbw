@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace DHBWAutomation.Backend.Core.Models;
 
 /// <summary>
-/// Tracks Moodle course resources (files, URLs, pages)
+/// Tracks Moodle course resources (files, URLs, pages, folders, books, wikis, etc.)
 /// </summary>
 [Table("moodle_resources")]
 public class MoodleResource
@@ -29,17 +29,22 @@ public class MoodleResource
     public string? CourseName { get; set; }
 
     /// <summary>
-    /// Resource type: "file", "url", "page", "folder", "label"
+    /// Resource type: "resource", "file", "url", "page", "folder", "label", "book", "wiki", "glossary", "forum", "quiz"
     /// </summary>
     [Required]
     [MaxLength(50)]
     public string ResourceType { get; set; } = string.Empty;
 
     /// <summary>
-    /// Moodle's internal resource ID
+    /// Moodle's internal resource ID (module instance ID)
     /// </summary>
     [Required]
     public int MoodleResourceId { get; set; }
+
+    /// <summary>
+    /// Moodle course module ID (cmid)
+    /// </summary>
+    public int? MoodleCourseModuleId { get; set; }
 
     /// <summary>
     /// Resource/file title
@@ -49,25 +54,31 @@ public class MoodleResource
     public string Title { get; set; } = string.Empty;
 
     /// <summary>
-    /// Description from Moodle
+    /// Description/intro from Moodle (may contain HTML)
     /// </summary>
-    [Column(TypeName = "TEXT")]
+    [Column(TypeName = "LONGTEXT")]
     public string? Description { get; set; }
+
+    /// <summary>
+    /// HTML content for pages, labels, wiki pages, etc.
+    /// </summary>
+    [Column(TypeName = "LONGTEXT")]
+    public string? HtmlContent { get; set; }
 
     /// <summary>
     /// Download URL (for files)
     /// </summary>
-    [MaxLength(1000)]
+    [MaxLength(2000)]
     public string? DownloadUrl { get; set; }
 
     /// <summary>
     /// External URL (for URL resources)
     /// </summary>
-    [MaxLength(1000)]
+    [MaxLength(2000)]
     public string? ExternalUrl { get; set; }
 
     /// <summary>
-    /// File type/extension
+    /// File type/extension (e.g., ".pdf", "application/pdf")
     /// </summary>
     [MaxLength(100)]
     public string? FileType { get; set; }
@@ -76,6 +87,12 @@ public class MoodleResource
     /// File size in bytes
     /// </summary>
     public long? FileSize { get; set; }
+
+    /// <summary>
+    /// File path within folder (for folder contents)
+    /// </summary>
+    [MaxLength(500)]
+    public string? FilePath { get; set; }
 
     /// <summary>
     /// Section number in course
@@ -89,6 +106,17 @@ public class MoodleResource
     public string? SectionName { get; set; }
 
     /// <summary>
+    /// Parent resource ID (for hierarchical resources like book chapters, wiki subpages)
+    /// </summary>
+    public int? ParentResourceId { get; set; }
+
+    /// <summary>
+    /// Additional metadata as JSON (for quiz info, forum stats, etc.)
+    /// </summary>
+    [Column(TypeName = "JSON")]
+    public string? Metadata { get; set; }
+
+    /// <summary>
     /// Link to local document (after download)
     /// </summary>
     public int? LocalDocumentId { get; set; }
@@ -97,6 +125,16 @@ public class MoodleResource
     /// Whether this resource has been downloaded
     /// </summary>
     public bool IsDownloaded { get; set; } = false;
+
+    /// <summary>
+    /// Whether this resource is visible in Moodle
+    /// </summary>
+    public bool IsVisible { get; set; } = true;
+
+    /// <summary>
+    /// Last modification time in Moodle (Unix timestamp converted)
+    /// </summary>
+    public DateTime? MoodleTimeModified { get; set; }
 
     /// <summary>
     /// Last time Moodle was checked for updates
@@ -117,4 +155,7 @@ public class MoodleResource
 
     [ForeignKey("LocalDocumentId")]
     public virtual Document? LocalDocument { get; set; }
+
+    [ForeignKey("ParentResourceId")]
+    public virtual MoodleResource? ParentResource { get; set; }
 }
