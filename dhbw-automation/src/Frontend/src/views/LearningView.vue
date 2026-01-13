@@ -10,6 +10,8 @@
           <v-icon left color="primary">mdi-school</v-icon>
           Lernbereich
         </h1>
+        <!-- Streak Widget (kompakt) -->
+        <StreakWidget compact variant="text" :show-action="false" class="ml-4 d-none d-sm-flex" />
       </div>
 
       <!-- Exercise Mode Selector -->
@@ -41,6 +43,16 @@
       class="mb-4"
       hide-details
     />
+
+    <!-- AKGLS Priority Recommendations (hidden during fullscreen exercise) -->
+    <v-row v-if="!showExercisePlayer" class="mb-4">
+      <v-col cols="12" md="8">
+        <PriorityCard :max-items="3" :show-details="false" @learn="onPriorityLearn" />
+      </v-col>
+      <v-col cols="12" md="4">
+        <DifficultyDistribution variant="outlined" />
+      </v-col>
+    </v-row>
 
     <!-- Statistics Cards (hidden during fullscreen exercise) -->
     <v-row v-if="!showExercisePlayer">
@@ -450,6 +462,7 @@ import { useDisplay } from 'vuetify'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { InteractiveExercisePlayer } from '@/components/exercises'
+import { StreakWidget, PriorityCard, DifficultyDistribution } from '@/components/learning'
 
 // Vuetify display for responsive design
 const { mobile } = useDisplay()
@@ -825,6 +838,19 @@ const onInteractiveComplete = async (result: { score: number; stepResults: any[]
 
   // Reload stats
   await loadStats()
+}
+
+// Handler for PriorityCard "learn" action
+const onPriorityLearn = (priority: { topic: string; subject: string }) => {
+  // Set the interactive exercise fields based on priority
+  interactiveSubject.value = priority.subject
+  interactiveTopic.value = priority.topic
+
+  // Switch to interactive tab
+  activeTab.value = 'interactive'
+
+  // Auto-generate the exercise
+  generateInteractiveExercise()
 }
 
 onMounted(() => {

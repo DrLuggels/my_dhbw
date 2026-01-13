@@ -33,7 +33,7 @@
 
     <!-- Statistics Cards -->
     <v-row>
-      <v-col cols="12" md="4">
+      <v-col cols="12" md="3">
         <v-card>
           <v-card-title>Dokumente</v-card-title>
           <v-card-text>
@@ -43,7 +43,7 @@
         </v-card>
       </v-col>
 
-      <v-col cols="12" md="4">
+      <v-col cols="12" md="3">
         <v-card>
           <v-card-title>Termine</v-card-title>
           <v-card-text>
@@ -57,7 +57,11 @@
         </v-card>
       </v-col>
 
-      <v-col cols="12" md="4">
+      <v-col cols="12" md="3">
+        <StreakWidget variant="outlined" :show-action="false" />
+      </v-col>
+
+      <v-col cols="12" md="3">
         <v-card>
           <v-card-title>Rapla Sync</v-card-title>
           <v-card-text>
@@ -168,6 +172,7 @@ import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 import InteractionDialog from '@/components/InteractionDialog.vue'
 import LearningDeficitsWidget from '@/components/LearningDeficitsWidget.vue'
+import { StreakWidget } from '@/components/learning'
 
 interface Interaction {
   id: number

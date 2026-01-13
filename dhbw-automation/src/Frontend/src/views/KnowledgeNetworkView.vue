@@ -12,7 +12,18 @@
         </h1>
       </div>
 
-      <div class="d-flex gap-2">
+      <div class="d-flex gap-2 align-center">
+        <!-- Mastery Mode Toggle -->
+        <v-btn-toggle v-model="masteryMode" density="compact" class="mr-2">
+          <v-btn :value="false" size="small">
+            <v-icon start>mdi-web</v-icon>
+            Standard
+          </v-btn>
+          <v-btn :value="true" size="small" color="success">
+            <v-icon start>mdi-brain</v-icon>
+            Mastery
+          </v-btn>
+        </v-btn-toggle>
         <v-btn
           color="primary"
           variant="tonal"
@@ -600,16 +611,22 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useDisplay } from 'vuetify'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 import NetworkGraph from '@/components/network/NetworkGraph.vue'
 import ClusterVisualization from '@/components/network/ClusterVisualization.vue'
 
 const { mobile } = useDisplay()
 const isMobile = computed(() => mobile.value)
 const router = useRouter()
+const authStore = useAuthStore()
 
 // View state
 const viewMode = ref<'graph' | 'cluster' | 'list'>('list')
 const listFilter = ref('')
+
+// AKGLS Mastery Mode
+const masteryMode = ref(false)
+const masteryFilter = ref<'all' | 'weak' | 'fading'>('all')
 
 // Stats
 const stats = ref({
@@ -680,6 +697,11 @@ interface GraphNode {
   label: string
   type: string
   linkCount: number
+  // AKGLS Mastery properties
+  mastery?: number
+  effectiveStrength?: number
+  lastInteraction?: string
+  decayRate?: number
 }
 
 interface GraphEdge {
@@ -758,13 +780,39 @@ const filteredNodes = computed(() => {
 const loadNetworkGraph = async () => {
   loadingGraph.value = true
   try {
-    const response = await api.get('/knowledgenetwork/graph')
-    if (response.data) {
-      graphNodes.value = response.data.nodes || []
-      graphEdges.value = response.data.edges || []
-      stats.value.totalNodes = graphNodes.value.length
-      stats.value.totalLinks = graphEdges.value.length
+    // Use AKGLS PKG endpoint if user is logged in, otherwise fall back to standard endpoint
+    let response
+    if (authStore.user?.id && masteryMode.value) {
+      response = await api.getUserKnowledgeGraph(authStore.user.id)
+      if (response.success && response.data) {
+        // Transform PKG data to graph format
+        graphNodes.value = response.data.nodes?.map((n: any) => ({
+          id: `node-${n.id}`,
+          entityType: 'KnowledgeNode',
+          entityId: n.id,
+          label: n.subtopic || n.topic,
+          type: n.subject,
+          linkCount: 0,
+          mastery: n.mastery,
+          effectiveStrength: n.effectiveStrength,
+          lastInteraction: n.lastInteraction,
+          decayRate: n.decayRate
+        })) || []
+        graphEdges.value = response.data.edges?.map((e: any) => ({
+          from: `node-${e.sourceNodeId}`,
+          to: `node-${e.targetNodeId}`,
+          linkType: e.relationType
+        })) || []
+      }
+    } else {
+      response = await api.get('/knowledgenetwork/graph')
+      if (response.data) {
+        graphNodes.value = response.data.nodes || []
+        graphEdges.value = response.data.edges || []
+      }
     }
+    stats.value.totalNodes = graphNodes.value.length
+    stats.value.totalLinks = graphEdges.value.length
   } catch (error) {
     console.error('Error loading graph:', error)
     showMessage('Fehler beim Laden des Graphen', 'error')
@@ -1054,7 +1102,15 @@ const getNodeIcon = (type: string) => {
   return icons[type] || 'mdi-circle'
 }
 
-const getNodeColor = (type: string) => {
+const getNodeColor = (type: string, mastery?: number) => {
+  // In mastery mode, color by mastery level
+  if (masteryMode.value && mastery !== undefined) {
+    if (mastery < 0.3) return 'error'      // Red - weak
+    if (mastery < 0.6) return 'warning'    // Orange - medium
+    return 'success'                        // Green - strong
+  }
+
+  // Default: color by entity type
   const colors: Record<string, string> = {
     'Document': 'blue',
     'KnowledgeItem': 'orange',
@@ -1120,6 +1176,11 @@ watch(viewMode, async (newMode) => {
   if (newMode === 'cluster' && clusterPoints.value.length === 0) {
     await loadClusterData()
   }
+})
+
+// Watch for mastery mode changes to reload graph
+watch(masteryMode, async () => {
+  await loadNetworkGraph()
 })
 
 // Initialize

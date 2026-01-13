@@ -294,6 +294,107 @@ class ApiService {
     const response = await this.api.get('/health')
     return response.data
   }
+
+  // ==================== AKGLS - Adaptive Learning Endpoints ====================
+
+  async getStreak(userId: number) {
+    const response = await this.api.get(`/adaptive/${userId}/streak`)
+    return response.data
+  }
+
+  async getDifficultyDistribution(userId: number, subject?: string) {
+    const params = subject ? { subject } : {}
+    const response = await this.api.get(`/adaptive/${userId}/distribution`, { params })
+    return response.data
+  }
+
+  async getNextExercise(userId: number) {
+    const response = await this.api.get(`/adaptive/${userId}/next`)
+    return response.data
+  }
+
+  async startLearningSession(userId: number, count: number = 5) {
+    const response = await this.api.get(`/adaptive/${userId}/session`, { params: { count } })
+    return response.data
+  }
+
+  async submitAdaptiveAnswer(userId: number, data: { nodeId: number; isCorrect: boolean; difficulty: string; exerciseId?: number }) {
+    const response = await this.api.post(`/adaptive/${userId}/answer`, data)
+    return response.data
+  }
+
+  async getPriorities(userId: number, topN: number = 10) {
+    const response = await this.api.get(`/adaptive/${userId}/priorities`, { params: { topN } })
+    return response.data
+  }
+
+  async getDeadlines(userId: number, days: number = 30) {
+    const response = await this.api.get(`/adaptive/${userId}/deadlines`, { params: { days } })
+    return response.data
+  }
+
+  async refreshPriorities(userId: number) {
+    const response = await this.api.post(`/adaptive/${userId}/refresh-priorities`)
+    return response.data
+  }
+
+  async selectDifficulty(userId: number, nodeId: number) {
+    const response = await this.api.get(`/adaptive/${userId}/difficulty/${nodeId}`)
+    return response.data
+  }
+
+  async generateAdaptiveExercise(userId: number, data: { subject: string; topic: string; subtopic?: string; difficulty?: string }) {
+    const response = await this.api.post(`/adaptive/${userId}/exercise`, data)
+    return response.data
+  }
+
+  // ==================== AKGLS - Personal Knowledge Graph Endpoints ====================
+
+  async getUserKnowledgeGraph(userId: number) {
+    const response = await this.api.get(`/pkg/${userId}`)
+    return response.data
+  }
+
+  async getUserKnowledgeNodes(userId: number, subject?: string) {
+    const params = subject ? { subject } : {}
+    const response = await this.api.get(`/pkg/${userId}/nodes`, { params })
+    return response.data
+  }
+
+  async getOrCreateKnowledgeNode(userId: number, data: { subject: string; topic: string; subtopic?: string }) {
+    const response = await this.api.post(`/pkg/${userId}/nodes`, data)
+    return response.data
+  }
+
+  async getWeakAreas(userId: number, threshold: number = 0.4) {
+    const response = await this.api.get(`/pkg/${userId}/weak-areas`, { params: { threshold } })
+    return response.data
+  }
+
+  async getFadingNodes(userId: number, threshold: number = 0.5) {
+    const response = await this.api.get(`/pkg/${userId}/fading`, { params: { threshold } })
+    return response.data
+  }
+
+  async getFadingEdges(userId: number, threshold: number = 0.3) {
+    const response = await this.api.get(`/pkg/${userId}/fading-edges`, { params: { threshold } })
+    return response.data
+  }
+
+  async recordExerciseResult(userId: number, data: { nodeId: number; isCorrect: boolean; difficulty: string }) {
+    const response = await this.api.post(`/pkg/${userId}/exercise-result`, data)
+    return response.data
+  }
+
+  async generateSemanticEdges(userId: number, threshold: number = 0.7) {
+    const response = await this.api.post(`/pkg/${userId}/generate-edges`, { threshold })
+    return response.data
+  }
+
+  async getPersonalDecayRate(userId: number, subject: string) {
+    const response = await this.api.get(`/pkg/${userId}/decay-rate`, { params: { subject } })
+    return response.data
+  }
 }
 
 export default new ApiService()
