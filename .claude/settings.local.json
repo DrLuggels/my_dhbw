@@ -41,7 +41,15 @@
       "Bash(powershell -Command \"flutter devices\")",
       "Bash(powershell:*)",
       "Bash(cd:*)",
-      "WebFetch(domain:docs.moodle.org)"
+      "WebFetch(domain:docs.moodle.org)",
+      "WebFetch(domain:www.dnb.de)",
+      "WebFetch(domain:www.bsz-bw.de)",
+      "WebFetch(domain:wiki.k10plus.de)",
+      "WebFetch(domain:uri.gbv.de)",
+      "WebFetch(domain:sigel.staatsbibliothek-berlin.de)",
+      "WebFetch(domain:bsz.ibs-bw.de)",
+      "WebFetch(domain:isil.staatsbibliothek-berlin.de)",
+      "Bash(py:*)"
     ]
   }
 }
