@@ -1,5 +1,7 @@
+using DHBWAutomation.Backend.Core.Interfaces;
 using DHBWAutomation.Backend.Core.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DHBWAutomation.Backend.Core.Services.MoodleSync;
 
@@ -62,7 +64,7 @@ public partial class MoodleSyncService
             _logger.LogInformation("Downloading resource {ResourceId}: {Title}", resourceId, resource.Title);
             var downloadResult = await _moodleClient.DownloadFileAsync(resource.DownloadUrl);
 
-            if (!downloadResult.Success || downloadResult.Content == null)
+            if (!downloadResult.Success || downloadResult.Content == null || downloadResult.Content.Length == 0)
             {
                 result.ErrorMessage = downloadResult.ErrorMessage ?? "Download fehlgeschlagen";
                 return result;
@@ -87,8 +89,8 @@ public partial class MoodleSyncService
 
                 if (storageService != null)
                 {
-                    downloadResult.Content.Position = 0;
-                    await storageService.UploadFileAsync(downloadResult.Content, storagePath, "dhbw-files");
+                    using var memoryStream = new MemoryStream(downloadResult.Content);
+                    await storageService.UploadFileAsync(memoryStream, storagePath, "dhbw-files");
                 }
             }
 
@@ -97,18 +99,16 @@ public partial class MoodleSyncService
             {
                 UserId = userId,
                 FileName = fileName,
-                OriginalFileName = resource.Title ?? fileName,
                 FilePath = storagePath,
                 FileType = fileExtension.TrimStart('.'),
                 FileSize = downloadResult.Content.Length,
-                UploadedAt = DateTime.UtcNow,
                 Category = DetermineCategory(resource.CourseName, resource.Title),
                 Subject = ExtractSubject(resource.CourseName),
-                SourceType = "moodle",
-                SourceId = resource.MoodleResourceId.ToString(),
+                Source = "moodle",
                 IsProcessed = false,
                 IsChunked = false,
-                HasEmbedding = false
+                HasEmbedding = false,
+                CreatedAt = DateTime.UtcNow
             };
 
             _context.Documents.Add(document);
