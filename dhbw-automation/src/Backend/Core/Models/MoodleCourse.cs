@@ -80,7 +80,6 @@ public class MoodleCourse
     [ForeignKey("UserId")]
     public virtual User User { get; set; } = null!;
 
-    // Related assignments and resources
-    public virtual ICollection<MoodleAssignment> Assignments { get; set; } = new List<MoodleAssignment>();
-    public virtual ICollection<MoodleResource> Resources { get; set; } = new List<MoodleResource>();
+    // Note: Assignments and Resources are linked by CourseId (external Moodle ID),
+    // not by a foreign key to this table's Id. Query them separately using MoodleCourseId.
 }
