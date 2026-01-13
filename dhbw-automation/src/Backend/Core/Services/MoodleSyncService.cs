@@ -1,14 +1,23 @@
-using DHBWAutomation.Backend.Core.Models;
-using DHBWAutomation.Backend.Infrastructure.Database;
-using DHBWAutomation.Backend.Infrastructure.ExternalAPIs.Moodle;
-using DHBWAutomation.Backend.Shared.Helpers;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
+// ===================================================================
+// DIESES FILE WURDE REFACTORIERT IN KLEINERE MODULE
+// Die Implementierung befindet sich nun in:
+// - MoodleSync/IMoodleSyncService.cs
+// - MoodleSync/MoodleSyncService.Base.cs
+// - MoodleSync/MoodleSyncService.Core.cs
+// - MoodleSync/MoodleSyncService.Courses.cs
+// - MoodleSync/MoodleSyncService.Resources.cs
+// - MoodleSync/MoodleSyncService.Pages.cs (wird noch erstellt)
+// - MoodleSync/MoodleSyncService.Interactive.cs (wird noch erstellt)
+// - MoodleSync/MoodleSyncService.Wiki.cs (wird noch erstellt)
+// - MoodleSync/MoodleSyncService.Calendar.cs (wird noch erstellt)
+// - MoodleSync/MoodleSyncService.Helpers.cs (wird noch erstellt)
+// - MoodleSync/MoodleSyncModels.cs
+// ===================================================================
+// Diese Datei bleibt temporär zur Rückwärtskompatibilität bestehen
+// und sollte nach vollständiger Migration gelöscht werden.
+// ===================================================================
 
-// Type aliases to resolve ambiguous references between Models and API DTOs
-using MoodleCourseModel = DHBWAutomation.Backend.Core.Models.MoodleCourse;
-using MoodleCalendarEventModel = DHBWAutomation.Backend.Core.Models.MoodleCalendarEvent;
-using MoodleApiCalendarEvent = DHBWAutomation.Backend.Infrastructure.ExternalAPIs.Moodle.MoodleCalendarEvent;
+using DHBWAutomation.Backend.Core.Services.MoodleSync;
 
 namespace DHBWAutomation.Backend.Core.Services;
 
@@ -406,97 +415,45 @@ public class MoodleSyncService : IMoodleSyncService
                 return result;
             }
 
+            var courseIds = courses.Select(c => c.MoodleCourseId).ToArray();
+
+            // Lade existierende Ressourcen mit zusammengesetztem Key (Type + MoodleResourceId)
             var existingResources = await _context.MoodleResources
                 .Where(r => r.UserId == userId)
-                .ToDictionaryAsync(r => r.MoodleResourceId);
+                .ToListAsync();
+            var existingDict = existingResources.ToDictionary(r => $"{r.ResourceType}_{r.MoodleResourceId}_{r.FilePath ?? ""}");
 
+            _logger.LogInformation("Starting comprehensive resource sync for {CourseCount} courses", courses.Count);
+
+            // 1. Sync über core_course_get_contents (alle Module mit Dateien)
             foreach (var course in courses)
             {
-                _logger.LogDebug("Syncing resources for course {CourseName}", course.Fullname);
-
+                _logger.LogDebug("Syncing course contents for {CourseName}", course.Fullname);
                 var sections = await _moodleClient.GetCourseContentsAsync(course.MoodleCourseId);
 
                 foreach (var section in sections)
                 {
                     foreach (var module in section.Modules ?? Enumerable.Empty<MoodleModule>())
                     {
-                        // Verarbeite Dateien im Modul
-                        foreach (var content in module.Contents ?? Enumerable.Empty<MoodleModuleContent>())
-                        {
-                            if (content.Type != "file" || string.IsNullOrEmpty(content.Fileurl))
-                                continue;
+                        // Verarbeite alle Module mit Contents (Dateien)
+                        await ProcessModuleContents(userId, course, section, module, existingDict, result);
 
-                            var resourceId = module.Id * 10000 + (content.Filename?.GetHashCode() ?? 0) % 10000;
-
-                            if (existingResources.TryGetValue(resourceId, out var existing))
-                            {
-                                // Update nur wenn geändert
-                                if (existing.UpdatedAt == null ||
-                                    (content.Timemodified > 0 &&
-                                     DateTimeOffset.FromUnixTimeSeconds(content.Timemodified).UtcDateTime > existing.UpdatedAt))
-                                {
-                                    existing.Title = content.Filename;
-                                    existing.DownloadUrl = content.Fileurl;
-                                    existing.FileSize = content.Filesize;
-                                    existing.FileType = content.Mimetype ?? Path.GetExtension(content.Filename);
-                                    existing.SyncedAt = DateTime.UtcNow;
-                                    existing.UpdatedAt = DateTime.UtcNow;
-                                    existing.IsDownloaded = false; // Neu herunterladen nötig
-                                    result.Updated++;
-                                }
-                            }
-                            else
-                            {
-                                // Insert
-                                var newResource = new MoodleResource
-                                {
-                                    UserId = userId,
-                                    CourseId = course.MoodleCourseId,
-                                    CourseName = course.Fullname,
-                                    MoodleResourceId = resourceId,
-                                    ResourceType = module.Modname,
-                                    Title = content.Filename,
-                                    Description = module.Description,
-                                    DownloadUrl = content.Fileurl,
-                                    FileType = content.Mimetype ?? Path.GetExtension(content.Filename),
-                                    FileSize = content.Filesize,
-                                    SectionNumber = section.Section,
-                                    SectionName = section.Name,
-                                    SyncedAt = DateTime.UtcNow
-                                };
-                                _context.MoodleResources.Add(newResource);
-                                result.Added++;
-                            }
-                        }
-
-                        // Verarbeite URL-Ressourcen
-                        if (module.Modname == "url" && !string.IsNullOrEmpty(module.Url))
-                        {
-                            var urlResourceId = module.Id;
-
-                            if (!existingResources.ContainsKey(urlResourceId))
-                            {
-                                var urlResource = new MoodleResource
-                                {
-                                    UserId = userId,
-                                    CourseId = course.MoodleCourseId,
-                                    CourseName = course.Fullname,
-                                    MoodleResourceId = urlResourceId,
-                                    ResourceType = "url",
-                                    Title = module.Name,
-                                    Description = module.Description,
-                                    ExternalUrl = module.Url,
-                                    SectionNumber = section.Section,
-                                    SectionName = section.Name,
-                                    SyncedAt = DateTime.UtcNow
-                                };
-                                _context.MoodleResources.Add(urlResource);
-                                result.Added++;
-                            }
-                        }
+                        // Verarbeite spezielle Modultypen
+                        await ProcessSpecialModule(userId, course, section, module, existingDict, result);
                     }
                 }
             }
+
+            // 2. Sync über modulspezifische APIs für detaillierte Daten
+            await SyncPagesAsync(userId, courses, courseIds, existingDict, result);
+            await SyncFoldersAsync(userId, courses, courseIds, existingDict, result);
+            await SyncUrlsAsync(userId, courses, courseIds, existingDict, result);
+            await SyncLabelsAsync(userId, courses, courseIds, existingDict, result);
+            await SyncBooksAsync(userId, courses, courseIds, existingDict, result);
+            await SyncForumsAsync(userId, courses, courseIds, existingDict, result);
+            await SyncGlossariesAsync(userId, courses, courseIds, existingDict, result);
+            await SyncWikisAsync(userId, courses, courseIds, existingDict, result);
+            await SyncQuizzesAsync(userId, courses, courseIds, existingDict, result);
 
             await _context.SaveChangesAsync();
             result.Success = true;
@@ -511,6 +468,993 @@ public class MoodleSyncService : IMoodleSyncService
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Verarbeitet alle Dateien innerhalb eines Moduls (Contents)
+    /// </summary>
+    private async Task ProcessModuleContents(
+        int userId,
+        MoodleCourseModel course,
+        MoodleCourseSection section,
+        MoodleModule module,
+        Dictionary<string, MoodleResource> existingDict,
+        MoodleSyncResult result)
+    {
+        foreach (var content in module.Contents ?? Enumerable.Empty<MoodleModuleContent>())
+        {
+            // Akzeptiere alles mit FileUrl (nicht nur Type="file")
+            if (string.IsNullOrEmpty(content.Fileurl))
+                continue;
+
+            var filePath = content.Filepath?.Trim('/') ?? "";
+            var resourceKey = $"file_{module.Id}_{filePath}{content.Filename}";
+            var timeModified = content.Timemodified > 0
+                ? DateTimeOffset.FromUnixTimeSeconds(content.Timemodified).UtcDateTime
+                : (DateTime?)null;
+
+            if (existingDict.TryGetValue(resourceKey, out var existing))
+            {
+                // Update wenn geändert
+                if (timeModified.HasValue && (existing.MoodleTimeModified == null || timeModified > existing.MoodleTimeModified))
+                {
+                    existing.Title = content.Filename;
+                    existing.DownloadUrl = content.Fileurl;
+                    existing.FileSize = content.Filesize;
+                    existing.FileType = content.Mimetype ?? Path.GetExtension(content.Filename);
+                    existing.FilePath = string.IsNullOrEmpty(filePath) ? null : filePath;
+                    existing.MoodleTimeModified = timeModified;
+                    existing.SyncedAt = DateTime.UtcNow;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                    existing.IsDownloaded = false;
+                    result.Updated++;
+                }
+            }
+            else
+            {
+                var newResource = new MoodleResource
+                {
+                    UserId = userId,
+                    CourseId = course.MoodleCourseId,
+                    CourseName = course.Fullname,
+                    MoodleResourceId = module.Id,
+                    MoodleCourseModuleId = module.Id,
+                    ResourceType = "file",
+                    Title = content.Filename,
+                    Description = module.Description,
+                    DownloadUrl = content.Fileurl,
+                    FileType = content.Mimetype ?? Path.GetExtension(content.Filename),
+                    FileSize = content.Filesize,
+                    FilePath = string.IsNullOrEmpty(filePath) ? null : filePath,
+                    SectionNumber = section.Section,
+                    SectionName = section.Name,
+                    IsVisible = module.Visible,
+                    MoodleTimeModified = timeModified,
+                    SyncedAt = DateTime.UtcNow
+                };
+                _context.MoodleResources.Add(newResource);
+                existingDict[resourceKey] = newResource;
+                result.Added++;
+            }
+        }
+
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Verarbeitet spezielle Modultypen (URL, Page, etc.) aus course_contents
+    /// </summary>
+    private async Task ProcessSpecialModule(
+        int userId,
+        MoodleCourseModel course,
+        MoodleCourseSection section,
+        MoodleModule module,
+        Dictionary<string, MoodleResource> existingDict,
+        MoodleSyncResult result)
+    {
+        var resourceKey = $"{module.Modname}_{module.Instance ?? module.Id}_";
+
+        // Prüfe ob bereits verarbeitet
+        if (existingDict.ContainsKey(resourceKey))
+            return;
+
+        MoodleResource? newResource = null;
+
+        switch (module.Modname)
+        {
+            case "url":
+                if (!string.IsNullOrEmpty(module.Url))
+                {
+                    newResource = new MoodleResource
+                    {
+                        UserId = userId,
+                        CourseId = course.MoodleCourseId,
+                        CourseName = course.Fullname,
+                        MoodleResourceId = module.Instance ?? module.Id,
+                        MoodleCourseModuleId = module.Id,
+                        ResourceType = "url",
+                        Title = module.Name,
+                        Description = module.Description,
+                        ExternalUrl = module.Url,
+                        SectionNumber = section.Section,
+                        SectionName = section.Name,
+                        IsVisible = module.Visible,
+                        SyncedAt = DateTime.UtcNow
+                    };
+                }
+                break;
+
+            case "page":
+            case "label":
+                newResource = new MoodleResource
+                {
+                    UserId = userId,
+                    CourseId = course.MoodleCourseId,
+                    CourseName = course.Fullname,
+                    MoodleResourceId = module.Instance ?? module.Id,
+                    MoodleCourseModuleId = module.Id,
+                    ResourceType = module.Modname,
+                    Title = module.Name,
+                    Description = module.Description,
+                    HtmlContent = module.Description, // Grundlegende Info aus course_contents
+                    SectionNumber = section.Section,
+                    SectionName = section.Name,
+                    IsVisible = module.Visible,
+                    SyncedAt = DateTime.UtcNow
+                };
+                break;
+
+            case "folder":
+            case "book":
+            case "wiki":
+            case "glossary":
+            case "forum":
+            case "quiz":
+            case "assign":
+                // Diese werden durch spezielle API-Calls verarbeitet
+                // Hier nur als Platzhalter registrieren
+                newResource = new MoodleResource
+                {
+                    UserId = userId,
+                    CourseId = course.MoodleCourseId,
+                    CourseName = course.Fullname,
+                    MoodleResourceId = module.Instance ?? module.Id,
+                    MoodleCourseModuleId = module.Id,
+                    ResourceType = module.Modname,
+                    Title = module.Name,
+                    Description = module.Description,
+                    SectionNumber = section.Section,
+                    SectionName = section.Name,
+                    IsVisible = module.Visible,
+                    SyncedAt = DateTime.UtcNow
+                };
+                break;
+        }
+
+        if (newResource != null)
+        {
+            _context.MoodleResources.Add(newResource);
+            existingDict[resourceKey] = newResource;
+            result.Added++;
+        }
+
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Sync Seiten (Pages) mit detailliertem Content
+    /// </summary>
+    private async Task SyncPagesAsync(
+        int userId,
+        List<MoodleCourseModel> courses,
+        int[] courseIds,
+        Dictionary<string, MoodleResource> existingDict,
+        MoodleSyncResult result)
+    {
+        try
+        {
+            var pagesResponse = await _moodleClient.GetPagesByCoursesAsync(courseIds);
+
+            foreach (var page in pagesResponse.Pages ?? Enumerable.Empty<MoodlePageData>())
+            {
+                var course = courses.FirstOrDefault(c => c.MoodleCourseId == page.Course);
+                var resourceKey = $"page_{page.Id}_";
+
+                var timeModified = page.Timemodified > 0
+                    ? DateTimeOffset.FromUnixTimeSeconds(page.Timemodified).UtcDateTime
+                    : (DateTime?)null;
+
+                if (existingDict.TryGetValue(resourceKey, out var existing))
+                {
+                    // Update mit detailliertem Content
+                    existing.HtmlContent = page.Content;
+                    existing.Description = page.Intro;
+                    existing.MoodleCourseModuleId = page.Coursemodule;
+                    existing.MoodleTimeModified = timeModified;
+                    existing.SectionNumber = page.Section;
+                    existing.IsVisible = page.Visible;
+                    existing.SyncedAt = DateTime.UtcNow;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                    result.Updated++;
+
+                    // Verarbeite Content-Files
+                    await ProcessContentFiles(userId, page.Course, course?.Fullname, page.Id, "page",
+                        page.Contentfiles, existingDict, result);
+                }
+                else
+                {
+                    var newPage = new MoodleResource
+                    {
+                        UserId = userId,
+                        CourseId = page.Course,
+                        CourseName = course?.Fullname,
+                        MoodleResourceId = page.Id,
+                        MoodleCourseModuleId = page.Coursemodule,
+                        ResourceType = "page",
+                        Title = page.Name,
+                        Description = page.Intro,
+                        HtmlContent = page.Content,
+                        SectionNumber = page.Section,
+                        IsVisible = page.Visible,
+                        MoodleTimeModified = timeModified,
+                        SyncedAt = DateTime.UtcNow
+                    };
+                    _context.MoodleResources.Add(newPage);
+                    existingDict[resourceKey] = newPage;
+                    result.Added++;
+
+                    await ProcessContentFiles(userId, page.Course, course?.Fullname, page.Id, "page",
+                        page.Contentfiles, existingDict, result);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to sync pages - API may not be available");
+        }
+    }
+
+    /// <summary>
+    /// Sync Ordner (Folders) - Dateien werden bereits durch course_contents erfasst
+    /// </summary>
+    private async Task SyncFoldersAsync(
+        int userId,
+        List<MoodleCourseModel> courses,
+        int[] courseIds,
+        Dictionary<string, MoodleResource> existingDict,
+        MoodleSyncResult result)
+    {
+        try
+        {
+            var foldersResponse = await _moodleClient.GetFoldersByCoursesAsync(courseIds);
+
+            foreach (var folder in foldersResponse.Folders ?? Enumerable.Empty<MoodleFolderData>())
+            {
+                var course = courses.FirstOrDefault(c => c.MoodleCourseId == folder.Course);
+                var resourceKey = $"folder_{folder.Id}_";
+
+                if (existingDict.TryGetValue(resourceKey, out var existing))
+                {
+                    existing.Description = folder.Intro;
+                    existing.MoodleCourseModuleId = folder.Coursemodule;
+                    existing.SectionNumber = folder.Section;
+                    existing.IsVisible = folder.Visible;
+                    existing.SyncedAt = DateTime.UtcNow;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                    result.Updated++;
+                }
+                else
+                {
+                    var newFolder = new MoodleResource
+                    {
+                        UserId = userId,
+                        CourseId = folder.Course,
+                        CourseName = course?.Fullname,
+                        MoodleResourceId = folder.Id,
+                        MoodleCourseModuleId = folder.Coursemodule,
+                        ResourceType = "folder",
+                        Title = folder.Name,
+                        Description = folder.Intro,
+                        SectionNumber = folder.Section,
+                        IsVisible = folder.Visible,
+                        MoodleTimeModified = folder.Timemodified > 0
+                            ? DateTimeOffset.FromUnixTimeSeconds(folder.Timemodified).UtcDateTime
+                            : null,
+                        SyncedAt = DateTime.UtcNow
+                    };
+                    _context.MoodleResources.Add(newFolder);
+                    existingDict[resourceKey] = newFolder;
+                    result.Added++;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to sync folders - API may not be available");
+        }
+    }
+
+    /// <summary>
+    /// Sync URLs mit detaillierten Daten
+    /// </summary>
+    private async Task SyncUrlsAsync(
+        int userId,
+        List<MoodleCourseModel> courses,
+        int[] courseIds,
+        Dictionary<string, MoodleResource> existingDict,
+        MoodleSyncResult result)
+    {
+        try
+        {
+            var urlsResponse = await _moodleClient.GetUrlsByCoursesAsync(courseIds);
+
+            foreach (var url in urlsResponse.Urls ?? Enumerable.Empty<MoodleUrlData>())
+            {
+                var course = courses.FirstOrDefault(c => c.MoodleCourseId == url.Course);
+                var resourceKey = $"url_{url.Id}_";
+
+                if (existingDict.TryGetValue(resourceKey, out var existing))
+                {
+                    existing.ExternalUrl = url.Externalurl;
+                    existing.Description = url.Intro;
+                    existing.MoodleCourseModuleId = url.Coursemodule;
+                    existing.SectionNumber = url.Section;
+                    existing.IsVisible = url.Visible;
+                    existing.SyncedAt = DateTime.UtcNow;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                    result.Updated++;
+                }
+                else
+                {
+                    var newUrl = new MoodleResource
+                    {
+                        UserId = userId,
+                        CourseId = url.Course,
+                        CourseName = course?.Fullname,
+                        MoodleResourceId = url.Id,
+                        MoodleCourseModuleId = url.Coursemodule,
+                        ResourceType = "url",
+                        Title = url.Name,
+                        Description = url.Intro,
+                        ExternalUrl = url.Externalurl,
+                        SectionNumber = url.Section,
+                        IsVisible = url.Visible,
+                        MoodleTimeModified = url.Timemodified > 0
+                            ? DateTimeOffset.FromUnixTimeSeconds(url.Timemodified).UtcDateTime
+                            : null,
+                        SyncedAt = DateTime.UtcNow
+                    };
+                    _context.MoodleResources.Add(newUrl);
+                    existingDict[resourceKey] = newUrl;
+                    result.Added++;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to sync URLs - API may not be available");
+        }
+    }
+
+    /// <summary>
+    /// Sync Labels (Textblöcke)
+    /// </summary>
+    private async Task SyncLabelsAsync(
+        int userId,
+        List<MoodleCourseModel> courses,
+        int[] courseIds,
+        Dictionary<string, MoodleResource> existingDict,
+        MoodleSyncResult result)
+    {
+        try
+        {
+            var labelsResponse = await _moodleClient.GetLabelsByCoursesAsync(courseIds);
+
+            foreach (var label in labelsResponse.Labels ?? Enumerable.Empty<MoodleLabelData>())
+            {
+                var course = courses.FirstOrDefault(c => c.MoodleCourseId == label.Course);
+                var resourceKey = $"label_{label.Id}_";
+
+                if (existingDict.TryGetValue(resourceKey, out var existing))
+                {
+                    existing.HtmlContent = label.Intro;
+                    existing.MoodleCourseModuleId = label.Coursemodule;
+                    existing.SectionNumber = label.Section;
+                    existing.IsVisible = label.Visible;
+                    existing.SyncedAt = DateTime.UtcNow;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                    result.Updated++;
+                }
+                else
+                {
+                    var newLabel = new MoodleResource
+                    {
+                        UserId = userId,
+                        CourseId = label.Course,
+                        CourseName = course?.Fullname,
+                        MoodleResourceId = label.Id,
+                        MoodleCourseModuleId = label.Coursemodule,
+                        ResourceType = "label",
+                        Title = label.Name,
+                        HtmlContent = label.Intro,
+                        SectionNumber = label.Section,
+                        IsVisible = label.Visible,
+                        MoodleTimeModified = label.Timemodified > 0
+                            ? DateTimeOffset.FromUnixTimeSeconds(label.Timemodified).UtcDateTime
+                            : null,
+                        SyncedAt = DateTime.UtcNow
+                    };
+                    _context.MoodleResources.Add(newLabel);
+                    existingDict[resourceKey] = newLabel;
+                    result.Added++;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to sync labels - API may not be available");
+        }
+    }
+
+    /// <summary>
+    /// Sync Bücher (Books)
+    /// </summary>
+    private async Task SyncBooksAsync(
+        int userId,
+        List<MoodleCourseModel> courses,
+        int[] courseIds,
+        Dictionary<string, MoodleResource> existingDict,
+        MoodleSyncResult result)
+    {
+        try
+        {
+            var booksResponse = await _moodleClient.GetBooksByCoursesAsync(courseIds);
+
+            foreach (var book in booksResponse.Books ?? Enumerable.Empty<MoodleBookData>())
+            {
+                var course = courses.FirstOrDefault(c => c.MoodleCourseId == book.Course);
+                var resourceKey = $"book_{book.Id}_";
+
+                if (existingDict.TryGetValue(resourceKey, out var existing))
+                {
+                    existing.Description = book.Intro;
+                    existing.MoodleCourseModuleId = book.Coursemodule;
+                    existing.SectionNumber = book.Section;
+                    existing.IsVisible = book.Visible;
+                    existing.SyncedAt = DateTime.UtcNow;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                    result.Updated++;
+                }
+                else
+                {
+                    var newBook = new MoodleResource
+                    {
+                        UserId = userId,
+                        CourseId = book.Course,
+                        CourseName = course?.Fullname,
+                        MoodleResourceId = book.Id,
+                        MoodleCourseModuleId = book.Coursemodule,
+                        ResourceType = "book",
+                        Title = book.Name,
+                        Description = book.Intro,
+                        SectionNumber = book.Section,
+                        IsVisible = book.Visible,
+                        MoodleTimeModified = book.Timemodified > 0
+                            ? DateTimeOffset.FromUnixTimeSeconds(book.Timemodified).UtcDateTime
+                            : null,
+                        SyncedAt = DateTime.UtcNow
+                    };
+                    _context.MoodleResources.Add(newBook);
+                    existingDict[resourceKey] = newBook;
+                    result.Added++;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to sync books - API may not be available");
+        }
+    }
+
+    /// <summary>
+    /// Sync Foren (Forums) mit Diskussionen
+    /// </summary>
+    private async Task SyncForumsAsync(
+        int userId,
+        List<MoodleCourseModel> courses,
+        int[] courseIds,
+        Dictionary<string, MoodleResource> existingDict,
+        MoodleSyncResult result)
+    {
+        try
+        {
+            var forums = await _moodleClient.GetForumsByCoursesAsync(courseIds);
+
+            foreach (var forum in forums)
+            {
+                var course = courses.FirstOrDefault(c => c.MoodleCourseId == forum.Course);
+                var resourceKey = $"forum_{forum.Id}_";
+
+                var metadata = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    forum.Type,
+                    forum.Numdiscussions,
+                    forum.Maxattachments
+                });
+
+                if (existingDict.TryGetValue(resourceKey, out var existing))
+                {
+                    existing.Description = forum.Intro;
+                    existing.MoodleCourseModuleId = forum.Cmid;
+                    existing.SectionNumber = forum.Section;
+                    existing.IsVisible = forum.Visible;
+                    existing.Metadata = metadata;
+                    existing.SyncedAt = DateTime.UtcNow;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                    result.Updated++;
+                }
+                else
+                {
+                    var newForum = new MoodleResource
+                    {
+                        UserId = userId,
+                        CourseId = forum.Course,
+                        CourseName = course?.Fullname,
+                        MoodleResourceId = forum.Id,
+                        MoodleCourseModuleId = forum.Cmid,
+                        ResourceType = "forum",
+                        Title = forum.Name,
+                        Description = forum.Intro,
+                        Metadata = metadata,
+                        SectionNumber = forum.Section,
+                        IsVisible = forum.Visible,
+                        MoodleTimeModified = forum.Timemodified > 0
+                            ? DateTimeOffset.FromUnixTimeSeconds(forum.Timemodified).UtcDateTime
+                            : null,
+                        SyncedAt = DateTime.UtcNow
+                    };
+                    _context.MoodleResources.Add(newForum);
+                    existingDict[resourceKey] = newForum;
+                    result.Added++;
+                }
+
+                // Sync Forum-Diskussionen
+                await SyncForumDiscussionsAsync(userId, forum, course?.Fullname, existingDict, result);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to sync forums - API may not be available");
+        }
+    }
+
+    /// <summary>
+    /// Sync Forum-Diskussionen
+    /// </summary>
+    private async Task SyncForumDiscussionsAsync(
+        int userId,
+        MoodleForumData forum,
+        string? courseName,
+        Dictionary<string, MoodleResource> existingDict,
+        MoodleSyncResult result)
+    {
+        try
+        {
+            var discussionsResponse = await _moodleClient.GetForumDiscussionsAsync(forum.Id);
+
+            foreach (var discussion in discussionsResponse.Discussions ?? Enumerable.Empty<MoodleForumDiscussion>())
+            {
+                var resourceKey = $"forum_discussion_{discussion.Id}_";
+
+                if (!existingDict.ContainsKey(resourceKey))
+                {
+                    var newDiscussion = new MoodleResource
+                    {
+                        UserId = userId,
+                        CourseId = forum.Course,
+                        CourseName = courseName,
+                        MoodleResourceId = discussion.Id,
+                        ResourceType = "forum_discussion",
+                        Title = discussion.Subject,
+                        HtmlContent = discussion.Message,
+                        Metadata = System.Text.Json.JsonSerializer.Serialize(new
+                        {
+                            discussion.Userfullname,
+                            discussion.Numreplies,
+                            Created = discussion.Created
+                        }),
+                        SyncedAt = DateTime.UtcNow
+                    };
+
+                    // Finde Parent-Forum
+                    if (existingDict.TryGetValue($"forum_{forum.Id}_", out var parentForum))
+                    {
+                        newDiscussion.ParentResourceId = parentForum.Id;
+                    }
+
+                    _context.MoodleResources.Add(newDiscussion);
+                    existingDict[resourceKey] = newDiscussion;
+                    result.Added++;
+
+                    // Verarbeite Anhänge
+                    await ProcessContentFiles(userId, forum.Course, courseName, discussion.Id, "forum_discussion",
+                        discussion.Attachments, existingDict, result);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to sync forum discussions for forum {ForumId}", forum.Id);
+        }
+    }
+
+    /// <summary>
+    /// Sync Glossare (Glossaries)
+    /// </summary>
+    private async Task SyncGlossariesAsync(
+        int userId,
+        List<MoodleCourseModel> courses,
+        int[] courseIds,
+        Dictionary<string, MoodleResource> existingDict,
+        MoodleSyncResult result)
+    {
+        try
+        {
+            var glossariesResponse = await _moodleClient.GetGlossariesByCoursesAsync(courseIds);
+
+            foreach (var glossary in glossariesResponse.Glossaries ?? Enumerable.Empty<MoodleGlossaryData>())
+            {
+                var course = courses.FirstOrDefault(c => c.MoodleCourseId == glossary.Course);
+                var resourceKey = $"glossary_{glossary.Id}_";
+
+                if (existingDict.TryGetValue(resourceKey, out var existing))
+                {
+                    existing.Description = glossary.Intro;
+                    existing.MoodleCourseModuleId = glossary.Coursemodule;
+                    existing.SectionNumber = glossary.Section;
+                    existing.IsVisible = glossary.Visible;
+                    existing.Metadata = System.Text.Json.JsonSerializer.Serialize(new { glossary.Entrycount });
+                    existing.SyncedAt = DateTime.UtcNow;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                    result.Updated++;
+                }
+                else
+                {
+                    var newGlossary = new MoodleResource
+                    {
+                        UserId = userId,
+                        CourseId = glossary.Course,
+                        CourseName = course?.Fullname,
+                        MoodleResourceId = glossary.Id,
+                        MoodleCourseModuleId = glossary.Coursemodule,
+                        ResourceType = "glossary",
+                        Title = glossary.Name,
+                        Description = glossary.Intro,
+                        Metadata = System.Text.Json.JsonSerializer.Serialize(new { glossary.Entrycount }),
+                        SectionNumber = glossary.Section,
+                        IsVisible = glossary.Visible,
+                        SyncedAt = DateTime.UtcNow
+                    };
+                    _context.MoodleResources.Add(newGlossary);
+                    existingDict[resourceKey] = newGlossary;
+                    result.Added++;
+                }
+
+                // Sync Glossar-Einträge
+                await SyncGlossaryEntriesAsync(userId, glossary, course?.Fullname, existingDict, result);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to sync glossaries - API may not be available");
+        }
+    }
+
+    /// <summary>
+    /// Sync Glossar-Einträge
+    /// </summary>
+    private async Task SyncGlossaryEntriesAsync(
+        int userId,
+        MoodleGlossaryData glossary,
+        string? courseName,
+        Dictionary<string, MoodleResource> existingDict,
+        MoodleSyncResult result)
+    {
+        try
+        {
+            var entriesResponse = await _moodleClient.GetGlossaryEntriesAsync(glossary.Id);
+
+            foreach (var entry in entriesResponse.Entries ?? Enumerable.Empty<MoodleGlossaryEntry>())
+            {
+                var resourceKey = $"glossary_entry_{entry.Id}_";
+
+                if (!existingDict.ContainsKey(resourceKey))
+                {
+                    var newEntry = new MoodleResource
+                    {
+                        UserId = userId,
+                        CourseId = glossary.Course,
+                        CourseName = courseName,
+                        MoodleResourceId = entry.Id,
+                        ResourceType = "glossary_entry",
+                        Title = entry.Concept,
+                        HtmlContent = entry.Definition,
+                        MoodleTimeModified = entry.Timemodified > 0
+                            ? DateTimeOffset.FromUnixTimeSeconds(entry.Timemodified).UtcDateTime
+                            : null,
+                        SyncedAt = DateTime.UtcNow
+                    };
+
+                    // Finde Parent-Glossar
+                    if (existingDict.TryGetValue($"glossary_{glossary.Id}_", out var parentGlossary))
+                    {
+                        newEntry.ParentResourceId = parentGlossary.Id;
+                    }
+
+                    _context.MoodleResources.Add(newEntry);
+                    existingDict[resourceKey] = newEntry;
+                    result.Added++;
+
+                    // Verarbeite Anhänge
+                    await ProcessContentFiles(userId, glossary.Course, courseName, entry.Id, "glossary_entry",
+                        entry.Attachments, existingDict, result);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to sync glossary entries for glossary {GlossaryId}", glossary.Id);
+        }
+    }
+
+    /// <summary>
+    /// Sync Wikis
+    /// </summary>
+    private async Task SyncWikisAsync(
+        int userId,
+        List<MoodleCourseModel> courses,
+        int[] courseIds,
+        Dictionary<string, MoodleResource> existingDict,
+        MoodleSyncResult result)
+    {
+        try
+        {
+            var wikisResponse = await _moodleClient.GetWikisByCoursesAsync(courseIds);
+
+            foreach (var wiki in wikisResponse.Wikis ?? Enumerable.Empty<MoodleWikiData>())
+            {
+                var course = courses.FirstOrDefault(c => c.MoodleCourseId == wiki.Course);
+                var resourceKey = $"wiki_{wiki.Id}_";
+
+                if (existingDict.TryGetValue(resourceKey, out var existing))
+                {
+                    existing.Description = wiki.Intro;
+                    existing.MoodleCourseModuleId = wiki.Coursemodule;
+                    existing.SectionNumber = wiki.Section;
+                    existing.IsVisible = wiki.Visible;
+                    existing.SyncedAt = DateTime.UtcNow;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                    result.Updated++;
+                }
+                else
+                {
+                    var newWiki = new MoodleResource
+                    {
+                        UserId = userId,
+                        CourseId = wiki.Course,
+                        CourseName = course?.Fullname,
+                        MoodleResourceId = wiki.Id,
+                        MoodleCourseModuleId = wiki.Coursemodule,
+                        ResourceType = "wiki",
+                        Title = wiki.Name,
+                        Description = wiki.Intro,
+                        Metadata = System.Text.Json.JsonSerializer.Serialize(new
+                        {
+                            wiki.Firstpagetitle,
+                            wiki.Wikimode
+                        }),
+                        SectionNumber = wiki.Section,
+                        IsVisible = wiki.Visible,
+                        MoodleTimeModified = wiki.Timemodified > 0
+                            ? DateTimeOffset.FromUnixTimeSeconds(wiki.Timemodified).UtcDateTime
+                            : null,
+                        SyncedAt = DateTime.UtcNow
+                    };
+                    _context.MoodleResources.Add(newWiki);
+                    existingDict[resourceKey] = newWiki;
+                    result.Added++;
+                }
+
+                // Sync Wiki-Seiten
+                await SyncWikiPagesAsync(userId, wiki, course, existingDict, result);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to sync wikis - API may not be available");
+        }
+    }
+
+    /// <summary>
+    /// Sync Wiki-Seiten
+    /// </summary>
+    private async Task SyncWikiPagesAsync(
+        int userId,
+        MoodleWikiData wiki,
+        MoodleCourseModel? course,
+        Dictionary<string, MoodleResource> existingDict,
+        MoodleSyncResult result)
+    {
+        try
+        {
+            var pagesResponse = await _moodleClient.GetWikiPagesAsync(wiki.Id);
+
+            foreach (var page in pagesResponse.Pages ?? Enumerable.Empty<MoodleWikiPage>())
+            {
+                var resourceKey = $"wiki_page_{page.Id}_";
+
+                if (!existingDict.ContainsKey(resourceKey))
+                {
+                    // Hole detaillierten Seiteninhalt
+                    var pageContent = await _moodleClient.GetWikiPageContentAsync(page.Id);
+
+                    var newPage = new MoodleResource
+                    {
+                        UserId = userId,
+                        CourseId = wiki.Course,
+                        CourseName = course?.Fullname,
+                        MoodleResourceId = page.Id,
+                        ResourceType = "wiki_page",
+                        Title = page.Title,
+                        HtmlContent = pageContent?.Cachedcontent ?? page.Cachedcontent,
+                        MoodleTimeModified = page.Timemodified > 0
+                            ? DateTimeOffset.FromUnixTimeSeconds(page.Timemodified).UtcDateTime
+                            : null,
+                        SyncedAt = DateTime.UtcNow
+                    };
+
+                    // Finde Parent-Wiki
+                    if (existingDict.TryGetValue($"wiki_{wiki.Id}_", out var parentWiki))
+                    {
+                        newPage.ParentResourceId = parentWiki.Id;
+                    }
+
+                    _context.MoodleResources.Add(newPage);
+                    existingDict[resourceKey] = newPage;
+                    result.Added++;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to sync wiki pages for wiki {WikiId}", wiki.Id);
+        }
+    }
+
+    /// <summary>
+    /// Sync Quizze (Quizzes)
+    /// </summary>
+    private async Task SyncQuizzesAsync(
+        int userId,
+        List<MoodleCourseModel> courses,
+        int[] courseIds,
+        Dictionary<string, MoodleResource> existingDict,
+        MoodleSyncResult result)
+    {
+        try
+        {
+            var quizzesResponse = await _moodleClient.GetQuizzesByCoursesAsync(courseIds);
+
+            foreach (var quiz in quizzesResponse.Quizzes ?? Enumerable.Empty<MoodleQuizData>())
+            {
+                var course = courses.FirstOrDefault(c => c.MoodleCourseId == quiz.Course);
+                var resourceKey = $"quiz_{quiz.Id}_";
+
+                var metadata = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    quiz.Timelimit,
+                    quiz.Attempts,
+                    quiz.Grade,
+                    TimeOpen = quiz.Timeopen > 0
+                        ? DateTimeOffset.FromUnixTimeSeconds(quiz.Timeopen).UtcDateTime
+                        : (DateTime?)null,
+                    TimeClose = quiz.Timeclose > 0
+                        ? DateTimeOffset.FromUnixTimeSeconds(quiz.Timeclose).UtcDateTime
+                        : (DateTime?)null
+                });
+
+                if (existingDict.TryGetValue(resourceKey, out var existing))
+                {
+                    existing.Description = quiz.Intro;
+                    existing.MoodleCourseModuleId = quiz.Coursemodule;
+                    existing.SectionNumber = quiz.Section;
+                    existing.IsVisible = quiz.Visible;
+                    existing.Metadata = metadata;
+                    existing.SyncedAt = DateTime.UtcNow;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                    result.Updated++;
+                }
+                else
+                {
+                    var newQuiz = new MoodleResource
+                    {
+                        UserId = userId,
+                        CourseId = quiz.Course,
+                        CourseName = course?.Fullname,
+                        MoodleResourceId = quiz.Id,
+                        MoodleCourseModuleId = quiz.Coursemodule,
+                        ResourceType = "quiz",
+                        Title = quiz.Name,
+                        Description = quiz.Intro,
+                        Metadata = metadata,
+                        SectionNumber = quiz.Section,
+                        IsVisible = quiz.Visible,
+                        MoodleTimeModified = quiz.Timemodified > 0
+                            ? DateTimeOffset.FromUnixTimeSeconds(quiz.Timemodified).UtcDateTime
+                            : null,
+                        SyncedAt = DateTime.UtcNow
+                    };
+                    _context.MoodleResources.Add(newQuiz);
+                    existingDict[resourceKey] = newQuiz;
+                    result.Added++;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to sync quizzes - API may not be available");
+        }
+    }
+
+    /// <summary>
+    /// Verarbeitet Content-Files (Anhänge) für verschiedene Modultypen
+    /// </summary>
+    private async Task ProcessContentFiles(
+        int userId,
+        int courseId,
+        string? courseName,
+        int parentId,
+        string parentType,
+        List<MoodleModuleContent>? files,
+        Dictionary<string, MoodleResource> existingDict,
+        MoodleSyncResult result)
+    {
+        if (files == null) return;
+
+        foreach (var file in files)
+        {
+            if (string.IsNullOrEmpty(file.Fileurl)) continue;
+
+            var filePath = file.Filepath?.Trim('/') ?? "";
+            var resourceKey = $"file_{parentType}_{parentId}_{filePath}{file.Filename}";
+
+            if (!existingDict.ContainsKey(resourceKey))
+            {
+                var newFile = new MoodleResource
+                {
+                    UserId = userId,
+                    CourseId = courseId,
+                    CourseName = courseName,
+                    MoodleResourceId = parentId * 10000 + Math.Abs(file.Filename?.GetHashCode() ?? 0) % 10000,
+                    ResourceType = "file",
+                    Title = file.Filename,
+                    DownloadUrl = file.Fileurl,
+                    FileType = file.Mimetype ?? Path.GetExtension(file.Filename),
+                    FileSize = file.Filesize,
+                    FilePath = string.IsNullOrEmpty(filePath) ? null : filePath,
+                    MoodleTimeModified = file.Timemodified > 0
+                        ? DateTimeOffset.FromUnixTimeSeconds(file.Timemodified).UtcDateTime
+                        : null,
+                    SyncedAt = DateTime.UtcNow
+                };
+
+                _context.MoodleResources.Add(newFile);
+                existingDict[resourceKey] = newFile;
+                result.Added++;
+            }
+        }
+
+        await Task.CompletedTask;
     }
 
     public async Task<MoodleSyncResult> SyncCalendarEventsAsync(int userId)
