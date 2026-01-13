@@ -626,7 +626,9 @@ const listFilter = ref('')
 
 // AKGLS Mastery Mode
 const masteryMode = ref(false)
-const masteryFilter = ref<'all' | 'weak' | 'fading'>('all')
+// masteryFilter reserved for future use (weak areas, fading nodes filters)
+const _masteryFilter = ref<'all' | 'weak' | 'fading'>('all')
+void _masteryFilter // Suppress unused warning
 
 // Stats
 const stats = ref({

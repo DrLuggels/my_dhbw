@@ -160,7 +160,7 @@ interface Props {
   actionRoute?: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   compact: false,
   variant: 'tonal',
   showAction: true,

@@ -51,9 +51,9 @@
           <v-list-item-title class="d-flex align-center">
             <span class="font-weight-medium">{{ priority.topic }}</span>
             <v-chip
-              v-if="priority.daysUntilDeadline !== null && priority.daysUntilDeadline <= 7"
+              v-if="priority.daysUntilDeadline != null && priority.daysUntilDeadline <= 7"
               size="x-small"
-              :color="priority.daysUntilDeadline <= 3 ? 'error' : 'warning'"
+              :color="(priority.daysUntilDeadline ?? 0) <= 3 ? 'error' : 'warning'"
               class="ml-2"
             >
               {{ priority.daysUntilDeadline }}d
@@ -214,7 +214,7 @@ const loadPriorities = async () => {
     if (response.success) {
       priorities.value = response.data.map((p: Priority) => ({
         ...p,
-        isUrgent: p.daysUntilDeadline !== null && p.daysUntilDeadline <= 3
+        isUrgent: p.daysUntilDeadline != null && p.daysUntilDeadline <= 3
       }))
     }
   } catch (error) {
