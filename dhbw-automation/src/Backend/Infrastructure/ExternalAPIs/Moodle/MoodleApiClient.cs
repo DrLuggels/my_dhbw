@@ -6,6 +6,29 @@ using Microsoft.Extensions.Logging;
 namespace DHBWAutomation.Backend.Infrastructure.ExternalAPIs.Moodle;
 
 /// <summary>
+/// JSON Converter für Moodle's numerische Boolean-Werte (0/1 statt true/false)
+/// </summary>
+public class MoodleBoolConverter : JsonConverter<bool>
+{
+    public override bool Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        return reader.TokenType switch
+        {
+            JsonTokenType.True => true,
+            JsonTokenType.False => false,
+            JsonTokenType.Number => reader.GetInt32() != 0,
+            JsonTokenType.String => bool.TryParse(reader.GetString(), out var b) ? b : reader.GetString() == "1",
+            _ => false
+        };
+    }
+
+    public override void Write(Utf8JsonWriter writer, bool value, JsonSerializerOptions options)
+    {
+        writer.WriteBooleanValue(value);
+    }
+}
+
+/// <summary>
 /// Client für die Moodle-API (Web Services)
 /// Dokumentation: https://docs.moodle.org/dev/Web_services
 /// </summary>
@@ -20,7 +43,8 @@ public class MoodleApiClient
     {
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-        NumberHandling = JsonNumberHandling.AllowReadingFromString
+        NumberHandling = JsonNumberHandling.AllowReadingFromString,
+        Converters = { new MoodleBoolConverter() }
     };
 
     public MoodleApiClient(HttpClient httpClient, IConfiguration configuration, ILogger<MoodleApiClient>? logger = null)
