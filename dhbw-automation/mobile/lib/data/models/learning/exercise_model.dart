@@ -25,6 +25,33 @@ class ExerciseModel with _$ExerciseModel {
     @HiveField(13) String? createdAt,
   }) = _ExerciseModel;
 
-  factory ExerciseModel.fromJson(Map<String, dynamic> json) =>
-      _$ExerciseModelFromJson(json);
+  factory ExerciseModel.fromJson(Map<String, dynamic> json) {
+    // Handle backend compatibility: 'question' vs 'questionText'
+    final questionText = json['questionText'] as String? ?? 
+                        json['question'] as String? ?? 
+                        '';
+    
+    // Handle backend compatibility: 'helpText' vs 'hint'  
+    final hint = json['hint'] as String? ?? 
+                 json['helpText'] as String?;
+    
+    return ExerciseModel(
+      id: (json['id'] as num).toInt(),
+      userId: (json['userId'] as num).toInt(),
+      subject: json['subject'] as String,
+      questionText: questionText,
+      correctAnswer: json['correctAnswer'] as String?,
+      hint: hint,
+      nextReviewDate: DateTime.parse(json['nextReviewDate'] as String),
+      easeFactor: (json['easeFactor'] as num?)?.toDouble() ?? 2.5,
+      reviewCount: (json['reviewCount'] as num?)?.toInt() ?? 0,
+      repetitions: (json['repetitions'] as num?)?.toInt() ?? 0,
+      difficulty: json['difficulty'] as String? ?? 'medium',
+      lastAnswer: json['lastAnswer'] as String?,
+      lastReviewedAt: json['lastReviewedAt'] == null
+          ? null
+          : DateTime.parse(json['lastReviewedAt'] as String),
+      createdAt: json['createdAt'] as String?,
+    );
+  }
 }
