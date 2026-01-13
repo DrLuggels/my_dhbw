@@ -6,6 +6,14 @@ Nutzt die K10plus SRU-Schnittstelle des Südwestdeutschen Bibliotheksverbunds (S
 um Buchdaten abzurufen und in einer lokalen SQLite-Datenbank zu speichern.
 """
 
+import sys
+import io
+
+# Windows Console UTF-8 Fix
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 import requests
 import sqlite3
 import xml.etree.ElementTree as ET
