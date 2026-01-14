@@ -5,6 +5,7 @@ using DHBWAutomation.Backend.Core.Interfaces;
 using DHBWAutomation.Backend.Core.Models;
 using DHBWAutomation.Backend.Infrastructure.Database;
 using DHBWAutomation.Backend.Shared.Helpers;
+using DHBWAutomation.Backend.Core.Services.Embedding;
 using Microsoft.EntityFrameworkCore;
 // TODO: Restore PdfPig when version conflicts are resolved
 // using UglyToad.PdfPig;

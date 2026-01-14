@@ -1,4 +1,5 @@
 using System.Text.Json;
+using DHBWAutomation.Backend.Core.Interfaces;
 using DHBWAutomation.Backend.Core.Models;
 
 namespace DHBWAutomation.Backend.Core.Services.InteractiveExercise;

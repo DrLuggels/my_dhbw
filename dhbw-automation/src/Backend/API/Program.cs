@@ -7,6 +7,8 @@ using DHBWAutomation.Backend.Infrastructure.Database;
 using DHBWAutomation.Backend.Core.Interfaces;
 using DHBWAutomation.Backend.Core.Services;
 using DHBWAutomation.Backend.Core.Services.KnowledgeNetwork;
+using DHBWAutomation.Backend.Core.Services.InteractiveExercise;
+using DHBWAutomation.Backend.Core.Services.Embedding;
 using DHBWAutomation.Backend.Core.Services.MoodleSync;
 using DHBWAutomation.Backend.Core.BackgroundServices;
 using DHBWAutomation.Backend.Infrastructure.Storage;

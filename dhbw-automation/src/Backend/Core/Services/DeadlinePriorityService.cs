@@ -3,6 +3,7 @@ using DHBWAutomation.Backend.Core.Models;
 using DHBWAutomation.Backend.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using DHBWAutomation.Backend.Core.Services.Embedding;
 
 namespace DHBWAutomation.Backend.Core.Services;
 

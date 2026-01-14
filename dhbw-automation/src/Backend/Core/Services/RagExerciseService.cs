@@ -7,6 +7,7 @@ using DHBWAutomation.Backend.Infrastructure.VectorDb;
 using DHBWAutomation.Backend.Shared.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using DHBWAutomation.Backend.Core.Services.Embedding;
 
 namespace DHBWAutomation.Backend.Core.Services;
 

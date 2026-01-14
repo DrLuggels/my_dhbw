@@ -1,5 +1,6 @@
 using DHBWAutomation.Backend.Infrastructure.Database;
 using DHBWAutomation.Backend.Infrastructure.VectorDb;
+using DHBWAutomation.Backend.Core.Services.Embedding;
 
 namespace DHBWAutomation.Backend.Core.Services.KnowledgeNetwork;
 

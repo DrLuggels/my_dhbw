@@ -5,6 +5,7 @@ using LibGit2Sharp;
 using Markdig;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using DHBWAutomation.Backend.Core.Services.Embedding;
 
 namespace DHBWAutomation.Backend.Core.Services;
 

@@ -1,5 +1,6 @@
 using DHBWAutomation.Backend.Core.Configuration;
 using DHBWAutomation.Backend.Core.Services;
+using DHBWAutomation.Backend.Core.Services.Embedding;
 using DHBWAutomation.Backend.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
