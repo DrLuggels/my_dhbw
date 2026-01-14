@@ -81,7 +81,10 @@ public partial class UnifiedLearningService
             count);
 
         var apiKey = await GetAnthropicApiKeyAsync(userId);
-        var response = await _anthropicClient.SendMessageAsync(prompt, apiKey);
+        var response = await _anthropicClient.ChatAsync(
+            "You are an educational exercise generator. Create high-quality learning exercises based on the provided content.",
+            prompt,
+            apiKey: apiKey);
 
         // 7. Parse response
         var exercises = ParseExerciseResponse(response, targetEntity, difficulty, bloomLevel, sourceDocuments);
@@ -130,29 +133,36 @@ public partial class UnifiedLearningService
                 return ("", new List<string>());
 
             // Search in Qdrant
-            var results = await _qdrantService.SearchAsync(
+            var results = await _qdrantService.SearchSimilarAsync(
                 "dhbw_document_chunks", // Use document chunks collection
                 embedding,
                 chunkCount,
-                new Dictionary<string, object> { { "userId", userId } });
+                0.5, // threshold
+                userId);
 
             if (results == null || !results.Any())
                 return ("", new List<string>());
+
+            // Get chunk IDs from search results
+            var chunkIds = results.Select(r => r.EntityId).ToList();
+
+            // Load chunks from database with their documents
+            var chunks = await _context.DocumentChunks
+                .Include(c => c.Document)
+                .Where(c => chunkIds.Contains(c.Id))
+                .ToListAsync();
 
             // Build context from chunks
             var contextParts = new List<string>();
             var sources = new HashSet<string>();
 
-            foreach (var result in results)
+            foreach (var chunk in chunks)
             {
-                if (result.Payload != null)
-                {
-                    if (result.Payload.TryGetValue("content", out var content))
-                        contextParts.Add(content.ToString() ?? "");
+                if (!string.IsNullOrEmpty(chunk.Content))
+                    contextParts.Add(chunk.Content);
 
-                    if (result.Payload.TryGetValue("documentName", out var docName))
-                        sources.Add(docName.ToString() ?? "");
-                }
+                if (chunk.Document != null && !string.IsNullOrEmpty(chunk.Document.FileName))
+                    sources.Add(chunk.Document.FileName);
             }
 
             return (string.Join("\n\n---\n\n", contextParts), sources.ToList());

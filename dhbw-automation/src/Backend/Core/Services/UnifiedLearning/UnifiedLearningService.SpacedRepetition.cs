@@ -303,7 +303,7 @@ public partial class UnifiedLearningService
             BestStreak = stats.BestStreak,
             StreakAtRisk = streakAtRisk,
             NextDeadline = nextAssignment?.DueDate,
-            NextDeadlineName = nextAssignment?.Name,
+            NextDeadlineName = nextAssignment?.Title,
             DaysUntilNextDeadline = nextAssignment?.DueDate != null
                 ? (int)(nextAssignment.DueDate.Value - DateTime.UtcNow).TotalDays
                 : null

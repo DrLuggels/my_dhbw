@@ -117,7 +117,10 @@ public partial class UnifiedLearningService
 
             // Call Claude
             var apiKey = await GetAnthropicApiKeyAsync(userId);
-            var response = await _anthropicClient.SendMessageAsync(prompt, apiKey);
+            var response = await _anthropicClient.ChatAsync(
+                "You are a knowledge extraction assistant. Extract key concepts, definitions, and relationships from educational content.",
+                prompt,
+                apiKey: apiKey);
 
             // Parse response
             var (entities, relationships) = ParseExtractionResponse(response, chunk, userId);
@@ -176,15 +179,14 @@ public partial class UnifiedLearningService
 
                         if (embedding != null && embedding.Length > 0)
                         {
-                            var pointId = Guid.NewGuid().ToString();
-                            await _qdrantService.UpsertAsync(
+                            var pointId = await _qdrantService.UpsertEmbeddingAsync(
                                 UnifiedEntitiesCollection,
-                                pointId,
                                 embedding,
-                                new Dictionary<string, object>
+                                "unified_entity",
+                                newEntity.Id,
+                                userId,
+                                new Dictionary<string, string>
                                 {
-                                    { "entityId", newEntity.Id },
-                                    { "userId", userId },
                                     { "name", newEntity.Name },
                                     { "subject", newEntity.Subject },
                                     { "entityType", newEntity.EntityType }

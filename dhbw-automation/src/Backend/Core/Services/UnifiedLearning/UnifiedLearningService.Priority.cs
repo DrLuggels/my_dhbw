@@ -86,7 +86,7 @@ public partial class UnifiedLearningService
 
             // Find relevant deadline
             var relevantAssignment = assignments
-                .FirstOrDefault(a => MatchesSubject(a.Name, entity.Subject));
+                .FirstOrDefault(a => MatchesSubject(a.Title, entity.Subject));
             var relevantEvent = calendarEvents
                 .FirstOrDefault(e => MatchesSubject(e.Title, entity.Subject));
 
@@ -94,7 +94,7 @@ public partial class UnifiedLearningService
             {
                 priority.MoodleAssignmentId = relevantAssignment.Id;
                 priority.Deadline = relevantAssignment.DueDate;
-                priority.RelatedEventName = relevantAssignment.Name;
+                priority.RelatedEventName = relevantAssignment.Title;
             }
             else if (relevantEvent != null)
             {
