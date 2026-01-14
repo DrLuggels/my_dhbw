@@ -11,6 +11,8 @@ using DHBWAutomation.Backend.Core.Services.InteractiveExercise;
 using DHBWAutomation.Backend.Core.Services.Embedding;
 using DHBWAutomation.Backend.Core.Services.MoodleSync;
 using DHBWAutomation.Backend.Core.Services.LearningEngine;
+using DHBWAutomation.Backend.Core.Services.LearningAnalytics;
+using DHBWAutomation.Backend.Core.Services.IntentAnalysis;
 using DHBWAutomation.Backend.Core.BackgroundServices;
 using DHBWAutomation.Backend.Infrastructure.Storage;
 using DHBWAutomation.Backend.Infrastructure.ExternalAPIs.Rapla;
