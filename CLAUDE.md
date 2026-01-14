@@ -152,6 +152,54 @@ Environment variables in `.env` (see `.env.example`):
 | qdrant | 6333/6334 | Vector database |
 | phpmyadmin | 8080 | DB admin UI |
 
+## Deployment
+
+### Server
+- **Host:** `192.168.178.198`
+- **SSH:** `root@192.168.178.198` (SSH-Key Auth)
+- **Project Path:** `/root/dhbw-automation-deploy/dhbw-automation`
+- **Git Remote:** `server` (bare repo at `/root/git-repos/dhbw-automation.git`)
+
+### Deploy via Git Push (Auto-Deployment)
+```bash
+git push server main
+```
+Post-receive hook automatically rebuilds and restarts containers.
+
+### Manual Deployment Commands
+```bash
+# Build and deploy backend
+ssh root@192.168.178.198 "cd /root/dhbw-automation-deploy/dhbw-automation && docker compose -f docker-compose.prod.yml build backend && docker compose -f docker-compose.prod.yml up -d backend"
+
+# View logs
+ssh root@192.168.178.198 "cd /root/dhbw-automation-deploy/dhbw-automation && docker compose -f docker-compose.prod.yml logs --tail=100 backend"
+
+# Follow logs (real-time)
+ssh root@192.168.178.198 "cd /root/dhbw-automation-deploy/dhbw-automation && docker compose -f docker-compose.prod.yml logs -f backend"
+
+# Full rebuild
+ssh root@192.168.178.198 "cd /root/dhbw-automation-deploy/dhbw-automation && docker compose -f docker-compose.prod.yml down && docker compose -f docker-compose.prod.yml build && docker compose -f docker-compose.prod.yml up -d"
+```
+
+### Production URLs
+| Service | URL |
+|---------|-----|
+| Frontend | http://192.168.178.198 |
+| Backend API | http://192.168.178.198:5000 |
+| phpMyAdmin | http://192.168.178.198:8080 |
+| MinIO Console | http://192.168.178.198:9001 |
+| RabbitMQ Management | http://192.168.178.198:15672 |
+| Qdrant Dashboard | http://192.168.178.198:6333/dashboard |
+
+### EF Core Note
+Use `.AsNoTracking()` in EF queries to prevent circular reference issues in JSON serialization.
+
+## Mobile App (Flutter)
+
+- **Development Location:** `C:\Projects\dhbw_mobile` (outside this repo)
+- **In-Repo Version:** `dhbw-automation/mobile/` (veraltet, nicht aktuell)
+- **Hinweis:** Flutter-Entwicklung erfolgt in `C:\Projects\dhbw_mobile`, da `flutter run` aus dem OneDrive-Pfad nicht funktioniert. Die Repo-Version ist nur eine Kopie und nicht synchron.
+
 ## Current Development Focus
 
 See `.claude/LEARNING_ENGINE.md` for active task details:
