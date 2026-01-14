@@ -1,3 +1,4 @@
+using DHBWAutomation.Backend.Core.Models;
 using DHBWAutomation.Backend.Infrastructure.VectorDb;
 using Microsoft.EntityFrameworkCore;
 

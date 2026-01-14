@@ -10,6 +10,7 @@ using DHBWAutomation.Backend.Core.Services.KnowledgeNetwork;
 using DHBWAutomation.Backend.Core.Services.InteractiveExercise;
 using DHBWAutomation.Backend.Core.Services.Embedding;
 using DHBWAutomation.Backend.Core.Services.MoodleSync;
+using DHBWAutomation.Backend.Core.Services.LearningEngine;
 using DHBWAutomation.Backend.Core.BackgroundServices;
 using DHBWAutomation.Backend.Infrastructure.Storage;
 using DHBWAutomation.Backend.Infrastructure.ExternalAPIs.Rapla;
@@ -249,6 +250,9 @@ builder.Services.AddScoped<IPrerequisiteService, PrerequisiteService>();
 builder.Services.AddScoped<ILearningStreakService, LearningStreakService>();
 builder.Services.AddScoped<IExamSimulationService, ExamSimulationService>();
 
+// Learning Engine (DeepTutor-style Knowledge Graph & Adaptive Questions)
+builder.Services.AddScoped<ILearningEngineService, LearningEngineService>();
+
 // Helper Services
 builder.Services.AddSingleton<AnthropicClient>();
 builder.Services.AddSingleton<AiMetrics>();
@@ -396,6 +400,10 @@ using (var scope = app.Services.CreateScope())
         var qdrantService = scope.ServiceProvider.GetRequiredService<IQdrantService>();
         await qdrantService.InitializeCollectionsAsync();
         Console.WriteLine("✅ Qdrant collections initialized successfully");
+
+        // Initialize Learning Engine collection
+        await qdrantService.EnsureCollectionExistsAsync("dhbw_kg_entities", 1536);
+        Console.WriteLine("✅ Learning Engine KG collection initialized");
     }
     catch (Exception ex)
     {

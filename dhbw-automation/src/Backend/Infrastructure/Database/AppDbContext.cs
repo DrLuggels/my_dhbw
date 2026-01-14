@@ -58,6 +58,11 @@ public class AppDbContext : DbContext
     public DbSet<ExamSimulation> ExamSimulations { get; set; } = null!;
     public DbSet<PrerequisiteChain> PrerequisiteChains { get; set; } = null!;
 
+    // Learning Engine (DeepTutor-style) DbSets
+    public DbSet<KgEntity> KgEntities { get; set; } = null!;
+    public DbSet<KgRelationship> KgRelationships { get; set; } = null!;
+    public DbSet<UserEntityPerformance> UserEntityPerformances { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -726,6 +731,90 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.DependentNode)
                 .WithMany()
                 .HasForeignKey(e => e.DependentNodeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // === Learning Engine (DeepTutor-style) Configurations ===
+
+        // KgEntity Configuration
+        modelBuilder.Entity<KgEntity>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.NormalizedName });
+            entity.HasIndex(e => new { e.UserId, e.EntityType });
+            entity.HasIndex(e => new { e.DocumentId, e.ChunkId });
+            entity.HasIndex(e => e.Subject);
+            entity.HasIndex(e => e.Topic);
+            entity.HasIndex(e => e.HasEmbedding);
+            entity.HasIndex(e => e.IsActive);
+            entity.HasIndex(e => e.ImportanceScore);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Document)
+                .WithMany()
+                .HasForeignKey(e => e.DocumentId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Chunk)
+                .WithMany()
+                .HasForeignKey(e => e.ChunkId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasMany(e => e.OutgoingRelationships)
+                .WithOne(r => r.SourceEntity)
+                .HasForeignKey(r => r.SourceEntityId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.IncomingRelationships)
+                .WithOne(r => r.TargetEntity)
+                .HasForeignKey(r => r.TargetEntityId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // KgRelationship Configuration
+        modelBuilder.Entity<KgRelationship>(entity =>
+        {
+            entity.HasIndex(e => new { e.SourceEntityId, e.TargetEntityId, e.RelationshipType }).IsUnique();
+            entity.HasIndex(e => e.RelationshipType);
+            entity.HasIndex(e => e.ExtractedFromChunkId);
+            entity.HasIndex(e => e.IsActive);
+            entity.HasIndex(e => e.Strength);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ExtractedFromChunk)
+                .WithMany()
+                .HasForeignKey(e => e.ExtractedFromChunkId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.ExtractedFromDocument)
+                .WithMany()
+                .HasForeignKey(e => e.ExtractedFromDocumentId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // UserEntityPerformance Configuration
+        modelBuilder.Entity<UserEntityPerformance>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.EntityId, e.QuestionType, e.BloomLevel }).IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.NextReview });
+            entity.HasIndex(e => e.MasteryScore);
+            entity.HasIndex(e => e.State);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Entity)
+                .WithMany()
+                .HasForeignKey(e => e.EntityId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
