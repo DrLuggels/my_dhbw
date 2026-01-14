@@ -70,6 +70,10 @@
           <v-icon left>mdi-star</v-icon>
           Interaktiv
         </v-tab>
+        <v-tab value="engine">
+          <v-icon left>mdi-brain</v-icon>
+          Lern-Engine
+        </v-tab>
       </v-tabs>
 
       <v-tabs-window v-model="activeTab">
@@ -111,6 +115,10 @@
             @close="currentInteractiveExercise = null"
           />
         </v-tabs-window-item>
+
+        <v-tabs-window-item value="engine">
+          <LearningEngineTab />
+        </v-tabs-window-item>
       </v-tabs-window>
     </v-card>
 
@@ -149,6 +157,7 @@ import {
   StreakWidget, PriorityCard, DifficultyDistribution,
   DeficitsTab, ExercisesTab, ResolvedTab, InteractiveTab, LearningStatsCards
 } from '@/components/learning'
+import { LearningEngineTab } from '@/components/learningEngine'
 
 const { mobile } = useDisplay()
 const isMobile = computed(() => mobile.value)
