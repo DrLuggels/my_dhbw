@@ -13,7 +13,6 @@
       "Bash(timeout /t 5 /nobreak)",
       "Bash(dotnet build:*)",
       "Bash(npm run type-check:*)",
-      "Bash(ssh:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
@@ -50,7 +49,8 @@
       "WebFetch(domain:bsz.ibs-bw.de)",
       "WebFetch(domain:isil.staatsbibliothek-berlin.de)",
       "Bash(py:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }

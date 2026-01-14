@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using DHBWAutomation.Backend.Core.Services;
+using DHBWAutomation.Backend.Core.Services.KnowledgeNetwork;
 using DHBWAutomation.Backend.Core.Models;
 using System.Security.Claims;
 
