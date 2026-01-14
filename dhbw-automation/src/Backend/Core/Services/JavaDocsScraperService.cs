@@ -313,10 +313,26 @@ public class JavaDocsScraperService : IJavaDocsScraperService
         // Extract solution if available
         var solutionCode = ExtractSolution(parsedContent);
 
-        // Extract tags
-        var tags = frontmatter.TryGetValue("tags", out var tagValue)
-            ? tagValue
-            : null;
+        // Extract tags and convert to JSON array
+        string? tags = null;
+        if (frontmatter.TryGetValue("tags", out var tagValue) && !string.IsNullOrWhiteSpace(tagValue))
+        {
+            // Tags can be comma-separated or already JSON
+            if (tagValue.TrimStart().StartsWith("["))
+            {
+                // Already JSON array
+                tags = tagValue;
+            }
+            else
+            {
+                // Convert comma-separated string to JSON array
+                var tagList = tagValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(t => t.Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+                tags = tagList.Count > 0 ? JsonSerializer.Serialize(tagList) : null;
+            }
+        }
 
         return new JavaDocsExercise
         {
