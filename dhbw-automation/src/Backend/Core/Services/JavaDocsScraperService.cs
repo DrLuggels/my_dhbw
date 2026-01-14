@@ -313,24 +313,39 @@ public class JavaDocsScraperService : IJavaDocsScraperService
         // Extract solution if available
         var solutionCode = ExtractSolution(parsedContent);
 
-        // Extract tags and convert to JSON array
+        // Extract tags and convert to valid JSON array
         string? tags = null;
         if (frontmatter.TryGetValue("tags", out var tagValue) && !string.IsNullOrWhiteSpace(tagValue))
         {
-            // Tags can be comma-separated or already JSON
-            if (tagValue.TrimStart().StartsWith("["))
+            try
             {
-                // Already JSON array
-                tags = tagValue;
+                var trimmedValue = tagValue.Trim();
+
+                // Handle YAML array format: [tag1, tag2] or [tag1]
+                if (trimmedValue.StartsWith("[") && trimmedValue.EndsWith("]"))
+                {
+                    // Remove brackets and parse as comma-separated values
+                    var innerContent = trimmedValue.Substring(1, trimmedValue.Length - 2);
+                    var tagList = innerContent.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .Select(t => t.Trim().Trim('"', '\''))
+                        .Where(t => !string.IsNullOrEmpty(t))
+                        .ToList();
+                    tags = tagList.Count > 0 ? JsonSerializer.Serialize(tagList) : null;
+                }
+                else
+                {
+                    // Plain comma-separated string: tag1, tag2
+                    var tagList = trimmedValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .Select(t => t.Trim().Trim('"', '\''))
+                        .Where(t => !string.IsNullOrEmpty(t))
+                        .ToList();
+                    tags = tagList.Count > 0 ? JsonSerializer.Serialize(tagList) : null;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                // Convert comma-separated string to JSON array
-                var tagList = tagValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .Select(t => t.Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-                tags = tagList.Count > 0 ? JsonSerializer.Serialize(tagList) : null;
+                _logger.LogWarning(ex, "Failed to parse tags: {TagValue}", tagValue);
+                tags = null;
             }
         }
 
