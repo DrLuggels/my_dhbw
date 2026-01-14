@@ -317,19 +317,19 @@ builder.Logging.AddDebug();
 
 var app = builder.Build();
 
-// Auto-create database tables (for new tables)
+// Auto-apply database migrations
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     try
     {
-        // This will create any missing tables based on the DbContext model
-        context.Database.EnsureCreated();
-        Console.WriteLine("Database schema ensured.");
+        // Apply any pending migrations
+        context.Database.Migrate();
+        Console.WriteLine("Database migrations applied successfully.");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Database initialization warning: {ex.Message}");
+        Console.WriteLine($"Database migration warning: {ex.Message}");
     }
 }
 
@@ -387,13 +387,22 @@ using (var scope = app.Services.CreateScope())
 
     try
     {
-        // EnsureCreated erstellt neue Tabellen automatisch, ändert keine existierenden
-        dbContext.Database.EnsureCreated();
-        Console.WriteLine("✅ MariaDB Database tables ensured");
+        // Apply pending migrations and create tables
+        var pendingMigrations = dbContext.Database.GetPendingMigrations().ToList();
+        if (pendingMigrations.Any())
+        {
+            Console.WriteLine($"Applying {pendingMigrations.Count} pending migration(s)...");
+            dbContext.Database.Migrate();
+            Console.WriteLine("✅ Database migrations applied successfully");
+        }
+        else
+        {
+            Console.WriteLine("✅ Database is up to date");
+        }
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"❌ Database initialization failed: {ex.Message}");
+        Console.WriteLine($"❌ Database migration failed: {ex.Message}");
     }
 
     // Initialize Qdrant collections

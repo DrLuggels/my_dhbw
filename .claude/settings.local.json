@@ -50,7 +50,8 @@
       "WebFetch(domain:isil.staatsbibliothek-berlin.de)",
       "Bash(py:*)",
       "Bash(find:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(ssh root@192.168.178.198 'docker run --rm --network dhbw-automation_dhbw-network debian:bookworm-slim bash -c \"\"apt-get update -qq && apt-get install -y mariadb-client -qq && mariadb -h mariadb -u dhbw_user -pdhbw_password dhbw_automation -e \\\\\"\"SELECT * FROM __EFMigrationsHistory;\\\\\"\"\"\" 2>&1 | tail -10')"
     ]
   }
 }
