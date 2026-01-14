@@ -63,6 +63,11 @@ public class AppDbContext : DbContext
     public DbSet<KgRelationship> KgRelationships { get; set; } = null!;
     public DbSet<UserEntityPerformance> UserEntityPerformances { get; set; } = null!;
 
+    // Unified Learning System (ULS) DbSets - combines AKGLS + LearningEngine
+    public DbSet<UnifiedKnowledgeEntity> UnifiedKnowledgeEntities { get; set; } = null!;
+    public DbSet<UnifiedKnowledgeRelationship> UnifiedKnowledgeRelationships { get; set; } = null!;
+    public DbSet<UnifiedLearningPriority> UnifiedLearningPriorities { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -816,6 +821,102 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.EntityId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // === Unified Learning System (ULS) Configurations ===
+
+        // UnifiedKnowledgeEntity Configuration
+        modelBuilder.Entity<UnifiedKnowledgeEntity>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.NormalizedName, e.Subject }).IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.Subject });
+            entity.HasIndex(e => new { e.UserId, e.EntityType });
+            entity.HasIndex(e => e.MasteryScore);
+            entity.HasIndex(e => e.NextReview);
+            entity.HasIndex(e => e.FsrsState);
+            entity.HasIndex(e => e.LastInteraction);
+            entity.HasIndex(e => e.HasEmbedding);
+            entity.HasIndex(e => e.IsActive);
+            entity.HasIndex(e => e.ImportanceScore);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.SourceDocument)
+                .WithMany()
+                .HasForeignKey(e => e.SourceDocumentId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.SourceChunk)
+                .WithMany()
+                .HasForeignKey(e => e.SourceChunkId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasMany(e => e.OutgoingRelationships)
+                .WithOne(r => r.SourceEntity)
+                .HasForeignKey(r => r.SourceEntityId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.IncomingRelationships)
+                .WithOne(r => r.TargetEntity)
+                .HasForeignKey(r => r.TargetEntityId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // UnifiedKnowledgeRelationship Configuration
+        modelBuilder.Entity<UnifiedKnowledgeRelationship>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.SourceEntityId, e.TargetEntityId, e.RelationshipType }).IsUnique();
+            entity.HasIndex(e => e.RelationshipType);
+            entity.HasIndex(e => e.IsActive);
+            entity.HasIndex(e => e.ExtractedFromChunkId);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ExtractedFromChunk)
+                .WithMany()
+                .HasForeignKey(e => e.ExtractedFromChunkId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.ExtractedFromDocument)
+                .WithMany()
+                .HasForeignKey(e => e.ExtractedFromDocumentId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // UnifiedLearningPriority Configuration
+        modelBuilder.Entity<UnifiedLearningPriority>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.CompositeScore });
+            entity.HasIndex(e => new { e.UserId, e.Rank });
+            entity.HasIndex(e => e.Deadline);
+            entity.HasIndex(e => e.IsActive);
+            entity.HasIndex(e => e.IsBlocked);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.UnifiedEntity)
+                .WithMany()
+                .HasForeignKey(e => e.UnifiedEntityId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.MoodleAssignment)
+                .WithMany()
+                .HasForeignKey(e => e.MoodleAssignmentId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.CalendarEvent)
+                .WithMany()
+                .HasForeignKey(e => e.CalendarEventId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

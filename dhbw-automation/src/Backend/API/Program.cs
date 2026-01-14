@@ -12,6 +12,7 @@ using DHBWAutomation.Backend.Core.Services.Embedding;
 using DHBWAutomation.Backend.Core.Services.MoodleSync;
 using DHBWAutomation.Backend.Core.Services.LearningEngine;
 using DHBWAutomation.Backend.Core.Services.LearningAnalytics;
+using DHBWAutomation.Backend.Core.Services.UnifiedLearning;
 using DHBWAutomation.Backend.Core.Services.IntentAnalysis;
 using DHBWAutomation.Backend.Core.BackgroundServices;
 using DHBWAutomation.Backend.Infrastructure.Storage;
@@ -255,6 +256,9 @@ builder.Services.AddScoped<IExamSimulationService, ExamSimulationService>();
 // Learning Engine (DeepTutor-style Knowledge Graph & Adaptive Questions)
 builder.Services.AddScoped<ILearningEngineService, LearningEngineService>();
 
+// Unified Learning System (combines AKGLS + LearningEngine + RAG + 20/40/40 + Prerequisites)
+builder.Services.AddScoped<IUnifiedLearningService, UnifiedLearningService>();
+
 // Helper Services
 builder.Services.AddSingleton<AnthropicClient>();
 builder.Services.AddSingleton<AiMetrics>();
@@ -415,6 +419,10 @@ using (var scope = app.Services.CreateScope())
         // Initialize Learning Engine collection
         await qdrantService.EnsureCollectionExistsAsync("dhbw_kg_entities", 1536);
         Console.WriteLine("✅ Learning Engine KG collection initialized");
+
+        // Initialize Unified Learning System collection
+        await qdrantService.EnsureCollectionExistsAsync("dhbw_unified_entities", 1536);
+        Console.WriteLine("✅ Unified Learning System collection initialized");
     }
     catch (Exception ex)
     {
