@@ -113,6 +113,15 @@ public class ExerciseComponent
     public List<DraggableItem>? Draggables { get; set; } // For drag_drop
     public List<DropZone>? DropZones { get; set; } // For drag_drop
     public string? CorrectAnswer { get; set; } // For simple types
+    public string? Template { get; set; } // For fill_blank: text with {{blank:id}} placeholders
+    public List<BlankDefinition>? Blanks { get; set; } // For fill_blank: blank configurations
+}
+
+public class BlankDefinition
+{
+    public string Id { get; set; } = string.Empty;
+    public List<string>? CorrectAnswers { get; set; }
+    public string? Hint { get; set; }
 }
 
 public class ComponentOption

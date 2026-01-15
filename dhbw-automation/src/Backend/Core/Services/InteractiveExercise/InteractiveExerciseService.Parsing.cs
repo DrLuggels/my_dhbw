@@ -110,10 +110,33 @@ public partial class InteractiveExerciseService
             }
         }
 
+        // Parse fill_blank: template from either "template" or "config.text"
+        if (component.Type == "fill_blank")
+        {
+            component.Template = GetStringOrDefault(compEl, "template", null);
+            if (string.IsNullOrEmpty(component.Template) && compEl.TryGetProperty("config", out var configForTemplate))
+            {
+                component.Template = GetStringOrDefault(configForTemplate, "text", null);
+            }
+
+            // Parse blanks array if present
+            if (compEl.TryGetProperty("blanks", out var blanksEl))
+            {
+                component.Blanks = ParseBlanks(blanksEl);
+            }
+        }
+
         // Parse draggables from either "draggables" or "config.items"
         if (compEl.TryGetProperty("draggables", out var draggablesEl))
         {
             component.Draggables = ParseDraggables(draggablesEl);
+
+            // Also check config.items for targetId mapping (AI sometimes generates both)
+            if (compEl.TryGetProperty("config", out var configForTargetIds) &&
+                configForTargetIds.TryGetProperty("items", out var itemsWithTargets))
+            {
+                MergeTargetIdsFromConfigItems(component.Draggables, itemsWithTargets);
+            }
         }
         else if (compEl.TryGetProperty("config", out var configForDrag) &&
                  configForDrag.TryGetProperty("items", out var itemsEl))
@@ -121,18 +144,120 @@ public partial class InteractiveExerciseService
             component.Draggables = ParseDraggablesFromItems(itemsEl);
         }
 
-        // Parse dropZones from either "dropZones" or "config.categories"
+        // Parse dropZones from "dropZones", "config.categories", or "config.targets"
         if (compEl.TryGetProperty("dropZones", out var zonesEl))
         {
             component.DropZones = ParseDropZones(zonesEl);
         }
-        else if (compEl.TryGetProperty("config", out var configForZones) &&
-                 configForZones.TryGetProperty("categories", out var categoriesEl))
+        else if (compEl.TryGetProperty("config", out var configForZones))
         {
-            component.DropZones = ParseDropZonesFromCategories(categoriesEl);
+            if (configForZones.TryGetProperty("categories", out var categoriesEl))
+            {
+                component.DropZones = ParseDropZonesFromCategories(categoriesEl);
+            }
+            else if (configForZones.TryGetProperty("targets", out var targetsEl))
+            {
+                component.DropZones = ParseDropZonesFromTargets(targetsEl);
+            }
+        }
+
+        // For drag_drop with items that have targetId, build AcceptedItems for each zone
+        if (component.Type == "drag_drop" && component.DropZones != null && component.Draggables != null)
+        {
+            BuildAcceptedItemsFromTargetIds(component);
         }
 
         return component;
+    }
+
+    private List<BlankDefinition> ParseBlanks(JsonElement blanksEl)
+    {
+        var blanks = new List<BlankDefinition>();
+        foreach (var blankEl in blanksEl.EnumerateArray())
+        {
+            var blank = new BlankDefinition
+            {
+                Id = GetStringOrDefault(blankEl, "id", ""),
+                Hint = GetStringOrDefault(blankEl, "hint", null)
+            };
+
+            if (blankEl.TryGetProperty("correctAnswers", out var answersEl))
+            {
+                blank.CorrectAnswers = GetStringArrayOrDefault(blankEl, "correctAnswers");
+            }
+
+            blanks.Add(blank);
+        }
+        return blanks;
+    }
+
+    private List<DropZone> ParseDropZonesFromTargets(JsonElement targetsEl)
+    {
+        var zones = new List<DropZone>();
+        foreach (var targetEl in targetsEl.EnumerateArray())
+        {
+            // AI generates targets with "id" and "label"
+            zones.Add(new DropZone
+            {
+                Id = GetStringOrDefault(targetEl, "id", ""),
+                Label = SanitizeHtml(GetStringOrDefault(targetEl, "label", "")),
+                AcceptedItems = new List<string>(),
+                MaxItems = GetIntOrNull(targetEl, "maxItems")
+            });
+        }
+        return zones;
+    }
+
+    private void MergeTargetIdsFromConfigItems(List<DraggableItem> draggables, JsonElement itemsEl)
+    {
+        // Build a lookup from item id to targetId
+        var targetIdMap = new Dictionary<string, string>();
+        foreach (var itemEl in itemsEl.EnumerateArray())
+        {
+            var id = GetStringOrDefault(itemEl, "id", "");
+            var targetId = GetStringOrDefault(itemEl, "targetId", null);
+            var categoryId = GetStringOrDefault(itemEl, "categoryId", null);
+            var target = targetId ?? categoryId;
+
+            if (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(target))
+            {
+                targetIdMap[id] = target;
+            }
+        }
+
+        // Merge into draggables
+        foreach (var draggable in draggables)
+        {
+            if (string.IsNullOrEmpty(draggable.Category) && targetIdMap.TryGetValue(draggable.Id, out var target))
+            {
+                draggable.Category = target;
+            }
+        }
+    }
+
+    private void BuildAcceptedItemsFromTargetIds(ExerciseComponent component)
+    {
+        // If draggables have targetId (which zone they belong to),
+        // populate AcceptedItems for each dropZone
+        if (component.Draggables == null || component.DropZones == null) return;
+
+        // Check if any draggable has a Category (which represents targetId)
+        var hasTargetMapping = component.Draggables.Any(d => !string.IsNullOrEmpty(d.Category));
+        if (!hasTargetMapping) return;
+
+        // Group draggables by their target zone
+        foreach (var zone in component.DropZones)
+        {
+            var itemsForZone = component.Draggables
+                .Where(d => d.Category == zone.Id)
+                .Select(d => d.Id)
+                .ToList();
+
+            if (itemsForZone.Any())
+            {
+                zone.AcceptedItems = itemsForZone;
+            }
+        }
     }
 
     private ValidationRule ParseValidation(JsonElement stepEl)
@@ -217,16 +342,17 @@ public partial class InteractiveExerciseService
         var draggables = new List<DraggableItem>();
         foreach (var itemEl in itemsEl.EnumerateArray())
         {
-            // Gemini generates items with "id", "label", and optionally "categoryId"
+            // AI generates items with "id", "label", and optionally "categoryId" or "targetId"
             var id = GetStringOrDefault(itemEl, "id", "");
             var label = GetStringOrDefault(itemEl, "label", "");
             var categoryId = GetStringOrDefault(itemEl, "categoryId", null);
+            var targetId = GetStringOrDefault(itemEl, "targetId", null);
 
             draggables.Add(new DraggableItem
             {
                 Id = id,
                 Content = SanitizeHtml(label),
-                Category = categoryId
+                Category = categoryId ?? targetId // Use either categoryId or targetId
             });
         }
         return draggables;
