@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DHBWAutomation.Backend.Core.Services.MoodleSync;
 
@@ -138,6 +139,24 @@ public partial class MoodleSyncService
             // 4. Kalender-Events synchronisieren
             fullResult.CalendarEventsResult = await SyncCalendarEventsAsync(userId);
 
+            // 5. Auto-Download neuer Dateien
+            _logger.LogInformation("Starting auto-download of new resources for user {UserId}", userId);
+            fullResult.DownloadResult = await DownloadAllResourcesAsync(userId, processAfterDownload: true);
+
+            if (fullResult.DownloadResult != null)
+            {
+                _logger.LogInformation("Auto-download completed: {Downloaded} downloaded, {Failed} failed, {Skipped} skipped",
+                    fullResult.DownloadResult.DownloadedCount,
+                    fullResult.DownloadResult.FailedCount,
+                    fullResult.DownloadResult.SkippedCount);
+
+                // 6. Process downloaded documents for Knowledge Graph (if OmniLearning is available)
+                if (fullResult.DownloadResult.CreatedDocumentIds.Any() && _serviceProvider != null)
+                {
+                    await ProcessDocumentsForKnowledgeGraphAsync(userId, fullResult.DownloadResult.CreatedDocumentIds);
+                }
+            }
+
             // User-Status aktualisieren
             var user = await _context.Users.FindAsync(userId);
             if (user != null)
@@ -161,6 +180,65 @@ public partial class MoodleSyncService
         }
 
         return fullResult;
+    }
+
+    /// <summary>
+    /// Verarbeitet heruntergeladene Dokumente fuer den Knowledge Graph
+    /// </summary>
+    private async Task ProcessDocumentsForKnowledgeGraphAsync(int userId, List<int> documentIds)
+    {
+        if (_serviceProvider == null) return;
+
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var omniService = scope.ServiceProvider.GetService<OmniLearning.IOmniLearningEngineService>();
+
+            if (omniService == null)
+            {
+                _logger.LogWarning("OmniLearningEngineService not available for Knowledge Graph processing");
+                return;
+            }
+
+            _logger.LogInformation("Processing {Count} documents for Knowledge Graph", documentIds.Count);
+
+            foreach (var docId in documentIds)
+            {
+                try
+                {
+                    // Check if document already has entities (avoid duplicates)
+                    var existingEntities = await _context.UnifiedKnowledgeEntities
+                        .Where(e => e.UserId == userId && e.SourceDocumentId == docId)
+                        .CountAsync();
+
+                    if (existingEntities > 0)
+                    {
+                        _logger.LogInformation("Document {DocumentId} already has {Count} entities, skipping",
+                            docId, existingEntities);
+                        continue;
+                    }
+
+                    // Process document with OmniLearning
+                    var result = await omniService.ProcessDocumentAsync(docId, userId, new OmniLearning.ProcessingOptions
+                    {
+                        ExtractEntities = true,
+                        ExtractRelationships = true,
+                        GenerateEmbeddings = true
+                    });
+
+                    _logger.LogInformation("Processed document {DocumentId}: {EntitiesExtracted} entities, {RelationshipsCreated} relationships",
+                        docId, result.EntitiesExtracted, result.RelationshipsCreated);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error processing document {DocumentId} for Knowledge Graph", docId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in Knowledge Graph processing for user {UserId}", userId);
+        }
     }
 
     public async Task<MoodleSyncStatus> GetSyncStatusAsync(int userId)

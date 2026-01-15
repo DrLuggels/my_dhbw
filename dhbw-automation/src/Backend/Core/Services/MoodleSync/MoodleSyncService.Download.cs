@@ -42,10 +42,42 @@ public partial class MoodleSyncService
 
             if (resource.IsDownloaded && resource.LocalDocumentId.HasValue)
             {
+                // Verify the document still exists
+                var existingDoc = await _context.Documents.FindAsync(resource.LocalDocumentId.Value);
+                if (existingDoc != null)
+                {
+                    result.Success = true;
+                    result.DocumentId = resource.LocalDocumentId;
+                    result.FileName = resource.Title;
+                    result.ErrorMessage = "Bereits heruntergeladen";
+                    return result;
+                }
+                // Document was deleted, reset download status
+                resource.IsDownloaded = false;
+                resource.LocalDocumentId = null;
+            }
+
+            // Check for duplicate by storage path
+            var expectedPath = $"moodle/{userId}/{resource.CourseId}/{SanitizeFileName(resource.Title ?? $"moodle_{resourceId}")}";
+            var duplicateByPath = await _context.Documents
+                .FirstOrDefaultAsync(d => d.UserId == userId &&
+                                         d.Source == "moodle" &&
+                                         d.FilePath != null &&
+                                         d.FilePath.Contains(SanitizeFileName(resource.Title ?? "")));
+
+            if (duplicateByPath != null)
+            {
+                _logger.LogInformation("Found existing document {DocumentId} for resource {ResourceId}, linking instead of re-downloading",
+                    duplicateByPath.Id, resourceId);
+                resource.IsDownloaded = true;
+                resource.LocalDocumentId = duplicateByPath.Id;
+                resource.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
                 result.Success = true;
-                result.DocumentId = resource.LocalDocumentId;
-                result.FileName = resource.Title;
-                result.ErrorMessage = "Bereits heruntergeladen";
+                result.DocumentId = duplicateByPath.Id;
+                result.FileName = duplicateByPath.FileName;
+                result.ErrorMessage = "Duplikat gefunden und verknuepft";
                 return result;
             }
 

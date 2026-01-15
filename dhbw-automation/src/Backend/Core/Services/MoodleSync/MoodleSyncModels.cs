@@ -39,6 +39,7 @@ public class MoodleFullSyncResult
     public MoodleSyncResult? AssignmentsResult { get; set; }
     public MoodleSyncResult? ResourcesResult { get; set; }
     public MoodleSyncResult? CalendarEventsResult { get; set; }
+    public MoodleBatchDownloadResult? DownloadResult { get; set; }
 
     public bool HasErrors =>
         (CoursesResult != null && !CoursesResult.Success) ||
