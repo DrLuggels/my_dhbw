@@ -654,7 +654,7 @@ import type {
   Priority, WeakArea, OverdueItem, OmniEntity, OmniExercise, KnowledgeGraph
 } from '@/types/omniLearning'
 import {
-  getMasteryColor, getMasteryLabel, getDifficultyColor, getDifficultyLabel,
+  getMasteryColor, getDifficultyColor, getDifficultyLabel,
   getBloomLevelColor, getBloomLevelName, getRelativeTime, formatDate,
   sessionTypes
 } from '@/types/omniLearning'
@@ -702,7 +702,7 @@ const sessionResults = ref<{ exerciseId: number; isCorrect: boolean }[]>([])
 // Knowledge Graph
 const knowledgeGraph = ref<KnowledgeGraph | null>(null)
 const loadingGraph = ref(false)
-const graphFilter = ref({ subject: null as string | null, minStrength: 0.3, maxNodes: 50, includeWeakEntities: true })
+const graphFilter = ref({ subject: undefined as string | undefined, minStrength: 0.3, maxNodes: 50, includeWeakEntities: true })
 
 // UI
 const snackbar = ref({ show: false, message: '', color: 'success' })
