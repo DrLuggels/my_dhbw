@@ -576,8 +576,9 @@
       </v-tabs-window>
     </v-card>
 
-    <!-- Entity Details Dialog -->
-    <v-dialog v-model="showEntityDialog" max-width="600">
+    <!-- Entity Details Dialog (fullscreen on mobile) -->
+    <v-dialog v-model="showEntityDialog" :max-width="isMobile ? undefined : 600" :fullscreen="isMobile"
+              :transition="isMobile ? 'dialog-bottom-transition' : 'dialog-transition'">
       <v-card v-if="selectedEntity">
         <v-card-title class="d-flex align-center">
           <v-icon left>mdi-information</v-icon>
@@ -638,6 +639,27 @@
       </v-card>
     </v-dialog>
 
+    <!-- Mobile Exercise Dialog (fullscreen) -->
+    <v-dialog v-model="showMobileExercise" fullscreen transition="dialog-bottom-transition">
+      <v-card v-if="currentExercise">
+        <v-toolbar color="primary" density="compact">
+          <v-btn icon @click="closeMobileExercise">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+          <v-toolbar-title>
+            <v-chip :color="getDifficultyColor(currentExercise.difficulty)" size="small" class="mr-2">
+              {{ getDifficultyLabel(currentExercise.difficulty) }}
+            </v-chip>
+            {{ currentExercise.topic }}
+          </v-toolbar-title>
+        </v-toolbar>
+        <v-container class="pa-4">
+          <div class="text-h6 mb-4">{{ currentExercise.question }}</div>
+          <OmniExercisePlayer :exercise="currentExercise" @submit="handleSubmitAnswerMobile" @skip="skipExerciseMobile" :loading="submittingAnswer" />
+        </v-container>
+      </v-card>
+    </v-dialog>
+
     <!-- Snackbar -->
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="4000">
       {{ snackbar.message }}
@@ -658,6 +680,7 @@ import {
   getBloomLevelColor, getBloomLevelName, getRelativeTime, formatDate,
   sessionTypes
 } from '@/types/omniLearning'
+import { getPriorityColor } from '@/utils/learningUtils'
 import OmniExercisePlayer from '@/components/omniLernen/OmniExercisePlayer.vue'
 import OmniGraphVisualization from '@/components/omniLernen/OmniGraphVisualization.vue'
 
@@ -706,6 +729,7 @@ const graphFilter = ref({ subject: undefined as string | undefined, minStrength:
 
 // UI
 const snackbar = ref({ show: false, message: '', color: 'success' })
+const showMobileExercise = ref(false)
 
 // Computed
 const availableSubjects = computed(() => {
@@ -938,6 +962,29 @@ const skipExercise = () => {
   }
 }
 
+// Mobile Exercise Dialog functions
+const closeMobileExercise = () => {
+  showMobileExercise.value = false
+  currentExercise.value = null
+}
+
+const handleSubmitAnswerMobile = async (answer: any) => {
+  await handleSubmitAnswer(answer)
+  // Close dialog after delay to show result
+  setTimeout(() => {
+    if (!currentExercise.value) {
+      showMobileExercise.value = false
+    }
+  }, 1500)
+}
+
+const skipExerciseMobile = () => {
+  skipExercise()
+  if (!currentExercise.value) {
+    showMobileExercise.value = false
+  }
+}
+
 const startLearning = (priority: Priority) => {
   if (priority.isBlocked) {
     showMessage(priority.blockReason || 'Diese Entitaet ist blockiert', 'warning')
@@ -1015,12 +1062,7 @@ const onGraphNodeClick = (node: any) => {
   }
 }
 
-// Helper functions
-const getPriorityColor = (score: number): string => {
-  if (score >= 0.8) return 'error'
-  if (score >= 0.5) return 'warning'
-  return 'success'
-}
+// Helper functions (getPriorityColor imported from learningUtils)
 
 const getDistributionPercent = (difficulty: string): number => {
   if (!distribution.value) return 0
@@ -1079,6 +1121,13 @@ onMounted(async () => {
 watch(activeTab, async (newTab) => {
   if (newTab === 'graph' && !knowledgeGraph.value) {
     await loadGraph()
+  }
+})
+
+// Open mobile dialog when exercise loads on mobile
+watch(currentExercise, (newExercise) => {
+  if (newExercise && isMobile.value) {
+    showMobileExercise.value = true
   }
 })
 </script>
