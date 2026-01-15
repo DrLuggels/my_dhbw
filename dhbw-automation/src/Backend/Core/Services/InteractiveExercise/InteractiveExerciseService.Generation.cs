@@ -29,6 +29,12 @@ public partial class InteractiveExerciseService
             var content = ParseInteractiveExerciseContent(responseDoc);
             var totalSteps = content.Steps.Count;
 
+            // Use camelCase for frontend compatibility
+            var jsonOptions = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+
             var exercise = new Models.InteractiveExercise
             {
                 UserId = userId,
@@ -36,8 +42,8 @@ public partial class InteractiveExerciseService
                 Subject = subject,
                 Topic = topic,
                 Difficulty = difficulty,
-                ExerciseContent = JsonSerializer.Serialize(content),
-                StepProgress = JsonSerializer.Serialize(new StepProgressData()),
+                ExerciseContent = JsonSerializer.Serialize(content, jsonOptions),
+                StepProgress = JsonSerializer.Serialize(new StepProgressData(), jsonOptions),
                 TotalSteps = totalSteps,
                 CompletedSteps = 0,
                 NextReviewDate = DateTime.UtcNow.AddDays(1),

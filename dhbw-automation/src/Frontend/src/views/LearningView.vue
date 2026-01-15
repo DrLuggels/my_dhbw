@@ -205,7 +205,7 @@ const handleScheduleTutoring = async (deficitId: number) => {
 }
 
 const handleResolveDeficit = async (deficitId: number) => {
-  if (!authStore.user?.id || !confirm('Dieses Defizit als behoben markieren?')) return
+  if (!authStore.user?.id) return
   resolvingId.value = deficitId
   try {
     const result = await resolveDeficit(deficitId, authStore.user.id)

@@ -22,7 +22,15 @@ public partial class LearningAnalyticsService
             var errors = JsonSerializer.Deserialize<List<DetectedError>>(document.DetectedErrors);
             if (errors == null || errors.Count == 0) return;
 
-            foreach (var error in errors)
+            // Nur Fachbegriffsfehler verarbeiten - Rechtschreibfehler ignorieren
+            var relevantErrors = errors.Where(e => e.ErrorType != "spelling").ToList();
+            if (relevantErrors.Count == 0)
+            {
+                _logger.LogInformation($"Document {documentId} has only spelling errors - no learning deficits created");
+                return;
+            }
+
+            foreach (var error in relevantErrors)
             {
                 var deficit = await _context.LearningDeficits
                     .FirstOrDefaultAsync(d =>

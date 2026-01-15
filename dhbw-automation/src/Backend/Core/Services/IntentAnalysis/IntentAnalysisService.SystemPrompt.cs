@@ -22,8 +22,14 @@ Analysiere den gegebenen Text und extrahiere strukturierte Informationen:
 
 4. **Projekte**: Projektideen mit Name, Description, Requirements, Ideas, EstimatedPriority, ConfidenceScore (0-100)
 
-5. **Fehler**: Erkenne fachliche Fehler
-   - ErrorType (spelling/concept/calculation/logic), Subject, Topic, Original, Corrected, Explanation, Severity
+5. **Fehler**: Erkenne fachliche Fehler (Rechtschreibfehler werden NICHT als Lerndefizite behandelt)
+   - ErrorType:
+     * 'spelling' - Einfache Rechtschreibfehler (werden ignoriert, kein Lerndefizit)
+     * 'concept' - Fachbegriffsfehler, Konzeptverständnis (WICHTIG für Lerndefizite)
+     * 'calculation' - Rechenfehler, mathematische Fehler (WICHTIG für Lerndefizite)
+     * 'logic' - Logische Fehler, Denkfehler (WICHTIG für Lerndefizite)
+   - Subject, Topic, Original, Corrected, Explanation, Severity
+   - Nur concept/calculation/logic Fehler führen zu Lerndefiziten!
 
 6. **Lerninhalt**: Subject, Topic, KeyConcepts, ComprehensionLevel (good/partial/poor), NeedsMoreStudy
 
