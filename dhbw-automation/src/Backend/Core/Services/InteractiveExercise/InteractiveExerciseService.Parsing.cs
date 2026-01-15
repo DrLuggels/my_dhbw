@@ -110,17 +110,29 @@ public partial class InteractiveExerciseService
             }
         }
 
-        // Parse fill_blank: template from either "template" or "config.text"
+        // Parse fill_blank: template from "template", "config.text", or "config.elements"
         if (component.Type == "fill_blank")
         {
             component.Template = GetStringOrDefault(compEl, "template", null);
+
             if (string.IsNullOrEmpty(component.Template) && compEl.TryGetProperty("config", out var configForTemplate))
             {
+                // Try config.text first
                 component.Template = GetStringOrDefault(configForTemplate, "text", null);
+
+                // If still empty, try building from config.elements
+                if (string.IsNullOrEmpty(component.Template) && configForTemplate.TryGetProperty("elements", out var elementsEl))
+                {
+                    component.Template = BuildTemplateFromElements(elementsEl, out var extractedBlanks);
+                    if (extractedBlanks.Any())
+                    {
+                        component.Blanks = extractedBlanks;
+                    }
+                }
             }
 
-            // Parse blanks array if present
-            if (compEl.TryGetProperty("blanks", out var blanksEl))
+            // Parse blanks array if present (and not already extracted from elements)
+            if (component.Blanks == null && compEl.TryGetProperty("blanks", out var blanksEl))
             {
                 component.Blanks = ParseBlanks(blanksEl);
             }
@@ -189,6 +201,45 @@ public partial class InteractiveExerciseService
             blanks.Add(blank);
         }
         return blanks;
+    }
+
+    /// <summary>
+    /// Build template string from config.elements array format.
+    /// AI sometimes generates: {"type":"text","content":"..."}, {"type":"blank","id":"...","placeholder":"..."}
+    /// This converts to: "text content {{blank:id}} more text"
+    /// </summary>
+    private string BuildTemplateFromElements(JsonElement elementsEl, out List<BlankDefinition> blanks)
+    {
+        blanks = new List<BlankDefinition>();
+        var templateParts = new List<string>();
+
+        foreach (var element in elementsEl.EnumerateArray())
+        {
+            var elementType = GetStringOrDefault(element, "type", "text");
+
+            if (elementType == "text")
+            {
+                var content = GetStringOrDefault(element, "content", "");
+                templateParts.Add(content);
+            }
+            else if (elementType == "blank")
+            {
+                var blankId = GetStringOrDefault(element, "id", $"blank-{blanks.Count + 1}");
+                var placeholder = GetStringOrDefault(element, "placeholder", null);
+
+                // Add placeholder in template format
+                templateParts.Add($"{{{{blank:{blankId}}}}}");
+
+                // Extract blank definition
+                blanks.Add(new BlankDefinition
+                {
+                    Id = blankId,
+                    Hint = placeholder
+                });
+            }
+        }
+
+        return string.Join("", templateParts);
     }
 
     private List<DropZone> ParseDropZonesFromTargets(JsonElement targetsEl)
