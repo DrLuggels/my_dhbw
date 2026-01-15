@@ -110,33 +110,26 @@ public partial class InteractiveExerciseService
             }
         }
 
+        // Parse draggables from either "draggables" or "config.items"
         if (compEl.TryGetProperty("draggables", out var draggablesEl))
         {
-            component.Draggables = new List<DraggableItem>();
-            foreach (var dragEl in draggablesEl.EnumerateArray())
-            {
-                component.Draggables.Add(new DraggableItem
-                {
-                    Id = GetStringOrDefault(dragEl, "id", ""),
-                    Content = SanitizeHtml(GetStringOrDefault(dragEl, "content", "")),
-                    Category = GetStringOrDefault(dragEl, "category", null)
-                });
-            }
+            component.Draggables = ParseDraggables(draggablesEl);
+        }
+        else if (compEl.TryGetProperty("config", out var configForDrag) &&
+                 configForDrag.TryGetProperty("items", out var itemsEl))
+        {
+            component.Draggables = ParseDraggablesFromItems(itemsEl);
         }
 
+        // Parse dropZones from either "dropZones" or "config.categories"
         if (compEl.TryGetProperty("dropZones", out var zonesEl))
         {
-            component.DropZones = new List<DropZone>();
-            foreach (var zoneEl in zonesEl.EnumerateArray())
-            {
-                component.DropZones.Add(new DropZone
-                {
-                    Id = GetStringOrDefault(zoneEl, "id", ""),
-                    Label = SanitizeHtml(GetStringOrDefault(zoneEl, "label", "")),
-                    AcceptedItems = GetStringArrayOrDefault(zoneEl, "acceptedItems"),
-                    MaxItems = GetIntOrNull(zoneEl, "maxItems")
-                });
-            }
+            component.DropZones = ParseDropZones(zonesEl);
+        }
+        else if (compEl.TryGetProperty("config", out var configForZones) &&
+                 configForZones.TryGetProperty("categories", out var categoriesEl))
+        {
+            component.DropZones = ParseDropZonesFromCategories(categoriesEl);
         }
 
         return component;
@@ -202,5 +195,73 @@ public partial class InteractiveExerciseService
         }
 
         return hints;
+    }
+
+    private List<DraggableItem> ParseDraggables(JsonElement draggablesEl)
+    {
+        var draggables = new List<DraggableItem>();
+        foreach (var dragEl in draggablesEl.EnumerateArray())
+        {
+            draggables.Add(new DraggableItem
+            {
+                Id = GetStringOrDefault(dragEl, "id", ""),
+                Content = SanitizeHtml(GetStringOrDefault(dragEl, "content", "")),
+                Category = GetStringOrDefault(dragEl, "category", null)
+            });
+        }
+        return draggables;
+    }
+
+    private List<DraggableItem> ParseDraggablesFromItems(JsonElement itemsEl)
+    {
+        var draggables = new List<DraggableItem>();
+        foreach (var itemEl in itemsEl.EnumerateArray())
+        {
+            // Gemini generates items with "id", "label", and optionally "categoryId"
+            var id = GetStringOrDefault(itemEl, "id", "");
+            var label = GetStringOrDefault(itemEl, "label", "");
+            var categoryId = GetStringOrDefault(itemEl, "categoryId", null);
+
+            draggables.Add(new DraggableItem
+            {
+                Id = id,
+                Content = SanitizeHtml(label),
+                Category = categoryId
+            });
+        }
+        return draggables;
+    }
+
+    private List<DropZone> ParseDropZones(JsonElement zonesEl)
+    {
+        var zones = new List<DropZone>();
+        foreach (var zoneEl in zonesEl.EnumerateArray())
+        {
+            zones.Add(new DropZone
+            {
+                Id = GetStringOrDefault(zoneEl, "id", ""),
+                Label = SanitizeHtml(GetStringOrDefault(zoneEl, "label", "")),
+                AcceptedItems = GetStringArrayOrDefault(zoneEl, "acceptedItems"),
+                MaxItems = GetIntOrNull(zoneEl, "maxItems")
+            });
+        }
+        return zones;
+    }
+
+    private List<DropZone> ParseDropZonesFromCategories(JsonElement categoriesEl)
+    {
+        var zones = new List<DropZone>();
+        foreach (var catEl in categoriesEl.EnumerateArray())
+        {
+            // Gemini generates categories with "id" and "label"
+            zones.Add(new DropZone
+            {
+                Id = GetStringOrDefault(catEl, "id", ""),
+                Label = SanitizeHtml(GetStringOrDefault(catEl, "label", "")),
+                AcceptedItems = new List<string>(),
+                MaxItems = null
+            });
+        }
+        return zones;
     }
 }
