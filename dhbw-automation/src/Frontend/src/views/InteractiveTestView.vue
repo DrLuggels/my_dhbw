@@ -102,6 +102,37 @@
         </v-card-text>
       </v-card>
 
+      <!-- EXAKTE KOPIE der aktuellen Ubung: Fill in Blank mit Summe/Durchschnitt -->
+      <v-card class="mb-4" color="amber-lighten-5">
+        <v-card-title>
+          <v-icon class="mr-2">mdi-calculator</v-icon>
+          EXAKTE UBUNG: Die Formel anwenden
+        </v-card-title>
+        <v-card-text>
+          <div class="instruction-text mb-4">
+            <p>Um den Durchschnitt (das arithmetische Mittel) einer Datenreihe zu berechnen, nutzt man zwei Schritte:</p>
+            <ol>
+              <li>Bilde die Summe aller Werte.</li>
+              <li>Dividiere die Summe durch die Anzahl der Werte.</li>
+            </ol>
+            <p><strong>Berechne den Durchschnitt fur die Zahlen: 5, 10, 15</strong></p>
+          </div>
+          <FillInBlank
+            :config="exactExerciseConfig"
+            v-model="exactExerciseAnswer"
+          />
+          <div class="mt-4">
+            <v-chip color="info" variant="tonal">
+              Antwort: {{ JSON.stringify(exactExerciseAnswer) || 'keine' }}
+            </v-chip>
+          </div>
+          <v-alert type="info" variant="tonal" class="mt-4" density="compact">
+            <strong>Debug:</strong> Config wird als props.config ubergeben:
+            <pre class="mt-2 text-caption">{{ JSON.stringify(exactExerciseConfig, null, 2) }}</pre>
+          </v-alert>
+        </v-card-text>
+      </v-card>
+
       <!-- Text Input Test -->
       <v-card class="mb-4">
         <v-card-title>
@@ -176,6 +207,7 @@ const multipleChoiceAnswer = ref<string>('')
 const multipleChoiceMultiAnswer = ref<string[]>([])
 const dragDropAnswer = ref<Record<string, string[]>>({})
 const fillBlankAnswer = ref<string | Record<string, string>>('')
+const exactExerciseAnswer = ref<string | Record<string, string>>('')
 const textInputAnswer = ref('')
 const sliderAnswer = ref('')
 
@@ -233,6 +265,16 @@ const fillBlankConfig = {
     { id: 'blank2', correctAnswers: ['return'], hint: 'Englisches Wort fur "zuruckgeben"' }
   ],
   correctAnswer: 'def'
+}
+
+// EXAKTE KOPIE der aktuellen Ubung - Format wie vom Backend erwartet
+const exactExerciseConfig = {
+  type: 'fill_blank',
+  template: 'Summe: {{blank:sum}}\nDurchschnitt: {{blank:mean}}',
+  blanks: [
+    { id: 'sum', hint: 'Zahle 5, 10 und 15 zusammen fur die Summe.' },
+    { id: 'mean', hint: 'Teile das Ergebnis durch 3, da wir 3 Werte haben.' }
+  ]
 }
 
 // Text Input Config
