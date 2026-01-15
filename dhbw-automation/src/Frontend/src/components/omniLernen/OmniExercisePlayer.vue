@@ -10,7 +10,7 @@
     <!-- Fill Blank -->
     <div v-else-if="exercise.componentType === 'fill_blank'" class="mb-4">
       <div class="fill-blank-text text-body-1 mb-4">
-        <template v-for="(part, idx) in fillBlankParts" :key="`part-${idx}`">
+        <template v-for="(part, _idx) in fillBlankParts" :key="`part-${_idx}`">
           <span v-if="part.type === 'text'">{{ part.content }}</span>
           <v-text-field v-else v-model="fillBlankAnswers[part.index ?? 0]" density="compact" variant="outlined" style="display: inline-block; width: 150px; margin: 0 4px;" :disabled="loading" hide-details />
         </template>
