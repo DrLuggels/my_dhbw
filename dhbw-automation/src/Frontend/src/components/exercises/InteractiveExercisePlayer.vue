@@ -200,6 +200,7 @@ interface ExerciseData {
 interface Props {
   exercise?: ExerciseData
   exerciseId?: number
+  testMode?: boolean // Enables local validation without API calls
 }
 
 const props = defineProps<Props>()
@@ -325,8 +326,101 @@ function requestHint() {
 
 const exerciseId = computed(() => props.exercise?.id || props.exerciseId)
 
+// Local validation for test mode
+function validateLocally(): { isCorrect: boolean; message: string; explanation?: string } {
+  const step = currentStep.value
+  const comp = step?.component
+  const answer = currentAnswer.value
+
+  if (!comp) return { isCorrect: false, message: 'Keine Komponente gefunden' }
+
+  switch (comp.type) {
+    case 'multiple_choice': {
+      const correctIds = comp.options?.filter((o: any) => o.isCorrect).map((o: any) => o.id) || []
+      const selectedIds = Array.isArray(answer) ? answer : [answer]
+      const isCorrect = selectedIds.sort().join(',') === correctIds.sort().join(',')
+      const selectedOpt = comp.options?.find((o: any) => selectedIds.includes(o.id))
+      return {
+        isCorrect,
+        message: isCorrect
+          ? (step.feedback?.onCorrect?.message || 'Richtig!')
+          : (step.feedback?.onIncorrect?.message || 'Leider falsch.'),
+        explanation: selectedOpt?.explanation
+      }
+    }
+    case 'drag_drop': {
+      // Simple check: all zones have items
+      const hasItems = comp.dropZones?.every((z: any) => answer?.[z.id]?.length > 0)
+      return {
+        isCorrect: hasItems || false,
+        message: hasItems
+          ? (step.feedback?.onCorrect?.message || 'Richtig!')
+          : (step.feedback?.onIncorrect?.message || 'Ordne alle Elemente zu.')
+      }
+    }
+    case 'fill_blank': {
+      // For test mode, accept any non-empty answer
+      const hasAnswer = typeof answer === 'string' ? answer.trim().length > 0 : Object.values(answer || {}).some((v: any) => v?.trim?.())
+      return {
+        isCorrect: hasAnswer || false,
+        message: hasAnswer
+          ? (step.feedback?.onCorrect?.message || 'Antwort akzeptiert (Test-Modus)')
+          : (step.feedback?.onIncorrect?.message || 'Bitte fulle die Lucken aus.')
+      }
+    }
+    case 'text_input':
+    case 'slider_range': {
+      const hasAnswer = answer?.toString().trim().length > 0
+      return {
+        isCorrect: hasAnswer || false,
+        message: hasAnswer
+          ? (step.feedback?.onCorrect?.message || 'Antwort akzeptiert (Test-Modus)')
+          : (step.feedback?.onIncorrect?.message || 'Bitte gib eine Antwort ein.')
+      }
+    }
+    default:
+      return { isCorrect: true, message: 'Test-Modus: Antwort akzeptiert' }
+  }
+}
+
 async function submitStep() {
-  if (!currentStep.value || isSubmitting.value || !exerciseId.value) return
+  if (!currentStep.value || isSubmitting.value) return
+
+  // In test mode, skip API and validate locally
+  if (props.testMode) {
+    isSubmitting.value = true
+    feedback.value = null
+
+    // Simulate a brief delay for UX
+    await new Promise(resolve => setTimeout(resolve, 300))
+
+    const result = validateLocally()
+
+    feedback.value = {
+      isCorrect: result.isCorrect,
+      message: result.message,
+      explanation: result.explanation
+    }
+
+    stepProgress.value[currentStep.value.id] = {
+      completed: result.isCorrect,
+      score: result.isCorrect ? 100 : 0,
+      userAnswer: currentAnswer.value,
+      hintsUsed: hintsUsed.value
+    }
+
+    emit('progress', {
+      stepId: currentStep.value.id,
+      isCorrect: result.isCorrect,
+      score: result.isCorrect ? 100 : 0
+    })
+
+    isSubmitting.value = false
+    return
+  }
+
+  // Normal API mode
+  if (!exerciseId.value) return
 
   isSubmitting.value = true
   feedback.value = null
@@ -379,6 +473,12 @@ async function submitStep() {
 }
 
 async function completeExercise() {
+  // In test mode, just show completion dialog
+  if (props.testMode) {
+    showCompletionDialog.value = true
+    return
+  }
+
   if (!exerciseId.value) return
 
   try {

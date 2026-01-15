@@ -176,8 +176,13 @@
 
     <!-- Full Player Test -->
     <template v-else>
+      <v-alert type="info" variant="tonal" class="mb-4">
+        <strong>Test-Modus aktiv:</strong> Validierung erfolgt lokal ohne API-Aufrufe.
+        Jede nicht-leere Antwort wird akzeptiert.
+      </v-alert>
       <InteractiveExercisePlayer
         :exercise="mockExercise"
+        :test-mode="true"
         @complete="onComplete"
         @progress="onProgress"
       />
