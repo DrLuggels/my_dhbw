@@ -127,11 +127,35 @@ public partial class InteractiveExerciseService
     {
         if (!comp.Config.TryGetValue("correctValue", out var correctObj) ||
             !comp.Config.TryGetValue("tolerance", out var toleranceObj))
-            return new StepValidationResult { IsCorrect = false, Score = 0 };
+            return new StepValidationResult { IsCorrect = false, Score = 0, Feedback = "Konfigurationsfehler" };
+
+        // Handle both numeric and string input (frontend may send text)
+        double userValue;
+        if (answer.ValueKind == JsonValueKind.Number)
+        {
+            userValue = answer.GetDouble();
+        }
+        else if (answer.ValueKind == JsonValueKind.String)
+        {
+            var strValue = answer.GetString()?.Replace(",", ".") ?? "";
+            if (!double.TryParse(strValue, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out userValue))
+            {
+                return new StepValidationResult
+                {
+                    IsCorrect = false,
+                    Score = 0,
+                    Feedback = feedback.OnIncorrect?.Message ?? "Bitte gib eine Zahl ein"
+                };
+            }
+        }
+        else
+        {
+            return new StepValidationResult { IsCorrect = false, Score = 0, Feedback = "Ungültige Eingabe" };
+        }
 
         var correctValue = Convert.ToDouble(correctObj);
         var tolerance = Convert.ToDouble(toleranceObj);
-        var userValue = answer.GetDouble();
 
         var isCorrect = Math.Abs(userValue - correctValue) <= tolerance;
         var score = isCorrect ? 100 : Math.Max(0, 100 - Math.Abs(userValue - correctValue) / tolerance * 50);
@@ -141,7 +165,7 @@ public partial class InteractiveExerciseService
             IsCorrect = isCorrect,
             IsPartiallyCorrect = score > 50 && !isCorrect,
             Score = score,
-            Feedback = isCorrect ? feedback.OnCorrect.Message : feedback.OnIncorrect.Message
+            Feedback = isCorrect ? feedback.OnCorrect?.Message ?? "Richtig!" : feedback.OnIncorrect?.Message ?? "Nicht ganz richtig"
         };
     }
 
