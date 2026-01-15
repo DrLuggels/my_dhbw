@@ -12,7 +12,13 @@ public partial class InteractiveExerciseService
         if (exercise == null)
             throw new ArgumentException($"Exercise {exerciseId} not found");
 
-        var content = JsonSerializer.Deserialize<InteractiveExerciseContent>(exercise.ExerciseContent);
+        // Support both camelCase (new) and PascalCase (legacy) JSON
+        var jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            PropertyNameCaseInsensitive = true
+        };
+        var content = JsonSerializer.Deserialize<InteractiveExerciseContent>(exercise.ExerciseContent, jsonOptions);
         var step = content?.Steps.FirstOrDefault(s => s.Id == stepId);
 
         if (step == null)

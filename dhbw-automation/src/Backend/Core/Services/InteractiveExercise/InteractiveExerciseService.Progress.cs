@@ -16,7 +16,13 @@ public partial class InteractiveExerciseService
         if (exercise == null)
             throw new ArgumentException($"Exercise {exerciseId} not found");
 
-        var progress = JsonSerializer.Deserialize<StepProgressData>(exercise.StepProgress) ?? new StepProgressData();
+        // Support both camelCase (new) and PascalCase (legacy) JSON
+        var jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            PropertyNameCaseInsensitive = true
+        };
+        var progress = JsonSerializer.Deserialize<StepProgressData>(exercise.StepProgress, jsonOptions) ?? new StepProgressData();
 
         if (!progress.Steps.TryGetValue(stepId, out var stepProgress))
         {
@@ -34,7 +40,7 @@ public partial class InteractiveExerciseService
             exercise.CompletedSteps++;
         }
 
-        exercise.StepProgress = JsonSerializer.Serialize(progress);
+        exercise.StepProgress = JsonSerializer.Serialize(progress, jsonOptions);
         exercise.Score = progress.Steps.Values.Average(s => s.Score);
 
         if (exercise.StartedAt == null)
