@@ -392,10 +392,10 @@ async function completeExercise() {
 function parseExerciseData(data: ExerciseData) {
   exercise.value = data
 
-  // Parse exercise content
+  // Parse exercise content (handle both PascalCase and camelCase)
   try {
     const content = JSON.parse(data.exerciseContent)
-    steps.value = content.steps || []
+    steps.value = content.Steps || content.steps || []
   } catch {
     steps.value = []
   }
