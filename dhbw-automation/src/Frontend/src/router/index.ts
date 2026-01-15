@@ -74,6 +74,12 @@ const router = createRouter({
       name: 'knowledge',
       component: () => import('../views/KnowledgeNetworkView.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/test/interactive',
+      name: 'interactive-test',
+      component: () => import('../views/InteractiveTestView.vue'),
+      meta: { requiresAuth: false }
     }
   ]
 })
