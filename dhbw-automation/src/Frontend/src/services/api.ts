@@ -395,6 +395,150 @@ class ApiService {
     const response = await this.api.get(`/pkg/${userId}/decay-rate`, { params: { subject } })
     return response.data
   }
+
+  // ==================== OmniLearning API Endpoints ====================
+
+  // Dokumentenverarbeitung
+  async omniProcessDocument(documentId: number, options?: any) {
+    const response = await this.api.post(`/omni/dokumente/${documentId}/verarbeiten`, options)
+    return response.data
+  }
+
+  async omniProcessDocumentsBatch(documentIds: number[], options?: any) {
+    const response = await this.api.post('/omni/dokumente/batch-verarbeiten', { documentIds, options })
+    return response.data
+  }
+
+  // Entitäten
+  async omniGetEntities(filters?: any) {
+    const params = filters ? { ...filters } : {}
+    const response = await this.api.get('/omni/entitaeten', { params })
+    return response.data
+  }
+
+  async omniSearchEntities(query: string, filters?: any) {
+    const response = await this.api.post('/omni/entitaeten/suche', { query, filters })
+    return response.data
+  }
+
+  async omniGetEntity(entityId: number) {
+    const response = await this.api.get(`/omni/entitaeten/${entityId}`)
+    return response.data
+  }
+
+  async omniCreateEntity(data: { name: string; entityType: string; subject: string; topic?: string; description?: string }) {
+    const response = await this.api.post('/omni/entitaeten', data)
+    return response.data
+  }
+
+  async omniGetRelatedEntities(entityId: number, depth: number = 2) {
+    const response = await this.api.get(`/omni/entitaeten/${entityId}/verwandt`, { params: { depth } })
+    return response.data
+  }
+
+  async omniMergeEntities(entityIds: number[]) {
+    const response = await this.api.post('/omni/entitaeten/zusammenfuehren', { entityIds })
+    return response.data
+  }
+
+  // Beziehungen
+  async omniCreateRelationship(data: { sourceEntityId: number; targetEntityId: number; relationshipType: string }) {
+    const response = await this.api.post('/omni/beziehungen', data)
+    return response.data
+  }
+
+  async omniGenerateRelationships(entityId: number) {
+    const response = await this.api.post(`/omni/entitaeten/${entityId}/beziehungen-generieren`)
+    return response.data
+  }
+
+  async omniCheckPrerequisites(entityId: number) {
+    const response = await this.api.get(`/omni/entitaeten/${entityId}/voraussetzungen`)
+    return response.data
+  }
+
+  async omniGetPrerequisiteChain(entityId: number) {
+    const response = await this.api.get(`/omni/entitaeten/${entityId}/voraussetzungs-kette`)
+    return response.data
+  }
+
+  // Übungen
+  async omniGenerateExercise(data: { entityIds?: number[]; subject?: string; topic?: string; difficulty?: string; bloomLevel?: number; componentType?: string }) {
+    const response = await this.api.post('/omni/uebungen/generieren', data)
+    return response.data
+  }
+
+  async omniGenerateSession(data: { entityIds?: number[]; count?: number; sessionType?: string }) {
+    const response = await this.api.post('/omni/uebungen/session', data)
+    return response.data
+  }
+
+  async omniSubmitAnswer(exerciseId: number, data: { userAnswer: any; timeTakenMs?: number }) {
+    const response = await this.api.post(`/omni/uebungen/${exerciseId}/antwort`, data)
+    return response.data
+  }
+
+  async omniGetDueExercises(limit: number = 10) {
+    const response = await this.api.get('/omni/uebungen/faellig', { params: { limit } })
+    return response.data
+  }
+
+  async omniGetNextExercise() {
+    const response = await this.api.get('/omni/uebungen/naechste')
+    return response.data
+  }
+
+  // Prioritäten & Scheduling
+  async omniCalculatePriorities(options?: any) {
+    const response = await this.api.post('/omni/prioritaeten/berechnen', options)
+    return response.data
+  }
+
+  async omniGetWeakAreas(limit: number = 10) {
+    const response = await this.api.get('/omni/schwachstellen', { params: { limit } })
+    return response.data
+  }
+
+  async omniGetOverdueItems() {
+    const response = await this.api.get('/omni/ueberfaellig')
+    return response.data
+  }
+
+  // Visualisierung
+  async omniGetKnowledgeGraph(filters?: { subject?: string; topic?: string; minStrength?: number; maxNodes?: number; includeWeakEntities?: boolean }) {
+    const params = filters ? { ...filters } : {}
+    const response = await this.api.get('/omni/graph', { params })
+    return response.data
+  }
+
+  async omniGetClusterVisualization(subject?: string) {
+    const params = subject ? { subject } : {}
+    const response = await this.api.get('/omni/cluster', { params })
+    return response.data
+  }
+
+  // Analytics
+  async omniGetMasteryStats() {
+    const response = await this.api.get('/omni/statistiken')
+    return response.data
+  }
+
+  async omniGetStreak() {
+    const response = await this.api.get('/omni/streak')
+    return response.data
+  }
+
+  async omniGetDifficultyDistribution(subject?: string) {
+    const params = subject ? { subject } : {}
+    const response = await this.api.get('/omni/schwierigkeitsverteilung', { params })
+    return response.data
+  }
+
+  async omniGetBloomProgression(subject?: string) {
+    const params = subject ? { subject } : {}
+    const response = await this.api.get('/omni/bloom-progression', { params })
+    return response.data
+  }
 }
 
 export default new ApiService()

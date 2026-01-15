@@ -13,6 +13,7 @@ using DHBWAutomation.Backend.Core.Services.MoodleSync;
 using DHBWAutomation.Backend.Core.Services.LearningEngine;
 using DHBWAutomation.Backend.Core.Services.LearningAnalytics;
 using DHBWAutomation.Backend.Core.Services.UnifiedLearning;
+using DHBWAutomation.Backend.Core.Services.OmniLearning;
 using DHBWAutomation.Backend.Core.Services.IntentAnalysis;
 using DHBWAutomation.Backend.Core.BackgroundServices;
 using DHBWAutomation.Backend.Infrastructure.Storage;
@@ -258,6 +259,9 @@ builder.Services.AddScoped<ILearningEngineService, LearningEngineService>();
 
 // Unified Learning System (combines AKGLS + LearningEngine + RAG + 20/40/40 + Prerequisites)
 builder.Services.AddScoped<IUnifiedLearningService, UnifiedLearningService>();
+
+// OmniLearning System (Omnifunktionales Lernsystem - konsolidiert alle Lernfunktionen)
+builder.Services.AddScoped<IOmniLearningEngineService, OmniLearningEngineService>();
 
 // Helper Services
 builder.Services.AddSingleton<AnthropicClient>();

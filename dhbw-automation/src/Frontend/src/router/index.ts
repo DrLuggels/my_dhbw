@@ -80,6 +80,12 @@ const router = createRouter({
       name: 'interactive-test',
       component: () => import('../views/InteractiveTestView.vue'),
       meta: { requiresAuth: false }
+    },
+    {
+      path: '/omni',
+      name: 'omni-lernen',
+      component: () => import('../views/OmniLernenView.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })
