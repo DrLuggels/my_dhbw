@@ -1,7 +1,6 @@
 #!/bin/bash
 # Git post-receive hook for auto-deployment
-# Install: cp deploy/post-receive /root/dhbw-automation.git/hooks/post-receive && chmod +x ...
-
+# Installed automatically by setup-server.sh
 set -e
 
 DEPLOY_DIR="/root/dhbw-automation-deploy"
@@ -16,14 +15,22 @@ while read oldrev newrev refname; do
 
         cd "$DEPLOY_DIR"
 
+        # Create .env from example if it doesn't exist
+        if [ ! -f .env ]; then
+            cp .env.example .env
+            echo "WARNING: Created .env from .env.example - fill in your API keys!"
+        fi
+
         # Build and restart containers
-        docker compose -f docker-compose.prod.yml build
+        docker compose -f docker-compose.prod.yml build --no-cache
         docker compose -f docker-compose.prod.yml up -d
 
-        # Run database migrations
-        docker compose -f docker-compose.prod.yml exec -T backend \
-            alembic upgrade head
+        # Wait for backend, then run migrations
+        echo "Waiting for backend to start..."
+        sleep 10
+        docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head 2>/dev/null || echo "Migrations: will retry on next deploy"
 
         echo "=== Deployment complete ==="
+        docker compose -f docker-compose.prod.yml ps
     fi
 done

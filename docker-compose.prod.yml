@@ -21,7 +21,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://dhbw_user:${POSTGRES_PASSWORD:-dhbw_secret}@db:5432/dhbw_automation
-      FRONTEND_URL: http://localhost
+      FRONTEND_URL: ${FRONTEND_URL:-http://192.168.178.198}
     volumes:
       - uploads:/app/uploads
     depends_on:
@@ -30,7 +30,10 @@ services:
     restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ""
     container_name: dhbw-frontend
     ports:
       - "80:80"
