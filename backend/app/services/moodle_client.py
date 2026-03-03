@@ -1,0 +1,101 @@
+"""Low-level Moodle Web Service API client.
+
+Handles HTTP calls, token auth, and response parsing.
+"""
+
+import logging
+
+import httpx
+
+from app.config import settings
+
+logger = logging.getLogger(__name__)
+
+TIMEOUT = 30.0
+
+
+class MoodleClient:
+    """Async HTTP client for Moodle Web Services REST API."""
+
+    def __init__(self, base_url: str = "", token: str = "") -> None:
+        self.base_url = (base_url or settings.moodle_base_url).rstrip("/")
+        self.token = token or settings.moodle_token
+        self._client: httpx.AsyncClient | None = None
+
+    @property
+    def client(self) -> httpx.AsyncClient:
+        if self._client is None:
+            self._client = httpx.AsyncClient(timeout=TIMEOUT)
+        return self._client
+
+    @property
+    def ws_url(self) -> str:
+        return f"{self.base_url}/webservice/rest/server.php"
+
+    async def call(self, function: str, **params) -> dict | list:
+        """Call a Moodle Web Service function.
+
+        Args:
+            function: WS function name (e.g. core_course_get_courses).
+            **params: Additional parameters for the function.
+
+        Returns:
+            Parsed JSON response.
+        """
+        data = {
+            "wstoken": self.token,
+            "wsfunction": function,
+            "moodlewsrestformat": "json",
+            **params,
+        }
+        response = await self.client.post(self.ws_url, data=data)
+        response.raise_for_status()
+        result = response.json()
+
+        if isinstance(result, dict) and "exception" in result:
+            raise MoodleApiError(result.get("message", "Unknown Moodle error"))
+
+        return result
+
+    async def download_file(self, url: str) -> bytes:
+        """Download a file from Moodle (appends token)."""
+        sep = "&" if "?" in url else "?"
+        full_url = f"{url}{sep}token={self.token}"
+        response = await self.client.get(full_url)
+        response.raise_for_status()
+        return response.content
+
+    async def test_connection(self) -> dict:
+        """Test connection by fetching site info."""
+        return await self.call("core_webservice_get_site_info")
+
+    async def get_courses(self) -> list[dict]:
+        info = await self.call("core_webservice_get_site_info")
+        user_id = info.get("userid")
+        return await self.call("core_enrol_get_users_courses", userid=user_id)
+
+    async def get_assignments(self, course_ids: list[int] | None = None) -> list[dict]:
+        result = await self.call("mod_assign_get_assignments")
+        courses = result.get("courses", [])
+        if course_ids:
+            courses = [c for c in courses if c.get("id") in course_ids]
+        return courses
+
+    async def get_calendar_events(self) -> list[dict]:
+        result = await self.call(
+            "core_calendar_get_calendar_events",
+            **{"events[timestart]": 0, "events[timeend]": 9999999999},
+        )
+        return result.get("events", [])
+
+    async def get_course_contents(self, course_id: int) -> list[dict]:
+        return await self.call("core_course_get_contents", courseid=course_id)
+
+    async def close(self) -> None:
+        if self._client:
+            await self._client.aclose()
+            self._client = None
+
+
+class MoodleApiError(Exception):
+    pass

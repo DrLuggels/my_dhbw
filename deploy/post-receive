@@ -1,0 +1,29 @@
+#!/bin/bash
+# Git post-receive hook for auto-deployment
+# Install: cp deploy/post-receive /root/dhbw-automation.git/hooks/post-receive && chmod +x ...
+
+set -e
+
+DEPLOY_DIR="/root/dhbw-automation-deploy"
+BRANCH="main"
+
+while read oldrev newrev refname; do
+    if [ "$refname" = "refs/heads/$BRANCH" ]; then
+        echo "=== Deploying $BRANCH to $DEPLOY_DIR ==="
+
+        # Update working copy
+        git --work-tree="$DEPLOY_DIR" --git-dir="$(pwd)" checkout -f "$BRANCH"
+
+        cd "$DEPLOY_DIR"
+
+        # Build and restart containers
+        docker compose -f docker-compose.prod.yml build
+        docker compose -f docker-compose.prod.yml up -d
+
+        # Run database migrations
+        docker compose -f docker-compose.prod.yml exec -T backend \
+            alembic upgrade head
+
+        echo "=== Deployment complete ==="
+    fi
+done

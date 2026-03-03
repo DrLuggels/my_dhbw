@@ -1,0 +1,43 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: dhbw-postgres
+    environment:
+      POSTGRES_DB: dhbw_automation
+      POSTGRES_USER: dhbw_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dhbw_secret}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dhbw_user -d dhbw_automation"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: dhbw-backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://dhbw_user:${POSTGRES_PASSWORD:-dhbw_secret}@db:5432/dhbw_automation
+      FRONTEND_URL: http://localhost
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: dhbw-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  uploads:
