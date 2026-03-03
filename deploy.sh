@@ -15,7 +15,7 @@ if ! git remote | grep -q "^server$"; then
     git remote add server "${SERVER}:${REPO_DIR}"
 fi
 
-# Push to server
+# Push to server (triggers post-receive hook which does checkout)
 echo "Pushing ${BRANCH} to server..."
 git push server ${BRANCH}
 
@@ -23,9 +23,25 @@ git push server ${BRANCH}
 echo "Rebuilding containers with --no-cache..."
 ssh ${SERVER} << 'EOF'
 cd /root/dhbw-automation-deploy
+
+# Stop existing containers
+docker compose -f docker-compose.prod.yml down
+
+# Rebuild everything from scratch
 docker compose -f docker-compose.prod.yml build --no-cache
+
+# Start all services
 docker compose -f docker-compose.prod.yml up -d
-docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head 2>/dev/null || echo "Migrations skipped (backend may still be starting)"
+
+# Wait for DB to be healthy, then run migrations
+echo "Waiting for services to start..."
+sleep 10
+docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head 2>/dev/null || echo "Migrations: will retry on next deploy"
+
+echo ""
 echo "=== Deploy complete ==="
 docker compose -f docker-compose.prod.yml ps
+echo ""
+echo "App: http://192.168.178.198:8090"
+echo "API: http://192.168.178.198:8090/health"
 EOF

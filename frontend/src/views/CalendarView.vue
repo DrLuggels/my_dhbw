@@ -87,17 +87,42 @@ function eventStyle(ev: CalEvent) {
   }
 }
 
+const PALETTE = [
+  '#1565C0', '#2E7D32', '#6A1B9A', '#E65100', '#00838F',
+  '#AD1457', '#283593', '#4E342E', '#00695C', '#BF360C',
+  '#1B5E20', '#4A148C', '#0D47A1', '#880E4F', '#33691E',
+]
+const courseColorMap = new Map<string, string>()
+let colorIndex = 0
+
+function isExam(ev: CalEvent): boolean {
+  const t = ev.title.toLowerCase()
+  return t.includes('klausur') || t.includes('kurztest') || t.includes('prüfung') || t.includes('exam')
+}
+
+function getCourseKey(title: string): string {
+  // Extract course code like "W4DSKI_107.2" or use cleaned title
+  const match = title.match(/\(([^)]+)\)/)
+  if (match) return match[1].trim()
+  // For events without code, normalize the title
+  return title.replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
 function eventColor(ev: CalEvent): string {
-  const title = ev.title.toLowerCase()
-  if (title.includes('analysis') || title.includes('lineare algebra')) return '#1565C0'
-  if (title.includes('programmierung')) return '#2E7D32'
-  if (title.includes('informatik')) return '#6A1B9A'
-  if (title.includes('diskrete') || title.includes('relationen')) return '#E65100'
-  if (title.includes('dski') || title.includes('data')) return '#00838F'
-  if (title.includes('wissenschaftlich')) return '#AD1457'
-  if (title.includes('tutorium')) return '#546E7A'
-  if (ev.event_type === 'lecture') return '#1565C0'
-  return '#78909C'
+  if (isExam(ev)) return '#C62828'
+  const t = ev.title.toLowerCase()
+  if (t.includes('tutorium')) return '#546E7A'
+  if (t.includes('selbststudium') || t.includes('feiertag') || t.includes('rosenmontag')
+    || t.includes('karfreitag') || t.includes('ostermontag') || t.includes('pfingst')
+    || t.includes('fronleichnam') || t.includes('himmelfahrt') || t.includes('tag der arbeit')
+    || t.includes('ostersamstag')) return '#78909C'
+
+  const key = getCourseKey(ev.title)
+  if (!courseColorMap.has(key)) {
+    courseColorMap.set(key, PALETTE[colorIndex % PALETTE.length])
+    colorIndex++
+  }
+  return courseColorMap.get(key)!
 }
 
 function shortTime(dateStr: string): string {
@@ -214,9 +239,12 @@ async function syncRapla() {
             v-for="ev in weekEvents[day.iso]"
             :key="ev.id"
             class="event-block"
+            :class="{ 'exam-block': isExam(ev) }"
             :style="{ ...eventStyle(ev), backgroundColor: eventColor(ev) }"
           >
-            <div class="event-title">{{ ev.title }}</div>
+            <div class="event-title">
+              <span v-if="isExam(ev)" class="exam-icon">&#9888; </span>{{ ev.title }}
+            </div>
             <div class="event-meta">
               {{ shortTime(ev.start_time) }}<template v-if="ev.end_time"> – {{ shortTime(ev.end_time) }}</template>
             </div>
