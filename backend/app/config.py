@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # AI Models
     openai_model: str = "gpt-5-mini"
     anthropic_model: str = "claude-sonnet-4-5"
-    gemini_model: str = "gemini-3-flash-preview"
+    gemini_model: str = "gemini-3-flash-preview"  # or gemini-3.1-pro-preview
     embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = 1536
 

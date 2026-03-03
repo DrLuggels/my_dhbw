@@ -26,11 +26,17 @@ AVAILABLE_MODELS: list[ModelCategory] = [
         provider="openai",
         task="Chat / Allgemein",
         models=[
+            ModelOption(id="gpt-5.2", name="GPT-5.2", description="Bestes Modell, Coding & Agenten"),
+            ModelOption(id="gpt-5.1", name="GPT-5.1", description="Reasoning mit konfig. Aufwand"),
+            ModelOption(id="gpt-5", name="GPT-5", description="Intelligent, breit einsetzbar"),
+            ModelOption(id="gpt-5-mini", name="GPT-5 Mini", description="Schnell & kosteneffizient"),
+            ModelOption(id="gpt-5-nano", name="GPT-5 Nano", description="Ultraschnell & günstig"),
+            ModelOption(id="gpt-4.1", name="GPT-4.1", description="Bestes Non-Reasoning-Modell"),
             ModelOption(id="gpt-4.1-mini", name="GPT-4.1 Mini", description="Schnell & günstig"),
-            ModelOption(id="gpt-4.1-nano", name="GPT-4.1 Nano", description="Ultraschnell"),
-            ModelOption(id="gpt-4.1", name="GPT-4.1", description="Hohe Qualität"),
-            ModelOption(id="gpt-5-mini", name="GPT-5 Mini", description="Neuestes Modell"),
-            ModelOption(id="o4-mini", name="o4-mini", description="Reasoning-Modell"),
+            ModelOption(id="gpt-4.1-nano", name="GPT-4.1 Nano", description="Minimale Kosten"),
+            ModelOption(id="o4-mini", name="o4-mini", description="Schnelles Reasoning"),
+            ModelOption(id="o3", name="o3", description="Komplexes Reasoning"),
+            ModelOption(id="o3-mini", name="o3-mini", description="Reasoning, kompakt"),
         ],
     ),
     ModelCategory(
@@ -53,13 +59,29 @@ AVAILABLE_MODELS: list[ModelCategory] = [
         task="Vision / OCR",
         models=[
             ModelOption(
-                id="gemini-2.5-flash", name="Gemini 2.5 Flash", description="Schnell & günstig"
+                id="gemini-3.1-pro-preview",
+                name="Gemini 3.1 Pro",
+                description="Bestes Modell, Reasoning & Agenten",
             ),
             ModelOption(
-                id="gemini-2.5-pro", name="Gemini 2.5 Pro", description="Höchste Qualität"
+                id="gemini-3-flash-preview",
+                name="Gemini 3 Flash",
+                description="Frontier-Leistung, günstig",
             ),
             ModelOption(
-                id="gemini-2.0-flash", name="Gemini 2.0 Flash", description="Stabil"
+                id="gemini-3.1-flash-lite-preview",
+                name="Gemini 3.1 Flash Lite",
+                description="Ultraschnell, niedrigste Kosten",
+            ),
+            ModelOption(
+                id="gemini-2.5-pro",
+                name="Gemini 2.5 Pro",
+                description="Deep Reasoning, stabil",
+            ),
+            ModelOption(
+                id="gemini-2.5-flash",
+                name="Gemini 2.5 Flash",
+                description="Preis-Leistung, stabil",
             ),
         ],
     ),

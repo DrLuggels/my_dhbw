@@ -25,9 +25,9 @@ class AppSettings(Base):
     gemini_api_key: Mapped[str] = mapped_column(Text, default="")
 
     # Model Selection
-    openai_model: Mapped[str] = mapped_column(String(100), default="gpt-4.1-mini")
+    openai_model: Mapped[str] = mapped_column(String(100), default="gpt-5-mini")
     anthropic_model: Mapped[str] = mapped_column(String(100), default="claude-sonnet-4-6")
-    gemini_model: Mapped[str] = mapped_column(String(100), default="gemini-2.5-flash")
+    gemini_model: Mapped[str] = mapped_column(String(100), default="gemini-3-flash-preview")
     embedding_model: Mapped[str] = mapped_column(String(100), default="text-embedding-3-small")
     embedding_dimensions: Mapped[int] = mapped_column(Integer, default=1536)
 
