@@ -382,4 +382,20 @@ async function syncRapla() {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Exam styling */
+.exam-block {
+  border-left: 3px solid #FFD600 !important;
+  box-shadow: 0 1px 4px rgba(198, 40, 40, 0.4);
+  animation: exam-pulse 2s ease-in-out infinite;
+}
+
+.exam-icon {
+  font-size: 12px;
+}
+
+@keyframes exam-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
 </style>
