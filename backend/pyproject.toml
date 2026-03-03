@@ -34,6 +34,9 @@ dependencies = [
     "anthropic>=0.42.0",
     "google-generativeai>=0.8.0",
 
+    # Email (Exchange Web Services)
+    "exchangelib>=5.4.0",
+
     # HTTP & Utilities
     "httpx>=0.28.0",
     "tiktoken>=0.8.0",

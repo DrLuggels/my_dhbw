@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { settingsApi } from '@/api/settings'
 import { moodleApi } from '@/api/moodle'
+import { emailApi } from '@/api/email'
 import { useAppStore } from '@/stores/app'
 import { onMounted, ref, computed } from 'vue'
 
@@ -17,6 +18,8 @@ const saving = ref(false)
 const moodleTesting = ref(false)
 const moodleSyncing = ref(false)
 const moodleStatus = ref<string | null>(null)
+const emailTesting = ref(false)
+const emailStatus = ref<string | null>(null)
 
 // Settings form
 const aiProvider = ref('direct')
@@ -31,8 +34,9 @@ const embeddingModel = ref('text-embedding-3-small')
 const moodleUrl = ref('https://moodle.dhbw-ravensburg.de')
 const moodleToken = ref('')
 const emailAddress = ref('')
+const emailUsername = ref('')
 const emailPassword = ref('')
-const emailImapServer = ref('')
+const emailServer = ref('')
 const raplaUrl = ref('')
 
 // Flags: whether a key is already set (from server)
@@ -112,8 +116,9 @@ onMounted(async () => {
       moodleUrl.value = s.moodle_base_url
       moodleTokenSet.value = s.moodle_token_set
       emailAddress.value = s.email_address
+      emailUsername.value = s.email_username
       emailPasswordSet.value = s.email_password_set
-      emailImapServer.value = s.email_imap_server
+      emailServer.value = s.email_server
       raplaUrl.value = s.rapla_calendar_url
     }
 
@@ -182,11 +187,29 @@ function saveMoodle() {
 function saveEmail() {
   const fields: Record<string, unknown> = {
     email_address: emailAddress.value,
-    email_imap_server: emailImapServer.value,
+    email_username: emailUsername.value,
+    email_server: emailServer.value,
   }
   if (emailPassword.value) fields.email_password = emailPassword.value
   saveSettings(fields, 'E-Mail-Einstellungen gespeichert')
   emailPassword.value = ''
+}
+
+async function testEmail() {
+  emailTesting.value = true
+  try {
+    const { data } = await emailApi.test()
+    if (data.success) {
+      emailStatus.value = `Verbunden: ${data.data.inbox_count} Mails, ${data.data.unread_count} ungelesen`
+      app.showSuccess('E-Mail-Verbindung erfolgreich')
+    } else {
+      emailStatus.value = data.message
+    }
+  } catch {
+    emailStatus.value = 'Verbindung fehlgeschlagen'
+  } finally {
+    emailTesting.value = false
+  }
 }
 
 function saveRapla() {
@@ -486,24 +509,32 @@ async function syncMoodle() {
             </div>
           </v-card>
 
-          <!-- Email Config -->
+          <!-- Email Config (EWS) -->
           <v-card elevation="1" rounded="lg" class="pa-6 mb-6">
             <div class="d-flex align-center mb-4">
               <v-icon class="mr-2" color="#EA4335">mdi-email</v-icon>
-              <div class="text-h6">E-Mail-Konfiguration</div>
+              <div class="text-h6">E-Mail (Exchange)</div>
             </div>
 
             <v-text-field
-              v-model="emailAddress"
-              label="E-Mail-Adresse"
+              v-model="emailServer"
+              label="Exchange Server"
               variant="outlined"
-              type="email"
+              placeholder="webmail.dhbw-ravensburg.de"
+              class="mb-2"
+            />
+
+            <v-text-field
+              v-model="emailUsername"
+              label="Login-Username"
+              variant="outlined"
+              placeholder="domab\Benutzername"
               class="mb-2"
             />
 
             <v-text-field
               v-model="emailPassword"
-              label="E-Mail-Passwort"
+              label="Passwort"
               variant="outlined"
               :type="showEmailPw ? 'text' : 'password'"
               :append-inner-icon="showEmailPw ? 'mdi-eye-off' : 'mdi-eye'"
@@ -515,17 +546,24 @@ async function syncMoodle() {
             />
 
             <v-text-field
-              v-model="emailImapServer"
-              label="IMAP-Server"
+              v-model="emailAddress"
+              label="E-Mail-Adresse (SMTP)"
               variant="outlined"
-              placeholder="imap.gmail.com"
+              placeholder="name@stud.dhbw-ravensburg.de"
               class="mb-2"
             />
 
-            <div class="d-flex justify-end">
+            <v-alert v-if="emailStatus" type="info" variant="tonal" class="mb-4" density="compact">
+              {{ emailStatus }}
+            </v-alert>
+
+            <div class="d-flex ga-3">
               <v-btn color="primary" :loading="saving" @click="saveEmail">
                 <v-icon start>mdi-content-save</v-icon>
                 Speichern
+              </v-btn>
+              <v-btn variant="outlined" :loading="emailTesting" @click="testEmail">
+                Verbindung testen
               </v-btn>
             </div>
           </v-card>

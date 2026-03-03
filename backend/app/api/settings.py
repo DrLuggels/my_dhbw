@@ -130,8 +130,9 @@ def _to_out(s: AppSettings) -> SettingsOut:
         moodle_base_url=s.moodle_base_url,
         moodle_token_set=bool(s.moodle_token),
         email_address=s.email_address,
+        email_username=s.email_username,
         email_password_set=bool(s.email_password),
-        email_imap_server=s.email_imap_server,
+        email_server=s.email_server,
         rapla_calendar_url=s.rapla_calendar_url,
     )
 

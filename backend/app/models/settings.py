@@ -37,10 +37,11 @@ class AppSettings(Base):
     )
     moodle_token: Mapped[str] = mapped_column(Text, default="")
 
-    # Email
+    # Email (EWS)
     email_address: Mapped[str] = mapped_column(String(200), default="")
+    email_username: Mapped[str] = mapped_column(String(200), default="")
     email_password: Mapped[str] = mapped_column(Text, default="")
-    email_imap_server: Mapped[str] = mapped_column(String(200), default="")
+    email_server: Mapped[str] = mapped_column(String(200), default="")
 
     # Rapla
     rapla_calendar_url: Mapped[str] = mapped_column(Text, default="")

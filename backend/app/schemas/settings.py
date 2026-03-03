@@ -22,8 +22,9 @@ class SettingsOut(BaseModel):
     moodle_token_set: bool
 
     email_address: str
+    email_username: str
     email_password_set: bool
-    email_imap_server: str
+    email_server: str
 
     rapla_calendar_url: str
 
@@ -47,8 +48,9 @@ class SettingsUpdate(BaseModel):
     moodle_token: str | None = None
 
     email_address: str | None = None
+    email_username: str | None = None
     email_password: str | None = None
-    email_imap_server: str | None = None
+    email_server: str | None = None
 
     rapla_calendar_url: str | None = None
 
