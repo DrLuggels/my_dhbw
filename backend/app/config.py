@@ -35,6 +35,7 @@ class Settings(BaseSettings):
 
     # Rapla
     rapla_base_url: str = "https://rapla-ravensburg.dhbw.de/rapla"
+    rapla_calendar_url: str = ""
 
     # Server
     backend_port: int = 8000
