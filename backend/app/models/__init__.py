@@ -4,8 +4,10 @@ from app.models.document import Chunk, Document
 from app.models.knowledge import Entity, Relationship
 from app.models.learning import Exercise, LearningPriority, LearningStreak
 from app.models.moodle import MoodleAssignment, MoodleCourse, MoodleResource
+from app.models.settings import AppSettings, TokenUsage
 
 __all__ = [
+    "AppSettings",
     "Base",
     "CalendarEvent",
     "Chunk",
@@ -18,4 +20,5 @@ __all__ = [
     "MoodleCourse",
     "MoodleResource",
     "Relationship",
+    "TokenUsage",
 ]

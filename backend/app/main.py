@@ -3,12 +3,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.calendar import router as calendar_router
 from app.api.documents import router as documents_router
 from app.api.health import router as health_router
 from app.api.knowledge import router as knowledge_router
 from app.api.learning import router as learning_router
 from app.api.moodle import router as moodle_router
-from app.api.calendar import router as calendar_router
+from app.api.settings import router as settings_router
 from app.config import settings
 from app.models.base import engine
 
@@ -44,3 +45,4 @@ app.include_router(knowledge_router)
 app.include_router(learning_router)
 app.include_router(moodle_router)
 app.include_router(calendar_router)
+app.include_router(settings_router)
