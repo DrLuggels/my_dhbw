@@ -36,7 +36,7 @@ services:
         VITE_API_BASE_URL: ""
     container_name: dhbw-frontend
     ports:
-      - "80:80"
+      - "8090:80"
     depends_on:
       - backend
     restart: unless-stopped
