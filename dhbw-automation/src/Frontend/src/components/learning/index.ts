@@ -1,8 +1,0 @@
-export { default as StreakWidget } from './StreakWidget.vue'
-export { default as PriorityCard } from './PriorityCard.vue'
-export { default as DifficultyDistribution } from './DifficultyDistribution.vue'
-export { default as DeficitsTab } from './DeficitsTab.vue'
-export { default as ExercisesTab } from './ExercisesTab.vue'
-export { default as ResolvedTab } from './ResolvedTab.vue'
-export { default as InteractiveTab } from './InteractiveTab.vue'
-export { default as LearningStatsCards } from './LearningStatsCards.vue'

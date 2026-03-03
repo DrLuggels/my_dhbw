@@ -1,5 +1,0 @@
-export { default as KnowledgeGraphViewer } from './KnowledgeGraphViewer.vue'
-export { default as DocumentProcessor } from './DocumentProcessor.vue'
-export { default as AdaptiveQuestions } from './AdaptiveQuestions.vue'
-export { default as MasteryDashboard } from './MasteryDashboard.vue'
-export { default as LearningEngineTab } from './LearningEngineTab.vue'

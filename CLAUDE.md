@@ -1,213 +1,102 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project Overview
 
-DHBW Study Automation System - an AI-powered study management platform for DHBW students with document analysis, live lecture transcription, Moodle integration, and adaptive learning features.
+DHBW Study Automation v2 - AI-powered adaptive learning platform for a single DHBW student. Complete rewrite with clean architecture.
 
 ## Tech Stack
 
-- **Backend:** .NET 8 Web API (`dhbw-automation/src/Backend/`)
-- **Frontend:** Vue.js 3 + TypeScript + Vuetify (`dhbw-automation/src/Frontend/`)
-- **Database:** MariaDB 11.2 (EF Core with Pomelo)
-- **Vector DB:** Qdrant (semantic search, embeddings)
-- **Cache:** Redis
-- **Storage:** MinIO (S3-compatible)
-- **Message Queue:** RabbitMQ
-- **AI Services:** OpenAI, Anthropic Claude, Google Gemini, Deepgram (STT)
+- **Backend:** Python 3.12 + FastAPI (`backend/`)
+- **Frontend:** Vue.js 3 + Vuetify 3 + TypeScript (`frontend/`)
+- **Database:** PostgreSQL 16 + pgvector (unified relational + vector)
+- **AI:** OpenAI (embeddings), Anthropic Claude (entity extraction, exercises), Google Gemini (vision/OCR)
 
-## Build & Run Commands
+## Key Design Decisions
 
-### Start Docker Services
+- **Single-user app** - no authentication, no multi-tenancy
+- **Chunking is the foundation** - specialized strategies per document type
+- **One learning system** - unified FSRS + Bloom + Priority engine
+- **Extensible** - Strategy Pattern for chunkers, consistent patterns everywhere
+
+## Build & Run
+
 ```bash
-cd dhbw-automation
-docker-compose up -d
-```
+# Start database
+docker compose up -d
 
-### Backend (.NET 8)
-```bash
-cd dhbw-automation/src/Backend
-dotnet restore
-dotnet ef database update    # Apply EF Core migrations
-dotnet run                   # Starts on http://localhost:5000
-```
-
-### Frontend (Vue.js)
-```bash
-cd dhbw-automation/src/Frontend
-npm install
-npm run dev                  # Starts on http://localhost:5173
-npm run build                # Production build
-npm run lint                 # ESLint with auto-fix
-npm run format               # Prettier
-```
-
-### Testing
-```bash
 # Backend
-cd dhbw-automation/src/Backend
-dotnet test
+cd backend
+pip install -e .
+uvicorn app.main:app --reload --port 8000
 
 # Frontend
-cd dhbw-automation/src/Frontend
-npm run test:unit            # Vitest
-npm run test:e2e             # Playwright
+cd frontend
+npm install
+npm run dev    # Port 5173
 ```
 
-### Database Migrations
-```bash
-cd dhbw-automation/src/Backend
-dotnet ef migrations add <MigrationName>
-dotnet ef database update
-```
+## Code Codex
+
+### File Limits
+- Max ~200 lines per file (soft limit)
+- One responsibility per file
+
+### Backend (Python)
+- **Naming:** snake_case files/functions, PascalCase classes, SCREAMING_SNAKE_CASE constants
+- **API Response:** Always `ApiResponse[T]` with `{ success, data, message, errors }`
+- **Imports:** stdlib → third-party → local
+- **Docstrings:** Google-style, only for non-obvious functions
+
+### Frontend (TypeScript/Vue)
+- **No `any`** - use `unknown` if needed
+- **Composition API:** `<script setup lang="ts">` always
+- **API calls:** Only through `api/*.ts` files, never in components
+- **State:** Only through Pinia stores
+- **Every View:** Header → Loading → Error → Empty → Data
+
+### Vuetify Design System
+- **Colors:** primary=#1565C0, accent=#00897B, bg=#FAFAFA, surface=#FFFFFF
+- **Cards:** elevation="1" rounded="lg"
+- **Inputs:** variant="outlined"
+- **Spacing:** multiples of 4 (mt-4, pa-6)
+- **Mastery:** red(<40%), orange(40-70%), green(>70%)
+- **Bloom:** light blue(1) → dark blue(6) gradient
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│         Frontend (Vue.js 3 + Vuetify)           │
-└────────────────────┬────────────────────────────┘
-                     │ REST API / WebSocket
-┌────────────────────▼────────────────────────────┐
-│           Backend (.NET 8 Web API)              │
-│  API/Controllers → Core/Services → Infrastructure│
-└────────────────────┬────────────────────────────┘
-                     │
-    ┌────────────────┼────────────────┐
-    ↓                ↓                ↓
-┌─────────┐   ┌──────────┐   ┌──────────┐
-│ MariaDB │   │  Qdrant  │   │  MinIO   │
-│  Redis  │   │ (Vector) │   │ RabbitMQ │
-└─────────┘   └──────────┘   └──────────┘
+backend/app/
+├── api/          → REST endpoints (max 150 lines each)
+├── models/       → SQLAlchemy ORM (max 100 lines each)
+├── schemas/      → Pydantic models (max 80 lines each)
+├── services/     → Business logic (max 200 lines each)
+│   └── chunking/ → Strategy Pattern per doc type
+└── utils/        → Helpers
+
+frontend/src/
+├── api/          → Axios API clients (per feature)
+├── stores/       → Pinia stores (per feature)
+├── views/        → Page components
+├── components/   → Feature components (per feature folder)
+└── types/        → TypeScript interfaces
 ```
 
-### Backend Structure (`dhbw-automation/src/Backend/`)
+## Key Reference Files
 
-- **API/Controllers/** - REST endpoints (28+ controllers)
-- **Core/Services/** - Business logic (modular services, often split into partial classes)
-- **Core/Models/** - Domain entities
-- **Core/Interfaces/** - Service contracts
-- **Infrastructure/Database/** - `AppDbContext.cs`, EF configurations, migrations
-- **Infrastructure/ExternalAPIs/** - Anthropic, OpenAI, Google, Moodle, Deepgram integrations
-- **Infrastructure/VectorDb/** - Qdrant operations
-- **Infrastructure/Storage/** - MinIO file storage
-
-### Frontend Structure (`dhbw-automation/src/Frontend/src/`)
-
-- **views/** - Page components (routed)
-- **components/** - Reusable Vue components
-- **stores/** - Pinia state management
-- **services/** - API client services
-- **composables/** - Vue composition functions
-- **types/** - TypeScript definitions
-
-### Key Services
-
-| Service | Purpose |
-|---------|---------|
-| `EmbeddingService` | Vector embeddings, semantic search (6 partial class files) |
-| `LearningEngineService` | Adaptive questions, knowledge graphs (5 partial class files) |
-| `InteractiveExerciseService` | Exercise generation & evaluation |
-| `KnowledgeNetworkService` | Knowledge graph visualization |
-| `MoodleSyncService` | Moodle course/resource sync |
-| `FileService` | Document upload, parsing, AI analysis |
-| `AIService` / `AiGatewayService` | Multi-model AI gateway |
-
-## Code Patterns
-
-### Large Services are Split into Partial Classes
-When services grow large, they are refactored into multiple files:
-```
-Core/Services/Embedding/
-├── EmbeddingService.cs              # Core logic
-├── EmbeddingService.Processing.cs   # Processing methods
-├── EmbeddingService.Search.cs       # Search operations
-└── ...
-```
-
-### Adding New Features
-- **New API endpoint:** Add controller in `API/Controllers/`, inject services
-- **New service:** Add to `Core/Services/`, register in `Program.cs`
-- **New entity:** Add to `Core/Models/`, add DbSet to `AppDbContext`, create migration
-- **Background task:** Add to `Core/BackgroundServices/`
-
-## Configuration
-
-Environment variables in `.env` (see `.env.example`):
-- Database connection, Redis, MinIO, RabbitMQ settings
-- API keys: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `DEEPGRAM_API_KEY`
-- Google OAuth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- Moodle: `MOODLE_BASE_URL`, `MOODLE_TOKEN`
-- JWT settings: `JWT_SECRET`, `JWT_ISSUER`, `JWT_AUDIENCE`
-
-## Docker Services (docker-compose.yml)
-
-| Service | Port | Purpose |
-|---------|------|---------|
-| mariadb | 3306 | Primary database |
-| redis | 6379 | Caching |
-| minio | 9000/9001 | File storage |
-| rabbitmq | 5672/15672 | Message queue |
-| qdrant | 6333/6334 | Vector database |
-| phpmyadmin | 8080 | DB admin UI |
+- `PLAN.md` - Full implementation plan with all phases
+- `NEUANFANG_ANALYSE.md` - All algorithms, schemas, business rules from old system
+- `.claude/plugins/` - Agent/skill reference files
 
 ## Deployment
 
-### Server
-- **Host:** `192.168.178.198`
-- **SSH:** `root@192.168.178.198` (SSH-Key Auth)
-- **Project Path:** `/root/dhbw-automation-deploy/dhbw-automation`
-- **Git Remote:** `server` (bare repo at `/root/git-repos/dhbw-automation.git`)
+- **Server:** 192.168.178.198 (SSH root@, key auth)
+- **Deploy:** `git push server main` (auto-deploy via post-receive hook)
+- **Project path:** /root/dhbw-automation-deploy/
 
-### Deploy via Git Push (Auto-Deployment)
-```bash
-git push server main
-```
-Post-receive hook automatically rebuilds and restarts containers.
+## External Integrations
 
-### Manual Deployment Commands
-```bash
-# Build and deploy backend
-ssh root@192.168.178.198 "cd /root/dhbw-automation-deploy/dhbw-automation && docker compose -f docker-compose.prod.yml build backend && docker compose -f docker-compose.prod.yml up -d backend"
-
-# View logs
-ssh root@192.168.178.198 "cd /root/dhbw-automation-deploy/dhbw-automation && docker compose -f docker-compose.prod.yml logs --tail=100 backend"
-
-# Follow logs (real-time)
-ssh root@192.168.178.198 "cd /root/dhbw-automation-deploy/dhbw-automation && docker compose -f docker-compose.prod.yml logs -f backend"
-
-# Full rebuild
-ssh root@192.168.178.198 "cd /root/dhbw-automation-deploy/dhbw-automation && docker compose -f docker-compose.prod.yml down && docker compose -f docker-compose.prod.yml build && docker compose -f docker-compose.prod.yml up -d"
-```
-
-### Production URLs
-| Service | URL |
-|---------|-----|
-| Frontend | http://192.168.178.198 |
-| Backend API | http://192.168.178.198:5000 |
-| phpMyAdmin | http://192.168.178.198:8080 |
-| MinIO Console | http://192.168.178.198:9001 |
-| RabbitMQ Management | http://192.168.178.198:15672 |
-| Qdrant Dashboard | http://192.168.178.198:6333/dashboard |
-
-### EF Core Note
-Use `.AsNoTracking()` in EF queries to prevent circular reference issues in JSON serialization.
-
-## Mobile App (Flutter)
-
-- **Development Location:** `C:\Projects\dhbw_mobile` (outside this repo)
-- **In-Repo Version:** `dhbw-automation/mobile/` (veraltet, nicht aktuell)
-- **Hinweis:** Flutter-Entwicklung erfolgt in `C:\Projects\dhbw_mobile`, da `flutter run` aus dem OneDrive-Pfad nicht funktioniert. Die Repo-Version ist nur eine Kopie und nicht synchron.
-
-## Current Development Focus
-
-See `.claude/LEARNING_ENGINE.md` for active task details:
-- DeepTutor-style adaptive learning engine
-- Knowledge graph extraction from documents
-- Adaptive question generation (Bloom's taxonomy)
-- User performance tracking with spaced repetition
-
-## API Documentation
-
-Swagger UI available at `http://localhost:5000/swagger` when backend is running.
+- **Moodle:** https://moodle.dhbw-ravensburg.de (token auth)
+- **Rapla:** https://rapla-ravensburg.dhbw.de/rapla (iCal)
+- **OpenAI:** text-embedding-3-small (1536D), gpt-5-mini
+- **Anthropic:** claude-sonnet-4-5 (entity extraction, exercise generation)
+- **Google:** gemini-3-flash-preview (vision/OCR for slide images)
