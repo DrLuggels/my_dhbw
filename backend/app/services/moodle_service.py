@@ -30,13 +30,15 @@ async def sync_all(db: AsyncSession, client: MoodleClient | None = None) -> dict
     try:
         courses_count = await _sync_courses(db, cl)
         assignments_count = await _sync_assignments(db, cl)
-        resources_count = await _sync_resources(db, cl)
+        resources_result = await _sync_resources(db, cl)
 
         await db.commit()
         return {
             "courses": courses_count,
             "assignments": assignments_count,
-            "resources": resources_count,
+            "resources": resources_result["total"],
+            "new_resources": resources_result["new"],
+            "changed_resources": resources_result["changed"],
         }
     finally:
         if not client:
@@ -118,10 +120,12 @@ async def _sync_assignments(db: AsyncSession, cl: MoodleClient) -> int:
     return count
 
 
-async def _sync_resources(db: AsyncSession, cl: MoodleClient) -> int:
+async def _sync_resources(db: AsyncSession, cl: MoodleClient) -> dict:
+    """Returns dict with new/changed/total counts."""
     result = await db.execute(select(MoodleCourse))
     courses = result.scalars().all()
-    count = 0
+    new_count = 0
+    changed_count = 0
 
     for course in courses:
         try:
@@ -137,17 +141,20 @@ async def _sync_resources(db: AsyncSession, cl: MoodleClient) -> int:
                     continue
 
                 for fileinfo in module.get("contents", []):
-                    count += await _upsert_resource(
+                    is_new, is_changed = await _upsert_resource(
                         db, course.id, module, fileinfo,
                     )
+                    new_count += is_new
+                    changed_count += is_changed
 
     await db.flush()
-    return count
+    return {"new": new_count, "changed": changed_count, "total": new_count + changed_count}
 
 
 async def _upsert_resource(
     db: AsyncSession, course_id: int, module: dict, fileinfo: dict,
-) -> int:
+) -> tuple[int, int]:
+    """Returns (is_new, is_changed) as 0/1 ints."""
     mid = module.get("id", 0)
     existing = await db.execute(
         select(MoodleResource).where(
@@ -156,6 +163,8 @@ async def _upsert_resource(
         )
     )
     resource = existing.scalar_one_or_none()
+    new_modified = _ts(fileinfo.get("timemodified"))
+    new_size = fileinfo.get("filesize")
 
     if not resource:
         resource = MoodleResource(
@@ -164,15 +173,30 @@ async def _upsert_resource(
             name=module.get("name", ""),
             resource_type=fileinfo.get("type", "file"),
             url=fileinfo.get("fileurl"),
-            file_size=fileinfo.get("filesize"),
-            last_modified=_ts(fileinfo.get("timemodified")),
+            file_size=new_size,
+            last_modified=new_modified,
         )
         db.add(resource)
-        return 1
+        return 1, 0
+
+    # Detect changes in timestamp or file size
+    changed = False
+    if new_modified and resource.last_modified != new_modified:
+        changed = True
+    if new_size and resource.file_size != new_size:
+        changed = True
 
     resource.name = module.get("name", "")
     resource.url = fileinfo.get("fileurl")
-    return 0
+    resource.last_modified = new_modified
+    resource.file_size = new_size
+
+    if changed:
+        resource.is_downloaded = False
+        resource.document_id = None
+        logger.info("Resource %d changed, marking for re-download", mid)
+
+    return 0, int(changed)
 
 
 async def download_resource(

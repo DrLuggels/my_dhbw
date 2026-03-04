@@ -52,3 +52,21 @@ class MoodleSyncResult(BaseModel):
     courses: int = 0
     assignments: int = 0
     resources: int = 0
+    new_resources: int = 0
+    changed_resources: int = 0
+
+
+class MoodleSyncStatus(BaseModel):
+    status: str = "idle"
+    courses_synced: int = 0
+    resources_synced: int = 0
+    new_resources: int = 0
+    changed_resources: int = 0
+    total_to_process: int = 0
+    downloaded: int = 0
+    processed: int = 0
+    failed: int = 0
+    current_file: str = ""
+    errors: list[str] = []
+    started_at: str | None = None
+    finished_at: str | None = None

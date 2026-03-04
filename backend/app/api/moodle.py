@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,9 +13,12 @@ from app.schemas.moodle import (
     MoodleCourseOut,
     MoodleResourceOut,
     MoodleSyncResult,
+    MoodleSyncStatus,
 )
 from app.services.moodle_client import MoodleClient
 from app.services.moodle_service import download_resource, sync_all
+from app.services.moodle_sync import run_auto_sync
+from app.services.sync_state import sync_progress
 
 router = APIRouter(prefix="/api/moodle", tags=["moodle"])
 
@@ -103,3 +108,24 @@ async def download(
         data={"filepath": str(filepath), "resource_id": resource_id},
         message="Ressource heruntergeladen",
     )
+
+
+@router.post("/auto-sync", response_model=ApiResponse[MoodleSyncStatus])
+async def auto_sync() -> ApiResponse[MoodleSyncStatus]:
+    """Start background auto-sync (metadata → download → process)."""
+    if sync_progress.status not in ("idle", "done", "error"):
+        return ApiResponse(
+            data=MoodleSyncStatus(**sync_progress.to_dict()),
+            message="Sync läuft bereits",
+        )
+    asyncio.create_task(run_auto_sync())
+    return ApiResponse(
+        data=MoodleSyncStatus(**sync_progress.to_dict()),
+        message="Auto-Sync gestartet",
+    )
+
+
+@router.get("/sync-status", response_model=ApiResponse[MoodleSyncStatus])
+async def get_sync_status() -> ApiResponse[MoodleSyncStatus]:
+    """Get current sync progress."""
+    return ApiResponse(data=MoodleSyncStatus(**sync_progress.to_dict()))

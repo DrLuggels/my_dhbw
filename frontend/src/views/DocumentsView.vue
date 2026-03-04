@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import DocumentList from '@/components/documents/DocumentList.vue'
 import DocumentUpload from '@/components/documents/DocumentUpload.vue'
+import MoodleSyncCard from '@/components/documents/MoodleSyncCard.vue'
 import LoadingState from '@/components/common/LoadingState.vue'
 import { useAppStore } from '@/stores/app'
 import { useDocumentStore } from '@/stores/documents'
@@ -32,6 +33,8 @@ async function onUpload(file: File) {
     </v-toolbar>
 
     <v-container fluid class="pa-6">
+      <MoodleSyncCard @synced="docs.fetchAll()" />
+
       <LoadingState :loading="docs.loading" :error="docs.error">
         <v-empty-state
           v-if="!docs.documents.length"

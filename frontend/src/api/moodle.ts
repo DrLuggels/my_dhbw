@@ -16,6 +16,22 @@ interface MoodleAssignment {
   status: string
 }
 
+export interface MoodleSyncStatus {
+  status: string
+  courses_synced: number
+  resources_synced: number
+  new_resources: number
+  changed_resources: number
+  total_to_process: number
+  downloaded: number
+  processed: number
+  failed: number
+  current_file: string
+  errors: string[]
+  started_at: string | null
+  finished_at: string | null
+}
+
 export const moodleApi = {
   connect: (token: string, baseUrl = 'https://moodle.dhbw-ravensburg.de') =>
     client.post<ApiResponse<{ username: string }>>('/api/moodle/connect', {
@@ -33,4 +49,10 @@ export const moodleApi = {
 
   download: (resourceId: number) =>
     client.post<ApiResponse<{ filepath: string }>>(`/api/moodle/resources/${resourceId}/download`),
+
+  autoSync: () =>
+    client.post<ApiResponse<MoodleSyncStatus>>('/api/moodle/auto-sync'),
+
+  syncStatus: () =>
+    client.get<ApiResponse<MoodleSyncStatus>>('/api/moodle/sync-status'),
 }
