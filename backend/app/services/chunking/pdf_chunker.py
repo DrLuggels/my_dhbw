@@ -128,7 +128,10 @@ def _detect_text_type(text: str) -> str:
 
 def _split_by_headings(text: str) -> list[tuple[str, str]]:
     """Split text into (heading, body) pairs by markdown-style or uppercase headings."""
-    heading_re = re.compile(r"^(#{1,3}\s+.+|[A-ZÄÖÜ][A-ZÄÖÜ\s\d\.]{4,})$", re.MULTILINE)
+    heading_re = re.compile(
+        r"^(#{1,3}\s+.+|[A-ZÄÖÜ][A-ZÄÖÜ\s\d\.]{4,}|\d+(?:\.\d+)*\.?\s+[A-ZÄÖÜ].{2,})$",
+        re.MULTILINE,
+    )
     parts: list[tuple[str, str]] = []
     matches = list(heading_re.finditer(text))
 

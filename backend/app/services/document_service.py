@@ -19,6 +19,7 @@ from app.services.chunking.pdf_chunker import (
     TextbookChunker,
 )
 from app.services.chunking.pptx_chunker import PptxChunker
+from app.services.chunking.semantic_splitter import semantic_split_chunks
 from app.services.embedding_service import embed_chunks
 
 logger = logging.getLogger(__name__)
@@ -69,6 +70,11 @@ async def process_document(db: AsyncSession, doc_id: int) -> Document:
 
         # 4. Save chunks to DB
         await _save_chunks(db, doc.id, chunk_results)
+
+        # 4.5 AI semantic split (large multi-topic chunks → focused sub-chunks)
+        split_count = await semantic_split_chunks(db, doc.id)
+        if split_count:
+            logger.info("Semantic split created %d additional chunks for doc %d", split_count, doc.id)
 
         # 5. Generate embeddings
         await embed_chunks(db, doc.id)
