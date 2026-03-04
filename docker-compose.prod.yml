@@ -22,6 +22,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://dhbw_user:${POSTGRES_PASSWORD:-dhbw_secret}@db:5432/dhbw_automation
       FRONTEND_URL: ${FRONTEND_URL:-http://192.168.178.198}
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-}
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -38,12 +39,30 @@ services:
       args:
         VITE_API_BASE_URL: ""
     container_name: dhbw-frontend
-    ports:
-      - "8090:80"
     depends_on:
       - backend
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: dhbw-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${PUBLIC_DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - frontend
     restart: unless-stopped
 
 volumes:
   pgdata:
   uploads:
+  caddy_data:
+  caddy_config:

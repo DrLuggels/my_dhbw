@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     # Server
     backend_port: int = 8000
     frontend_url: str = "http://localhost:5173"
+    public_domain: str = ""
     upload_dir: str = "uploads"
 
     @property

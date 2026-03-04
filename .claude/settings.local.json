@@ -55,7 +55,17 @@
       "Bash(ssh root@192.168.178.198:*)",
       "Bash(grep:*)",
       "mcp__plugin_playwright_playwright__browser_navigate",
-      "mcp__plugin_playwright_playwright__browser_evaluate"
+      "mcp__plugin_playwright_playwright__browser_evaluate",
+      "mcp__plugin_playwright_playwright__browser_click",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "WebFetch(domain:developers.openai.com)",
+      "WebFetch(domain:ai.google.dev)",
+      "mcp__plugin_playwright_playwright__browser_close",
+      "mcp__plugin_playwright_playwright__browser_install",
+      "Bash(npx vue-tsc:*)",
+      "Bash(mkdir:*)",
+      "Bash(adb devices:*)",
+      "Bash(export:*)"
     ]
   }
 }
