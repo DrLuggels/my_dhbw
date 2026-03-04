@@ -1,10 +1,10 @@
 package com.dhbw.app.ui.navigation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
@@ -18,7 +18,7 @@ import com.dhbw.app.ui.learning.LearningScreen
 object DashboardTab : Tab {
     override val options: TabOptions
         @Composable get() {
-            val icon = rememberVectorPainter(Icons.Default.Dashboard)
+            val icon = rememberVectorPainter(Icons.Default.Home)
             return remember { TabOptions(index = 0u, title = "Dashboard", icon = icon) }
         }
 
@@ -29,7 +29,7 @@ object DashboardTab : Tab {
 object LearningTab : Tab {
     override val options: TabOptions
         @Composable get() {
-            val icon = rememberVectorPainter(Icons.Default.School)
+            val icon = rememberVectorPainter(Icons.Default.Star)
             return remember { TabOptions(index = 1u, title = "Lernen", icon = icon) }
         }
 
@@ -40,7 +40,7 @@ object LearningTab : Tab {
 object CalendarTab : Tab {
     override val options: TabOptions
         @Composable get() {
-            val icon = rememberVectorPainter(Icons.Default.CalendarMonth)
+            val icon = rememberVectorPainter(Icons.Default.DateRange)
             return remember { TabOptions(index = 2u, title = "Stundenplan", icon = icon) }
         }
 
@@ -51,7 +51,7 @@ object CalendarTab : Tab {
 object CameraTab : Tab {
     override val options: TabOptions
         @Composable get() {
-            val icon = rememberVectorPainter(Icons.Default.CameraAlt)
+            val icon = rememberVectorPainter(Icons.Default.List)
             return remember { TabOptions(index = 3u, title = "Kamera", icon = icon) }
         }
 

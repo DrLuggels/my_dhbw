@@ -21,7 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cafe.adriel.voyager.koin.koinScreenModel
+import org.koin.compose.koinInject
 import com.dhbw.app.ui.components.ErrorScreen
 import com.dhbw.app.ui.components.LoadingScreen
 import com.dhbw.app.ui.theme.Accent
@@ -32,8 +32,8 @@ import com.dhbw.app.ui.theme.Primary
 
 @Composable
 fun LearningScreen() {
-    val viewModel = koinScreenModel<LearningViewModel>()
-    val state by viewModel.state.collectAsState()
+    val viewModel: LearningViewModel = koinInject()
+    val state: LearningState by viewModel.state.collectAsState()
 
     when {
         state.isLoading -> LoadingScreen()

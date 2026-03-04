@@ -1,6 +1,14 @@
 package com.dhbw.app.ui.calendar
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,28 +17,31 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import cafe.adriel.voyager.koin.koinScreenModel
 import com.dhbw.app.ui.components.ErrorScreen
 import com.dhbw.app.ui.components.LoadingScreen
 import com.dhbw.app.ui.theme.Accent
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.plus
+import org.koin.compose.koinInject
 
 @Composable
 fun CalendarScreen() {
-    val viewModel = koinScreenModel<CalendarViewModel>()
-    val state by viewModel.state.collectAsState()
+    val viewModel: CalendarViewModel = koinInject()
+    val state: CalendarState by viewModel.state.collectAsState()
 
     Column(
         modifier = Modifier.fillMaxSize().padding(8.dp),
@@ -85,14 +96,50 @@ fun CalendarScreen() {
             }
         }
 
-        // Week grid
+        // Week grid with swipe + slide animation
         when {
-            state.isLoading -> LoadingScreen()
+            state.isLoading && state.events.isEmpty() -> LoadingScreen()
             state.error != null -> ErrorScreen(state.error!!, onRetry = viewModel::loadWeek)
-            else -> WeekGrid(
-                events = state.events,
-                weekStart = state.weekStart,
-            )
+            else -> {
+                var totalDrag by remember { mutableStateOf(0f) }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .pointerInput(state.weekStart) {
+                            detectHorizontalDragGestures(
+                                onDragStart = { totalDrag = 0f },
+                                onDragEnd = {
+                                    if (totalDrag > 80) viewModel.previousWeek()
+                                    else if (totalDrag < -80) viewModel.nextWeek()
+                                },
+                                onHorizontalDrag = { _, dragAmount ->
+                                    totalDrag += dragAmount
+                                },
+                            )
+                        },
+                ) {
+                    AnimatedContent(
+                        targetState = state.weekStart,
+                        transitionSpec = {
+                            if (targetState > initialState) {
+                                // Forward → slide in from right, old slides out left
+                                (slideInHorizontally { it / 3 } + fadeIn()) togetherWith
+                                    (slideOutHorizontally { -it / 3 } + fadeOut())
+                            } else {
+                                // Backward → slide in from left, old slides out right
+                                (slideInHorizontally { -it / 3 } + fadeIn()) togetherWith
+                                    (slideOutHorizontally { it / 3 } + fadeOut())
+                            }
+                        },
+                        label = "weekSlide",
+                    ) { weekStart ->
+                        WeekGrid(
+                            events = state.events,
+                            weekStart = weekStart,
+                        )
+                    }
+                }
+            }
         }
     }
 }

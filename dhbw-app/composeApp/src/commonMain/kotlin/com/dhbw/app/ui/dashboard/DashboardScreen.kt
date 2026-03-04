@@ -22,7 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cafe.adriel.voyager.koin.koinScreenModel
+import org.koin.compose.koinInject
 import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import com.dhbw.app.ui.components.ErrorScreen
 import com.dhbw.app.ui.components.LoadingScreen
@@ -36,8 +36,8 @@ import com.dhbw.app.ui.theme.Primary
 
 @Composable
 fun DashboardScreen() {
-    val viewModel = koinScreenModel<DashboardViewModel>()
-    val state by viewModel.state.collectAsState()
+    val viewModel: DashboardViewModel = koinInject()
+    val state: DashboardState by viewModel.state.collectAsState()
 
     when {
         state.isLoading -> LoadingScreen()

@@ -25,7 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cafe.adriel.voyager.koin.koinScreenModel
+import org.koin.compose.koinInject
 import com.dhbw.app.ui.theme.Accent
 import com.dhbw.app.ui.theme.ErrorRed
 import com.dhbw.app.ui.theme.Primary
@@ -33,8 +33,8 @@ import com.dhbw.app.ui.theme.SuccessGreen
 
 @Composable
 fun CameraScreen() {
-    val viewModel = koinScreenModel<CameraViewModel>()
-    val state by viewModel.state.collectAsState()
+    val viewModel: CameraViewModel = koinInject()
+    val state: CameraState by viewModel.state.collectAsState()
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),

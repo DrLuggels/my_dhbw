@@ -23,6 +23,7 @@ kotlin {
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material3)
+            implementation(compose.animation)
             implementation(compose.ui)
             implementation(compose.components.resources)
 
@@ -45,7 +46,6 @@ kotlin {
             implementation(libs.voyager.navigator)
             implementation(libs.voyager.tab.navigator)
             implementation(libs.voyager.screenmodel)
-            implementation(libs.voyager.koin)
         }
 
         androidMain.dependencies {
