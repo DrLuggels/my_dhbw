@@ -85,10 +85,10 @@ def _get_email(
     attachment_names = [a.name for a in (item.attachments or []) if hasattr(a, "name")]
 
     body_text = ""
-    if item.text_body:
-        body_text = item.text_body
-    elif item.body:
+    if item.body:
         body_text = str(item.body)
+    elif item.text_body:
+        body_text = item.text_body.replace("\n", "<br>")
 
     return EmailDetail(
         item_id=item.id,

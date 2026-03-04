@@ -8,6 +8,7 @@ const navItems = [
   { title: 'Dokumente', icon: 'mdi-file-document-multiple', to: '/documents' },
   { title: 'Lernen', icon: 'mdi-school', to: '/learning' },
   { title: 'Wissensgraph', icon: 'mdi-graph', to: '/knowledge' },
+  { title: 'E-Mail', icon: 'mdi-email', to: '/email' },
   { title: 'Kalender', icon: 'mdi-calendar', to: '/calendar' },
   { title: 'Einstellungen', icon: 'mdi-cog', to: '/settings' },
 ]

@@ -24,6 +24,10 @@ export const router = createRouter({
       component: () => import('./views/KnowledgeGraphView.vue'),
     },
     {
+      path: '/email',
+      component: () => import('./views/EmailView.vue'),
+    },
+    {
       path: '/calendar',
       component: () => import('./views/CalendarView.vue'),
     },
