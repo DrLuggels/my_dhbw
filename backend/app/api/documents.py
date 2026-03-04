@@ -30,6 +30,7 @@ async def upload_document(
 
     # Process in same request for now (background tasks in later phase)
     doc = await document_service.process_document(db, doc.id)
+    await db.refresh(doc)
 
     return ApiResponse(data=DocumentOut.model_validate(doc), message="Dokument hochgeladen")
 
@@ -103,4 +104,5 @@ async def reprocess_document(
 
     # Reprocess
     doc = await document_service.process_document(db, doc.id)
+    await db.refresh(doc)
     return ApiResponse(data=DocumentOut.model_validate(doc), message="Neu verarbeitet")

@@ -22,6 +22,9 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://dhbw_user:${POSTGRES_PASSWORD:-dhbw_secret}@db:5432/dhbw_automation
       FRONTEND_URL: ${FRONTEND_URL:-http://192.168.178.198}
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     volumes:
       - uploads:/app/uploads
     depends_on:
