@@ -5,6 +5,7 @@ import logging
 from functools import partial
 
 from exchangelib import Account, Configuration, Credentials, DELEGATE
+from exchangelib.properties import ItemId
 
 from app.schemas.email import (
     EmailDetail,
@@ -78,8 +79,10 @@ def _get_email(
 ) -> EmailDetail:
     """Fetch a single email by ID (blocking)."""
     account = _connect(server, username, password, email)
-    qs = account.inbox.filter(id=item_id)
-    item = qs.get()
+    items = list(account.fetch(ids=[ItemId(id=item_id)]))
+    if not items or isinstance(items[0], Exception):
+        raise ValueError("E-Mail nicht gefunden")
+    item = items[0]
 
     sender = item.sender
     attachment_names = [a.name for a in (item.attachments or []) if hasattr(a, "name")]
