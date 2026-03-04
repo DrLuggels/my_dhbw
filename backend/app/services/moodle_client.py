@@ -6,6 +6,7 @@ Handles HTTP calls, token auth, and response parsing.
 import logging
 
 import httpx
+from sqlalchemy import select
 
 from app.config import settings
 
@@ -18,9 +19,45 @@ class MoodleClient:
     """Async HTTP client for Moodle Web Services REST API."""
 
     def __init__(self, base_url: str = "", token: str = "") -> None:
-        self.base_url = (base_url or settings.moodle_base_url).rstrip("/")
-        self.token = token or settings.moodle_token
+        self._explicit_base_url = base_url
+        self._explicit_token = token
+        self.base_url = ""
+        self.token = ""
         self._client: httpx.AsyncClient | None = None
+        self._initialized = False
+
+    async def _ensure_init(self) -> None:
+        """Load base_url/token from DB settings, falling back to env."""
+        if self._initialized:
+            return
+        self._initialized = True
+
+        if self._explicit_base_url and self._explicit_token:
+            self.base_url = self._explicit_base_url.rstrip("/")
+            self.token = self._explicit_token
+            return
+
+        # Try DB settings first
+        try:
+            from app.models.base import async_session
+            from app.models.settings import AppSettings
+
+            async with async_session() as db:
+                result = await db.execute(select(AppSettings).where(AppSettings.id == 1))
+                s = result.scalar_one_or_none()
+                if s:
+                    if not self._explicit_base_url and s.moodle_base_url:
+                        self.base_url = s.moodle_base_url.rstrip("/")
+                    if not self._explicit_token and s.moodle_token:
+                        self.token = s.moodle_token
+        except Exception:
+            logger.debug("Could not load Moodle settings from DB")
+
+        # Fallback to env
+        if not self.base_url:
+            self.base_url = (self._explicit_base_url or settings.moodle_base_url).rstrip("/")
+        if not self.token:
+            self.token = self._explicit_token or settings.moodle_token
 
     @property
     def client(self) -> httpx.AsyncClient:
@@ -42,6 +79,7 @@ class MoodleClient:
         Returns:
             Parsed JSON response.
         """
+        await self._ensure_init()
         data = {
             "wstoken": self.token,
             "wsfunction": function,
@@ -59,6 +97,7 @@ class MoodleClient:
 
     async def download_file(self, url: str) -> bytes:
         """Download a file from Moodle (appends token)."""
+        await self._ensure_init()
         sep = "&" if "?" in url else "?"
         full_url = f"{url}{sep}token={self.token}"
         response = await self.client.get(full_url)
