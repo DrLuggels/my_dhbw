@@ -79,8 +79,8 @@ async def get_inbox(
         return ApiResponse(success=False, message=f"Fehler beim Abrufen: {e}")
 
 
-@router.get("/{item_id:path}", response_model=ApiResponse[EmailDetail])
-async def get_email_detail(item_id: str, db: AsyncSession = Depends(get_db)):
+@router.get("/detail", response_model=ApiResponse[EmailDetail])
+async def get_email_detail(item_id: str = Query(...), db: AsyncSession = Depends(get_db)):
     """Fetch a single email by its Exchange ID."""
     try:
         s = await _get_email_settings(db)
