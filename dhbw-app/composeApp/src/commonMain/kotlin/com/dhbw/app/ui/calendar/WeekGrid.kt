@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -37,9 +38,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.dhbw.app.domain.model.CalendarEvent
-import com.dhbw.app.ui.theme.EventExam
-import com.dhbw.app.ui.theme.EventSelfStudy
-import com.dhbw.app.ui.theme.EventTutorium
 import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlinx.datetime.DateTimeUnit
@@ -55,10 +53,23 @@ private val END_HOUR = 19
 private val DAY_NAMES = listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa")
 private val NOW_COLOR = Color(0xFFE53935)
 
-private val COURSE_COLORS = listOf(
-    Color(0xFF1565C0), Color(0xFF00897B), Color(0xFF6A1B9A),
-    Color(0xFFC62828), Color(0xFF2E7D32), Color(0xFFE65100),
-    Color(0xFF283593), Color(0xFF00838F), Color(0xFF4E342E),
+// Exact 15-color palette from web frontend
+private val PALETTE = listOf(
+    Color(0xFF1565C0), Color(0xFF2E7D32), Color(0xFF6A1B9A),
+    Color(0xFFE65100), Color(0xFF00838F), Color(0xFFAD1457),
+    Color(0xFF283593), Color(0xFF4E342E), Color(0xFF00695C),
+    Color(0xFFBF360C), Color(0xFF1B5E20), Color(0xFF4A148C),
+    Color(0xFF0D47A1), Color(0xFF880E4F), Color(0xFF33691E),
+)
+
+private val EXAM_COLOR = Color(0xFFC62828)
+private val TUTORIUM_COLOR = Color(0xFF546E7A)
+private val SELF_STUDY_COLOR = Color(0xFF78909C)
+
+private val HOLIDAY_KEYWORDS = listOf(
+    "selbststudium", "feiertag", "rosenmontag", "karfreitag",
+    "ostermontag", "pfingst", "fronleichnam", "himmelfahrt",
+    "tag der arbeit", "ostersamstag",
 )
 
 @Composable
@@ -68,14 +79,14 @@ fun WeekGrid(events: List<CalendarEvent>, weekStart: LocalDate) {
     var nowMinutes by remember { mutableStateOf(currentMinutesOfDay(tz)) }
     var today by remember { mutableStateOf(currentDate(tz)) }
 
-    // Hide Saturday if no events on that day
+    // Build sequential color map (same logic as web frontend)
+    val colorMap = remember(events) { buildCourseColorMap(events) }
+
+    // Hide Saturday if no events
     val saturday = weekStart.plus(5, DateTimeUnit.DAY)
-    val hasSaturdayEvents = events.any { event ->
-        event.startTime.toLocalDateTime(tz).date == saturday
-    }
+    val hasSaturdayEvents = events.any { it.startTime.toLocalDateTime(tz).date == saturday }
     val dayCount = if (hasSaturdayEvents) 6 else 5
 
-    // Update current time every minute
     LaunchedEffect(Unit) {
         while (true) {
             delay(60_000)
@@ -84,7 +95,6 @@ fun WeekGrid(events: List<CalendarEvent>, weekStart: LocalDate) {
         }
     }
 
-    // Detail dialog
     selectedEvent?.let { event ->
         EventDetailDialog(event, tz, onDismiss = { selectedEvent = null })
     }
@@ -118,7 +128,6 @@ fun WeekGrid(events: List<CalendarEvent>, weekStart: LocalDate) {
 
             // Grid body
             Row(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-                // Time labels
                 Column {
                     for (hour in START_HOUR..END_HOUR) {
                         Box(modifier = Modifier.height(HOUR_HEIGHT).width(TIME_COL)) {
@@ -132,12 +141,11 @@ fun WeekGrid(events: List<CalendarEvent>, weekStart: LocalDate) {
                     }
                 }
 
-                // Day columns
                 for (dayOffset in 0 until dayCount) {
                     val date = weekStart.plus(dayOffset, DateTimeUnit.DAY)
                     val isToday = date == today
-                    val dayEvents = events.filter { event ->
-                        event.startTime.toLocalDateTime(tz).date == date
+                    val dayEvents = events.filter {
+                        it.startTime.toLocalDateTime(tz).date == date
                     }
 
                     Box(
@@ -147,15 +155,16 @@ fun WeekGrid(events: List<CalendarEvent>, weekStart: LocalDate) {
                             .border(0.5.dp, Color.LightGray),
                     ) {
                         dayEvents.forEach { event ->
-                            EventBlock(event, tz, dayWidth, onClick = { selectedEvent = event })
+                            EventBlock(
+                                event, tz, dayWidth, colorMap,
+                                onClick = { selectedEvent = event },
+                            )
                         }
 
-                        // "Now" indicator line on today's column
                         if (isToday) {
                             val minSinceStart = nowMinutes - START_HOUR * 60
                             if (minSinceStart in 0..(END_HOUR - START_HOUR + 1) * 60) {
                                 val yOff = (minSinceStart.toFloat() / 60f) * HOUR_HEIGHT.value
-                                // Red dot
                                 Box(
                                     modifier = Modifier
                                         .offset(x = (-3).dp, y = Dp(yOff - 3))
@@ -164,7 +173,6 @@ fun WeekGrid(events: List<CalendarEvent>, weekStart: LocalDate) {
                                         .clip(CircleShape)
                                         .background(NOW_COLOR),
                                 )
-                                // Red line
                                 Box(
                                     modifier = Modifier
                                         .offset(y = Dp(yOff - 0.5f))
@@ -187,6 +195,7 @@ private fun EventBlock(
     event: CalendarEvent,
     tz: TimeZone,
     dayWidth: Dp,
+    colorMap: Map<String, Color>,
     onClick: () -> Unit,
 ) {
     val startLocal = event.startTime.toLocalDateTime(tz)
@@ -198,21 +207,23 @@ private fun EventBlock(
 
     val topOffset = (startMinutes.toFloat() / 60f) * HOUR_HEIGHT.value
     val blockHeight = (durationMinutes.toFloat() / 60f) * HOUR_HEIGHT.value
-    val color = eventColor(event)
+    val color = eventColor(event, colorMap)
+    val isExam = isExam(event)
 
     Box(
         modifier = Modifier
             .offset(x = 1.dp, y = Dp(topOffset))
             .width(dayWidth - 2.dp)
             .height(Dp(blockHeight))
-            .clip(RoundedCornerShape(3.dp))
-            .background(color.copy(alpha = 0.85f))
+            .clip(RoundedCornerShape(4.dp))
+            .then(if (isExam) Modifier.shadow(4.dp, RoundedCornerShape(4.dp)) else Modifier)
+            .background(color)
             .clickable(onClick = onClick)
-            .padding(2.dp),
+            .padding(start = 4.dp, end = 2.dp, top = 2.dp, bottom = 2.dp),
     ) {
         Column {
             Text(
-                text = event.title,
+                text = if (isExam) "\u26A0 ${event.title}" else event.title,
                 fontSize = 8.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White,
@@ -222,15 +233,65 @@ private fun EventBlock(
             )
             event.location?.let {
                 Text(
-                    text = it,
+                    text = shortRoom(it),
                     fontSize = 7.sp,
-                    color = Color.White.copy(alpha = 0.8f),
+                    color = Color.White.copy(alpha = 0.9f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
         }
     }
+}
+
+/** Extract course key from parentheses or normalize title — matches web frontend */
+private fun getCourseKey(title: String): String {
+    val match = Regex("\\(([^)]+)\\)").find(title)
+    if (match != null) return match.groupValues[1].trim()
+    return title.replace(Regex("\\s+"), " ").trim().lowercase()
+}
+
+/** Build sequential color map like web frontend (not hash-based) */
+private fun buildCourseColorMap(events: List<CalendarEvent>): Map<String, Color> {
+    val map = mutableMapOf<String, Color>()
+    var idx = 0
+    for (event in events) {
+        if (isExam(event) || isTutorium(event) || isSelfStudy(event)) continue
+        val key = getCourseKey(event.title)
+        if (key !in map) {
+            map[key] = PALETTE[idx % PALETTE.size]
+            idx++
+        }
+    }
+    return map
+}
+
+private fun eventColor(event: CalendarEvent, colorMap: Map<String, Color>): Color {
+    if (isExam(event)) return EXAM_COLOR
+    if (isTutorium(event)) return TUTORIUM_COLOR
+    if (isSelfStudy(event)) return SELF_STUDY_COLOR
+    return colorMap[getCourseKey(event.title)] ?: PALETTE[0]
+}
+
+private fun isExam(event: CalendarEvent): Boolean {
+    val t = event.title.lowercase()
+    return t.contains("klausur") || t.contains("kurztest") ||
+        t.contains("prüfung") || t.contains("exam")
+}
+
+private fun isTutorium(event: CalendarEvent): Boolean {
+    return event.title.lowercase().contains("tutorium")
+}
+
+private fun isSelfStudy(event: CalendarEvent): Boolean {
+    val t = event.title.lowercase()
+    return HOLIDAY_KEYWORDS.any { t.contains(it) }
+}
+
+/** Truncate room at first parenthesis — matches web frontend */
+private fun shortRoom(loc: String): String {
+    val idx = loc.indexOf('(')
+    return if (idx > 0) loc.substring(0, idx).trim() else loc
 }
 
 private fun currentMinutesOfDay(tz: TimeZone): Int {
@@ -240,20 +301,4 @@ private fun currentMinutesOfDay(tz: TimeZone): Int {
 
 private fun currentDate(tz: TimeZone): LocalDate {
     return Clock.System.now().toLocalDateTime(tz).date
-}
-
-private fun eventColor(event: CalendarEvent): Color {
-    val type = event.eventType.lowercase()
-    val title = event.title.lowercase()
-
-    return when {
-        type.contains("exam") || type.contains("klausur") ||
-            title.contains("klausur") || title.contains("prüfung") -> EventExam
-        type.contains("tutorium") || title.contains("tutorium") -> EventTutorium
-        type.contains("selbststudium") || type.contains("frei") ||
-            title.contains("selbststudium") -> EventSelfStudy
-        else -> COURSE_COLORS[event.title.hashCode().mod(COURSE_COLORS.size).let {
-            if (it < 0) it + COURSE_COLORS.size else it
-        }]
-    }
 }

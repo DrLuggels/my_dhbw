@@ -1,8 +1,8 @@
 package com.dhbw.app.ui.calendar
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -118,17 +118,19 @@ fun CalendarScreen() {
                             )
                         },
                 ) {
+                    val spec = tween<androidx.compose.ui.unit.IntOffset>(
+                        durationMillis = 300,
+                        easing = FastOutSlowInEasing,
+                    )
                     AnimatedContent(
                         targetState = state.weekStart,
                         transitionSpec = {
                             if (targetState > initialState) {
-                                // Forward → slide in from right, old slides out left
-                                (slideInHorizontally { it / 3 } + fadeIn()) togetherWith
-                                    (slideOutHorizontally { -it / 3 } + fadeOut())
+                                slideInHorizontally(spec) { it } togetherWith
+                                    slideOutHorizontally(spec) { -it }
                             } else {
-                                // Backward → slide in from left, old slides out right
-                                (slideInHorizontally { -it / 3 } + fadeIn()) togetherWith
-                                    (slideOutHorizontally { it / 3 } + fadeOut())
+                                slideInHorizontally(spec) { -it } togetherWith
+                                    slideOutHorizontally(spec) { it }
                             }
                         },
                         label = "weekSlide",

@@ -68,7 +68,8 @@
       "Bash(export:*)",
       "Bash(\"/c/Program Files/Eclipse Adoptium/jdk-17.0.17.10-hotspot/bin/java\":*)",
       "Bash(rm:*)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "WebFetch(domain:www.dynadot.com)"
     ]
   }
 }
